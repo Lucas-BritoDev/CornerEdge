@@ -1,27 +1,57 @@
-// Core Types
+// Core Types - Organizador de Atividades Domésticas
 
-export interface ShoppingItem {
+// ====================
+// HOUSEHOLD TYPES
+// ====================
+
+export interface HouseholdMember {
     id: string;
     name: string;
-    quantity: number;
-    unit?: string;
-    category: string;
+    email: string;
+    avatar?: string;
+    role: 'admin' | 'member';
+    points: number;
+    joinedAt: number;
+}
+
+export interface HouseholdTask {
+    id: string;
+    name: string;
+    description?: string;
+    category: 'limpeza' | 'cozinha' | 'lavanderia' | 'jardim' | 'organizacao' | 'quarto' | 'outros';
+    frequency: 'daily' | 'weekly' | 'monthly' | 'once';
+    assignedTo?: string; // member id
+    priority: 'low' | 'medium' | 'high';
+    points: number;
+    dueDate?: number;
     completed: boolean;
-    price?: number;
-    notes?: string;
+    createdAt: number;
+    createdBy: string;
 }
 
-export interface ShoppingList {
+export interface TaskCompletion {
+    id: string;
+    taskId: string;
+    taskName: string;
+    completedBy: string;
+    completedByName: string;
+    completedAt: number;
+    pointsEarned: number;
+}
+
+export interface Household {
     id: string;
     name: string;
-    items: ShoppingItem[];
+    code: string;
+    members: HouseholdMember[];
+    tasks: HouseholdTask[];
+    completions: TaskCompletion[];
     createdAt: number;
-    updatedAt: number;
-    budget?: number;
-    shareCode?: string;
-    members?: string[];
-    completedAt?: number;
 }
+
+// ====================
+// ACHIEVEMENTS & GAMIFICATION
+// ====================
 
 export interface Achievement {
     id: string;
@@ -34,15 +64,14 @@ export interface Achievement {
 }
 
 export interface UserStats {
-    listsCreated: number;
-    itemsAdded: number;
-    itemsCompleted: number;
-    listsCompleted: number;
+    tasksCompleted: number;
+    tasksCreated: number;
     daysActive: number;
     currentStreak: number;
     lastActiveDate: string;
     xp: number;
     level: number;
+    totalPoints: number;
 }
 
 export interface UserSettings {
@@ -50,7 +79,8 @@ export interface UserSettings {
     notificationsEnabled: boolean;
     soundEnabled: boolean;
     hapticEnabled: boolean;
-    currency: string;
+    language?: string;
+    currency?: string;
 }
 
 export interface UserProfile {
@@ -62,19 +92,13 @@ export interface UserProfile {
     achievements: string[];
     settings: UserSettings;
     isPremium?: boolean;
+    householdId?: string;
 }
 
-export interface Recipe {
-    id: string;
-    name: string;
-    time: string;
-    calories: string;
-    difficulty: 'Fácil' | 'Médio' | 'Difícil';
-    ingredients: string[];
-    isFavorite?: boolean;
-}
+// ====================
+// GROUP/HOUSEHOLD COMMUNICATION
+// ====================
 
-// Group Types
 export interface GroupMember {
     id: string;
     name: string;
@@ -96,12 +120,12 @@ export interface GroupMessage {
 
 export interface GroupActivity {
     id: string;
-    type: 'create_list' | 'add_member' | 'message' | 'complete_message' | 'join_group';
+    type: 'create_task' | 'complete_task' | 'add_member' | 'message' | 'join_group';
     userId: string;
     userName: string;
-    content: string; // "Added Milk", "Created LIST BBQ"
+    content: string;
     timestamp: number;
-    meta?: any; // Extra data like listId
+    meta?: any;
 }
 
 export interface Group {
@@ -112,5 +136,32 @@ export interface Group {
     messages: GroupMessage[];
     activities: GroupActivity[];
     createdAt: number;
-    lists: string[]; // List IDs shared with this group
+    tasks: string[]; // Task IDs
 }
+
+// ====================
+// TASK CATEGORIES
+// ====================
+
+export const TASK_CATEGORIES = [
+    { id: 'limpeza', name: 'Limpeza', icon: '🧹', color: '#3B82F6' },
+    { id: 'cozinha', name: 'Cozinha', icon: '🍳', color: '#F59E0B' },
+    { id: 'lavanderia', name: 'Lavanderia', icon: '👕', color: '#8B5CF6' },
+    { id: 'jardim', name: 'Jardim', icon: '🌱', color: '#10B981' },
+    { id: 'quarto', name: 'Quarto', icon: '🛏️', color: '#F97316' },
+    { id: 'organizacao', name: 'Organização', icon: '📦', color: '#EC4899' },
+    { id: 'outros', name: 'Outros', icon: '📋', color: '#6B7280' },
+] as const;
+
+export const TASK_FREQUENCIES = [
+    { id: 'daily', name: 'Diária', description: 'Repete todo dia' },
+    { id: 'weekly', name: 'Semanal', description: 'Repete toda semana' },
+    { id: 'monthly', name: 'Mensal', description: 'Repete todo mês' },
+    { id: 'once', name: 'Única', description: 'Não repete' },
+] as const;
+
+export const TASK_PRIORITIES = [
+    { id: 'low', name: 'Baixa', color: '#10B981' },
+    { id: 'medium', name: 'Média', color: '#F59E0B' },
+    { id: 'high', name: 'Alta', color: '#EF4444' },
+] as const;

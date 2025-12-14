@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Mail, Lock, Eye, EyeOff, ArrowRight, ShoppingCart } from 'lucide-react-native';
+import { Mail, Lock, Eye, EyeOff, ArrowRight, Home } from 'lucide-react-native';
 import { useAuth } from '../context/AuthContext';
 import { colors, spacing, borderRadius, fontSize, shadows } from '../constants/theme';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -69,10 +69,10 @@ export default function LoginScreen() {
                         {/* Header */}
                         <View style={styles.header}>
                             <View style={styles.iconCircle}>
-                                <ShoppingCart color={colors.primary} size={32} />
+                                <Home color={colors.primary} size={32} />
                             </View>
                             <Text style={styles.title}>Bem-vindo!</Text>
-                            <Text style={styles.subtitle}>Suas compras, muito mais inteligentes.</Text>
+                            <Text style={styles.subtitle}>Organize tarefas domésticas em família.</Text>
                         </View>
 
                         {/* Form */}

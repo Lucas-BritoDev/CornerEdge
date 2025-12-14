@@ -1,26 +1,46 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ShoppingList, UserProfile } from '../types';
+import { UserProfile, HouseholdTask, Household } from '../types';
 
-const LISTS_KEY = '@lists';
 const PROFILE_KEY = '@profile';
+const TASKS_KEY = '@tasks';
+const HOUSEHOLD_KEY = '@household';
 
 export const storageService = {
-    // Lists
-    async getLists(): Promise<ShoppingList[]> {
+    // Tasks
+    async getTasks(): Promise<HouseholdTask[]> {
         try {
-            const data = await AsyncStorage.getItem(LISTS_KEY);
+            const data = await AsyncStorage.getItem(TASKS_KEY);
             return data ? JSON.parse(data) : [];
         } catch (error) {
-            console.error('Error getting lists:', error);
+            console.error('Error getting tasks:', error);
             return [];
         }
     },
 
-    async saveLists(lists: ShoppingList[]): Promise<void> {
+    async saveTasks(tasks: HouseholdTask[]): Promise<void> {
         try {
-            await AsyncStorage.setItem(LISTS_KEY, JSON.stringify(lists));
+            await AsyncStorage.setItem(TASKS_KEY, JSON.stringify(tasks));
         } catch (error) {
-            console.error('Error saving lists:', error);
+            console.error('Error saving tasks:', error);
+        }
+    },
+
+    // Household
+    async getHousehold(): Promise<Household | null> {
+        try {
+            const data = await AsyncStorage.getItem(HOUSEHOLD_KEY);
+            return data ? JSON.parse(data) : null;
+        } catch (error) {
+            console.error('Error getting household:', error);
+            return null;
+        }
+    },
+
+    async saveHousehold(household: Household): Promise<void> {
+        try {
+            await AsyncStorage.setItem(HOUSEHOLD_KEY, JSON.stringify(household));
+        } catch (error) {
+            console.error('Error saving household:', error);
         }
     },
 
@@ -29,15 +49,14 @@ export const storageService = {
         try {
             const data = await AsyncStorage.getItem(PROFILE_KEY);
             if (data) return JSON.parse(data);
-            // Return default profile if none exists
+
             const defaultProfile: UserProfile = {
                 id: 'default',
                 name: 'Usuário',
                 stats: {
-                    listsCreated: 0,
-                    itemsAdded: 0,
-                    itemsCompleted: 0,
-                    listsCompleted: 0,
+                    tasksCreated: 0,
+                    tasksCompleted: 0,
+                    totalPoints: 0,
                     daysActive: 0,
                     currentStreak: 0,
                     lastActiveDate: '',
@@ -71,7 +90,7 @@ export const storageService = {
 
     async clearAll(): Promise<void> {
         try {
-            await AsyncStorage.multiRemove([LISTS_KEY, PROFILE_KEY, '@challenges']);
+            await AsyncStorage.multiRemove([TASKS_KEY, PROFILE_KEY, HOUSEHOLD_KEY, '@challenges']);
         } catch (error) {
             console.error('Error clearing data:', error);
         }

@@ -75,7 +75,7 @@ export default function SignupScreen() {
                                 <UserPlus color={colors.primary} size={32} />
                             </View>
                             <Text style={styles.title}>Criar Conta</Text>
-                            <Text style={styles.subtitle}>Junte-se a nós e comece a economizar!</Text>
+                            <Text style={styles.subtitle}>Junte-se à sua família e organize tarefas!</Text>
                         </View>
 
                         {/* Form */}

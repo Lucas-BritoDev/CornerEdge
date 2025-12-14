@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { UserStats, ShoppingList, ShoppingItem } from '../types';
+import { UserStats, HouseholdTask, Household } from '../types';
 import { storageService } from './storage-service';
 
 export const analyticsService = {
@@ -8,17 +8,17 @@ export const analyticsService = {
         // Here we would send to a backend (Supabase/Firebase)
     },
 
-    async updateStats(action: 'create_list' | 'add_item' | 'complete_item' | 'complete_list', count = 1) {
+    async updateStats(action: 'create_task' | 'complete_task', count = 1) {
         const profile = await storageService.getProfile();
         if (!profile) return;
 
         const today = new Date().toISOString().split('T')[0];
 
         // Update basic stats
-        if (action === 'create_list') profile.stats.listsCreated += count;
-        if (action === 'add_item') profile.stats.itemsAdded += count;
-        if (action === 'complete_item') profile.stats.itemsCompleted += count;
-        if (action === 'complete_list') profile.stats.listsCompleted += count;
+        if (action === 'create_task') profile.stats.tasksCreated += count;
+        if (action === 'complete_task') {
+            profile.stats.tasksCompleted += count;
+        }
 
         // Update streak
         if (profile.stats.lastActiveDate !== today) {
@@ -41,20 +41,21 @@ export const analyticsService = {
 
     async getInsights() {
         // Calculate insights for dashboard
-        const lists = await storageService.getLists();
+        const household = await storageService.getHousehold();
         const profile = await storageService.getProfile();
 
-        // Example insights
-        const completedLists = lists.filter(l => l.completedAt).length;
-        const totalItems = lists.reduce((acc, l) => acc + l.items.length, 0);
+        const tasks = household?.tasks || [];
+        const completedTasks = tasks.filter((t: HouseholdTask) => t.completed).length;
+        const totalTasks = tasks.length;
 
         return {
-            totalLists: lists.length,
-            completedLists,
-            completionRate: lists.length > 0 ? (completedLists / lists.length) * 100 : 0,
-            totalItems,
+            totalTasks,
+            completedTasks,
+            completionRate: totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0,
+            pendingTasks: totalTasks - completedTasks,
             level: profile?.stats.level || 1,
-            streak: profile?.stats.currentStreak || 0
+            streak: profile?.stats.currentStreak || 0,
+            totalPoints: profile?.stats.totalPoints || 0
         };
     }
 };

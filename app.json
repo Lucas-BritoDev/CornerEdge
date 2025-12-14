@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "Lista de Compras Inteligente",
-    "slug": "smart-shopping-list",
+    "name": "Organizador de Casa",
+    "slug": "household-organizer",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "smartshopping",
+    "scheme": "householdorg",
     "userInterfaceStyle": "automatic",
     "splash": {
       "image": "./assets/images/splash.png",
@@ -14,14 +14,14 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.lucas.smartshoppinglist"
+      "bundleIdentifier": "com.lucas.householdorganizer"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.lucas.smartshoppinglist"
+      "package": "com.lucas.householdorganizer"
     },
     "web": {
       "bundler": "metro",

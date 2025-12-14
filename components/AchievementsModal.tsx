@@ -1,8 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { Modal, View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { gamificationService, ACHIEVEMENTS } from '../services/gamification-service';
 import { storageService } from '../services/storage-service';
-import { X, Award } from 'lucide-react-native';
+import { X } from 'lucide-react-native';
+import { colors, spacing, borderRadius, fontSize, shadows } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
 
 interface AchievementsModalProps {
     visible: boolean;
@@ -10,8 +13,16 @@ interface AchievementsModalProps {
 }
 
 export function AchievementsModal({ visible, onClose }: AchievementsModalProps) {
+    const insets = useSafeAreaInsets();
+    const { theme } = useTheme();
+    const isDark = theme === 'dark';
     const [unlockedIds, setUnlockedIds] = useState<string[]>([]);
     const [stats, setStats] = useState<any>(null);
+
+    const bgColor = isDark ? '#111827' : colors.background;
+    const cardColor = isDark ? '#1F2937' : colors.white;
+    const textColor = isDark ? '#F9FAFB' : colors.textPrimary;
+    const mutedColor = isDark ? '#9CA3AF' : colors.textMuted;
 
     useEffect(() => {
         if (visible) {
@@ -28,144 +39,155 @@ export function AchievementsModal({ visible, onClose }: AchievementsModalProps) 
     };
 
     return (
-        <Modal visible={visible} animationType="slide" transparent>
-            <View style={styles.overlay}>
-                <View style={styles.modalContainer}>
-                    <View style={styles.header}>
-                        <Text style={styles.title}>Conquistas</Text>
-                        <TouchableOpacity onPress={onClose}>
-                            <X color="#333" size={24} />
-                        </TouchableOpacity>
+        <Modal visible={visible} animationType="slide">
+            <View style={[styles.container, { backgroundColor: bgColor, paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+                {/* Header */}
+                <View style={styles.header}>
+                    <Text style={[styles.title, { color: textColor }]}>🏆 Conquistas</Text>
+                    <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+                        <X color={mutedColor} size={24} />
+                    </TouchableOpacity>
+                </View>
+
+                <ScrollView contentContainerStyle={styles.content}>
+                    {/* Stats */}
+                    <View style={[styles.statsRow, { backgroundColor: cardColor }]}>
+                        <View style={styles.statItem}>
+                            <Text style={[styles.statValue, { color: colors.primary }]}>{unlockedIds.length}</Text>
+                            <Text style={[styles.statLabel, { color: mutedColor }]}>Desbloqueadas</Text>
+                        </View>
+                        <View style={styles.statDivider} />
+                        <View style={styles.statItem}>
+                            <Text style={[styles.statValue, { color: colors.primary }]}>{ACHIEVEMENTS.length}</Text>
+                            <Text style={[styles.statLabel, { color: mutedColor }]}>Total</Text>
+                        </View>
                     </View>
 
-                    <ScrollView contentContainerStyle={styles.content}>
-                        <View style={styles.statsRow}>
-                            <View style={styles.statItem}>
-                                <Text style={styles.statValue}>{unlockedIds.length}</Text>
-                                <Text style={styles.statLabel}>Desbloqueadas</Text>
-                            </View>
-                            <View style={styles.statItem}>
-                                <Text style={styles.statValue}>{ACHIEVEMENTS.length}</Text>
-                                <Text style={styles.statLabel}>Total</Text>
-                            </View>
-                        </View>
-
-                        {['bronze', 'silver', 'gold', 'platinum'].map((category) => (
-                            <View key={category} style={styles.categorySection}>
-                                <Text style={styles.categoryTitle}>
-                                    {category === 'bronze' ? '🥉 Bronze' :
-                                        category === 'silver' ? '🥈 Prata' :
-                                            category === 'gold' ? '🥇 Ouro' : '💎 Platina'}
-                                </Text>
-                                {ACHIEVEMENTS.filter(a => a.category === category).map(achievement => {
-                                    const isUnlocked = unlockedIds.includes(achievement.id);
-                                    return (
-                                        <View key={achievement.id} style={[styles.achievementCard, isUnlocked ? styles.unlockedCard : styles.lockedCard]}>
-                                            <View style={styles.iconBox}>
-                                                <Text style={[styles.icon, !isUnlocked && styles.grayscale]}>{achievement.icon}</Text>
-                                            </View>
-                                            <View style={styles.info}>
-                                                <Text style={styles.achievementTitle}>{achievement.title}</Text>
-                                                <Text style={styles.achievementDesc}>{achievement.description}</Text>
-                                                <Text style={styles.xpReward}>+{achievement.xpReward} XP</Text>
-                                            </View>
-                                            {!isUnlocked && <View style={styles.lockOverlay} />}
+                    {/* Achievement Categories */}
+                    {['bronze', 'silver', 'gold', 'platinum'].map((category) => (
+                        <View key={category} style={styles.categorySection}>
+                            <Text style={[styles.categoryTitle, { color: textColor }]}>
+                                {category === 'bronze' ? '🥉 Bronze' :
+                                    category === 'silver' ? '🥈 Prata' :
+                                        category === 'gold' ? '🥇 Ouro' : '💎 Platina'}
+                            </Text>
+                            {ACHIEVEMENTS.filter(a => a.category === category).map(achievement => {
+                                const isUnlocked = unlockedIds.includes(achievement.id);
+                                return (
+                                    <View
+                                        key={achievement.id}
+                                        style={[
+                                            styles.achievementCard,
+                                            { backgroundColor: cardColor },
+                                            isUnlocked && styles.unlockedCard,
+                                            !isUnlocked && styles.lockedCard
+                                        ]}
+                                    >
+                                        <View style={[styles.iconBox, { backgroundColor: isUnlocked ? colors.primary + '20' : '#E5E7EB' }]}>
+                                            <Text style={[styles.icon, !isUnlocked && styles.grayscale]}>{achievement.icon}</Text>
                                         </View>
-                                    );
-                                })}
-                            </View>
-                        ))}
-                    </ScrollView>
-                </View>
+                                        <View style={styles.info}>
+                                            <Text style={[styles.achievementTitle, { color: textColor }]}>{achievement.title}</Text>
+                                            <Text style={[styles.achievementDesc, { color: mutedColor }]}>{achievement.description}</Text>
+                                            <Text style={[styles.xpReward, { color: colors.primary }]}>+{achievement.xpReward} XP</Text>
+                                        </View>
+                                        {isUnlocked && (
+                                            <View style={styles.checkBadge}>
+                                                <Text style={styles.checkEmoji}>✓</Text>
+                                            </View>
+                                        )}
+                                    </View>
+                                );
+                            })}
+                        </View>
+                    ))}
+                </ScrollView>
             </View>
         </Modal>
     );
 }
 
 const styles = StyleSheet.create({
-    overlay: {
+    container: {
         flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.5)',
-        justifyContent: 'flex-end',
-    },
-    modalContainer: {
-        backgroundColor: '#fff',
-        borderTopLeftRadius: 20,
-        borderTopRightRadius: 20,
-        height: '90%',
-        padding: 20,
+        paddingHorizontal: spacing.lg,
     },
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 20,
+        paddingVertical: spacing.lg,
     },
     title: {
-        fontSize: 24,
+        fontSize: fontSize['2xl'],
         fontWeight: 'bold',
     },
+    closeButton: {
+        padding: spacing.sm,
+    },
     content: {
-        paddingBottom: 40,
+        paddingBottom: spacing.xl,
     },
     statsRow: {
         flexDirection: 'row',
         justifyContent: 'space-around',
-        marginBottom: 24,
-        backgroundColor: '#f8f9fa',
-        padding: 16,
-        borderRadius: 12,
+        alignItems: 'center',
+        marginBottom: spacing.xl,
+        padding: spacing.lg,
+        borderRadius: borderRadius.lg,
+        ...shadows.sm,
     },
     statItem: {
         alignItems: 'center',
+        flex: 1,
+    },
+    statDivider: {
+        width: 1,
+        height: 40,
+        backgroundColor: '#E5E7EB',
     },
     statValue: {
-        fontSize: 24,
+        fontSize: fontSize['2xl'],
         fontWeight: 'bold',
-        color: '#8b5cf6',
     },
     statLabel: {
-        color: '#666',
+        fontSize: fontSize.sm,
+        marginTop: 4,
     },
     categorySection: {
-        marginBottom: 20,
+        marginBottom: spacing.xl,
     },
     categoryTitle: {
-        fontSize: 18,
+        fontSize: fontSize.lg,
         fontWeight: '600',
-        marginBottom: 12,
-        marginLeft: 4,
+        marginBottom: spacing.md,
     },
     achievementCard: {
         flexDirection: 'row',
-        padding: 16,
-        backgroundColor: '#fff',
-        borderRadius: 12,
-        marginBottom: 10,
-        borderWidth: 1,
-        borderColor: '#eee',
-        position: 'relative',
-        overflow: 'hidden',
+        alignItems: 'center',
+        padding: spacing.md,
+        borderRadius: borderRadius.lg,
+        marginBottom: spacing.sm,
+        borderWidth: 2,
+        borderColor: 'transparent',
+        ...shadows.sm,
     },
     unlockedCard: {
-        borderColor: '#8b5cf6',
-        backgroundColor: '#f5f3ff',
+        borderColor: colors.primary,
     },
     lockedCard: {
-        borderColor: '#eee',
-        opacity: 0.7,
+        opacity: 0.6,
     },
     iconBox: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
-        backgroundColor: '#fff',
+        width: 52,
+        height: 52,
+        borderRadius: 26,
         alignItems: 'center',
         justifyContent: 'center',
-        marginRight: 16,
+        marginRight: spacing.md,
     },
     icon: {
-        fontSize: 24,
+        fontSize: 26,
     },
     grayscale: {
         opacity: 0.5,
@@ -174,21 +196,29 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     achievementTitle: {
-        fontWeight: 'bold',
-        fontSize: 16,
-        marginBottom: 4,
+        fontWeight: '600',
+        fontSize: fontSize.md,
+        marginBottom: 2,
     },
     achievementDesc: {
-        color: '#666',
-        fontSize: 14,
-        marginBottom: 6,
+        fontSize: fontSize.sm,
+        marginBottom: 4,
     },
     xpReward: {
-        fontSize: 12,
+        fontSize: fontSize.sm,
         fontWeight: 'bold',
-        color: '#8b5cf6',
     },
-    lockOverlay: {
-        // optional lock icon
-    }
+    checkBadge: {
+        width: 28,
+        height: 28,
+        borderRadius: 14,
+        backgroundColor: colors.success,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    checkEmoji: {
+        color: colors.white,
+        fontSize: 14,
+        fontWeight: 'bold',
+    },
 });

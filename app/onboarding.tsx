@@ -21,43 +21,43 @@ const { width, height } = Dimensions.get('window');
 const SLIDES = [
     {
         id: '1',
-        icon: '📝',
-        title: 'Listas Inteligentes',
-        subtitle: 'Organize suas compras',
-        description: 'Crie listas de compras organizadas por categorias. Compartilhe com família e amigos via código.',
+        icon: '🏠',
+        title: 'Organize sua Casa',
+        subtitle: 'Tarefas em família',
+        description: 'Cadastre tarefas domésticas e distribua entre os moradores. Todos sabem o que fazer!',
         bgColors: ['#4F46E5', '#818CF8']
     },
     {
         id: '2',
-        icon: '💰',
-        title: 'Controle de Orçamento',
-        subtitle: 'Economize dinheiro',
-        description: 'Defina um teto de gastos e veja o progresso em tempo real. Nunca mais estoure o orçamento!',
+        icon: '✅',
+        title: 'Tarefas Compartilhadas',
+        subtitle: 'Divida responsabilidades',
+        description: 'Atribua tarefas diárias, semanais ou mensais. Rotatividade automática para ser justo.',
         bgColors: ['#059669', '#34D399']
     },
     {
         id: '3',
-        icon: '🍳',
-        title: 'Receitas Deliciosas',
-        subtitle: 'Cozinhe com facilidade',
-        description: 'Explore receitas e adicione ingredientes à sua lista com um toque. Filtros e favoritos incluídos.',
-        bgColors: ['#EA580C', '#FB923C']
+        icon: '🏆',
+        title: 'Ranking de Pontos',
+        subtitle: 'Gamificação divertida',
+        description: 'Ganhe pontos ao completar tarefas. Veja quem está mandando bem no ranking semanal!',
+        bgColors: ['#F59E0B', '#FBBF24']
     },
     {
         id: '4',
-        icon: '👥',
-        title: 'Modo Grupo',
-        subtitle: 'Sincronia total',
-        description: 'Mural de recados, atividades em tempo real e listas compartilhadas com sua casa.',
+        icon: '🔔',
+        title: 'Lembretes Automáticos',
+        subtitle: 'Nunca esqueça',
+        description: 'Notificações inteligentes para lembrar de tarefas pendentes. Mantenha a casa em ordem!',
         bgColors: ['#7C3AED', '#A78BFA']
     },
     {
         id: '5',
         icon: '🚀',
         title: 'Vamos Começar?',
-        subtitle: 'Sua vida mais fácil',
-        description: 'Junte-se a milhares de pessoas que já economizam tempo e dinheiro com nosso app.',
-        bgColors: ['#2563EB', '#60A5FA']
+        subtitle: 'Casa organizada, vida feliz',
+        description: 'Junte-se a milhares de famílias que já organizam suas atividades domésticas conosco.',
+        bgColors: ['#4F46E5', '#60A5FA']
     },
 ];
 

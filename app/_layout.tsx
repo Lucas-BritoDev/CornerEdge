@@ -15,15 +15,19 @@ function AppContent() {
                 <Stack.Screen name="login" />
                 <Stack.Screen name="signup" />
                 <Stack.Screen name="forgot-password" />
+                <Stack.Screen name="new-password" />
                 <Stack.Screen name="index" />
-                <Stack.Screen name="lists" />
-                <Stack.Screen name="list/[id]" />
-                <Stack.Screen name="recipes" />
+                <Stack.Screen name="tasks" />
                 <Stack.Screen name="group" />
-                <Stack.Screen name="achievements" />
+                <Stack.Screen name="ranking" />
+                <Stack.Screen name="history" />
+                <Stack.Screen name="roulette" />
+                <Stack.Screen name="blitz" />
+                <Stack.Screen name="debt" />
+                <Stack.Screen name="rewards" />
+                <Stack.Screen name="ai-assign" />
                 <Stack.Screen name="settings" />
                 <Stack.Screen name="goodbye" />
-                <Stack.Screen name="new-password" />
                 <Stack.Screen name="+not-found" />
             </Stack>
             <StatusBar style={theme === 'dark' ? 'light' : 'dark'} />

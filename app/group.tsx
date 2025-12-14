@@ -1,16 +1,27 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Modal, Alert, FlatList, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Modal, Alert, FlatList } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Menu, Users, Plus, Copy, UserPlus, Crown, Trash2, X, Check, Clock, ShoppingCart, LogOut, Send, MessageSquare, ClipboardList, TrendingUp, Settings, MoreVertical, Share2 } from 'lucide-react-native';
-import { colors, spacing, borderRadius, fontSize, shadows } from '../constants/theme';
+import { Menu, Users, Plus, Crown, Trash2, X, Check, Clock, LogOut, Send, MessageSquare, ClipboardList, TrendingUp, Settings, Share2, Star, Award, UserPlus } from 'lucide-react-native';
+import { colors, darkColors, spacing, borderRadius, fontSize, shadows } from '../constants/theme';
 import { DrawerMenu } from '../components/DrawerMenu';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Clipboard from 'expo-clipboard';
-import { Group, GroupMember, GroupMessage, GroupActivity, ShoppingList } from '../types';
-import { storageService } from '../services/storage-service';
+import { Group, GroupMember, GroupActivity, HouseholdMember, HouseholdTask, TASK_CATEGORIES } from '../types';
 import { useRouter } from 'expo-router';
+
+// Mock data para demonstração
+const MOCK_MEMBERS: HouseholdMember[] = [
+    { id: '1', name: 'Maria Silva', email: 'maria@email.com', role: 'admin', points: 450, joinedAt: Date.now() - 86400000 * 30 },
+    { id: '2', name: 'João Santos', email: 'joao@email.com', role: 'member', points: 380, joinedAt: Date.now() - 86400000 * 20 },
+    { id: '3', name: 'Ana Oliveira', email: 'ana@email.com', role: 'member', points: 320, joinedAt: Date.now() - 86400000 * 10 },
+];
+
+const MOCK_TASKS: HouseholdTask[] = [
+    { id: '1', name: 'Lavar a louça', category: 'cozinha', frequency: 'daily', priority: 'medium', points: 10, completed: false, createdAt: Date.now(), createdBy: '1', assignedTo: '2' },
+    { id: '2', name: 'Aspirar a sala', category: 'limpeza', frequency: 'weekly', priority: 'high', points: 20, completed: false, createdAt: Date.now(), createdBy: '1', assignedTo: '3' },
+];
 
 export default function GroupScreen() {
     const insets = useSafeAreaInsets();
@@ -19,206 +30,93 @@ export default function GroupScreen() {
     const { theme } = useTheme();
     const isDark = theme === 'dark';
     const [menuOpen, setMenuOpen] = useState(false);
-    const [group, setGroup] = useState<Group | null>(null);
-    const [sharedLists, setSharedLists] = useState<ShoppingList[]>([]);
+    const [household, setHousehold] = useState<{ name: string; code: string; createdAt: number } | null>({
+        name: 'Casa da Família',
+        code: 'FAM-1234',
+        createdAt: Date.now()
+    });
+    const [members, setMembers] = useState<HouseholdMember[]>(MOCK_MEMBERS);
+    const [tasks, setTasks] = useState<HouseholdTask[]>(MOCK_TASKS);
 
     // Modals
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [showJoinModal, setShowJoinModal] = useState(false);
     const [showMembersModal, setShowMembersModal] = useState(false);
+    const [showAssignModal, setShowAssignModal] = useState(false);
+    const [selectedMember, setSelectedMember] = useState<HouseholdMember | null>(null);
 
     // Inputs
-    const [groupName, setGroupName] = useState('');
+    const [householdName, setHouseholdName] = useState('');
     const [joinCode, setJoinCode] = useState('');
-    const [newMessage, setNewMessage] = useState('');
 
-    useEffect(() => { loadGroup(); }, []);
+    // WCAG 2.1 AA Compliant Colors
+    const bgColor = isDark ? darkColors.background : colors.background;
+    const cardColor = isDark ? darkColors.card : colors.white;
+    const textColor = isDark ? darkColors.textPrimary : colors.textPrimary;
+    const mutedColor = isDark ? darkColors.textMuted : colors.textMuted;
+    const borderColor = isDark ? darkColors.border : colors.border;
 
-    const loadGroup = async () => {
-        const stored = await AsyncStorage.getItem('@user_group');
-        if (stored) {
-            const parsedGroup = JSON.parse(stored);
-            setGroup(parsedGroup);
-            loadSharedLists(parsedGroup);
-        }
-    };
-
-    const loadSharedLists = async (currentGroup: Group) => {
-        const allLists = await storageService.getLists();
-        // In a real app, lists would be filtered by group ID. 
-        // For this mock, we'll assume all lists are shared if a group exists, or filter by 'isShared' if we added that property.
-        // Let's just mock it by showing the first 3 lists as "Shared"
-        setSharedLists((allLists || []).slice(0, 3));
-    };
-
-    const saveGroup = async (g: Group | null) => {
-        if (g) await AsyncStorage.setItem('@user_group', JSON.stringify(g));
-        else await AsyncStorage.removeItem('@user_group');
-        setGroup(g);
-    };
-
-    const createGroup = async () => {
-        if (!groupName.trim()) return;
-        const newGroup: Group = {
-            id: Date.now().toString(),
-            name: groupName.trim(),
-            code: Math.random().toString(36).substring(2, 6).toUpperCase() + '-' + Math.floor(1000 + Math.random() * 9000), // FAM-1234 format
-            members: [{
-                id: user?.id || '1',
-                name: user?.name || 'Usuário',
-                email: user?.email || '',
-                isAdmin: true,
-                joinedAt: Date.now(),
-                avatar: user?.name?.charAt(0).toUpperCase()
-            }],
-            messages: [],
-            activities: [{
-                id: Date.now().toString(),
-                type: 'join_group',
-                userId: user?.id || '1',
-                userName: user?.name || 'Usuário',
-                content: 'criou o grupo',
-                timestamp: Date.now()
-            }],
-            createdAt: Date.now(),
-            lists: []
-        };
-        await saveGroup(newGroup);
-        setShowCreateModal(false);
-        setGroupName('');
-        loadSharedLists(newGroup);
-    };
-
-    const postMessage = async () => {
-        if (!newMessage.trim() || !group) return;
-
-        const msg: GroupMessage = {
-            id: Date.now().toString(),
-            text: newMessage.trim(),
-            userId: user?.id || '1',
-            userName: user?.name || 'Usuário',
-            timestamp: Date.now(),
-            isCompleted: false
-        };
-
-        const updatedGroup = {
-            ...group,
-            messages: [msg, ...(group.messages || [])],
-            activities: [{
-                id: 'act_' + Date.now(),
-                type: 'message' as const,
-                userId: user?.id || '1',
-                userName: user?.name || 'Usuário',
-                content: `pediu: "${msg.text}"`,
-                timestamp: Date.now()
-            }, ...(group.activities || [])]
-        };
-
-        await saveGroup(updatedGroup);
-        setNewMessage('');
-    };
-
-    const toggleMessageCompletion = async (msgId: string) => {
-        if (!group) return;
-        const messages = group.messages || [];
-        const msgIndex = messages.findIndex(m => m.id === msgId);
-        if (msgIndex === -1) return;
-
-        const msg = messages[msgIndex];
-        const isNowCompleted = !msg.isCompleted;
-
-        const updatedMessages = [...messages];
-        updatedMessages[msgIndex] = {
-            ...msg,
-            isCompleted: isNowCompleted,
-            completedBy: isNowCompleted ? (user?.name || 'Alguém') : undefined
-        };
-
-        const updatedActivities = isNowCompleted ? [{
-            id: 'act_' + Date.now(),
-            type: 'complete_message' as const,
-            userId: user?.id || '1',
-            userName: user?.name || 'Usuário',
-            content: `comprou: "${msg.text}"`,
-            timestamp: Date.now()
-        }, ...(group.activities || [])] : (group.activities || []);
-
-        await saveGroup({ ...group, messages: updatedMessages, activities: updatedActivities });
+    const getGreeting = () => {
+        const hour = new Date().getHours();
+        if (hour < 12) return 'Bom dia';
+        if (hour < 18) return 'Boa tarde';
+        return 'Boa noite';
     };
 
     const copyCode = async () => {
-        if (!group) return;
-        await Clipboard.setStringAsync(group.code);
-        Alert.alert('Código Copiado', `O código ${group.code} foi copiado para a área de transferência.`);
+        if (!household) return;
+        await Clipboard.setStringAsync(household.code);
+        Alert.alert('Código Copiado! 📋', `O código ${household.code} foi copiado para a área de transferência.`);
     };
 
-    const isAdmin = group?.members?.find(m => m.id === (user?.id || '1'))?.isAdmin;
-
-    // Styling constants
-    const bgColor = isDark ? '#111827' : '#F3F4F6';
-    const cardColor = isDark ? '#1F2937' : colors.white;
-    const textColor = isDark ? '#F9FAFB' : '#1F2937';
-    const mutedColor = isDark ? '#9CA3AF' : '#6B7280';
-    const borderColor = isDark ? '#374151' : '#E5E7EB';
-
-    // Helper for Activity Icons
-    const renderActivityIcon = (type: string) => {
-        switch (type) {
-            case 'create_list': return <ClipboardList color={colors.info} size={16} />;
-            case 'complete_message': return <Check color={colors.success} size={16} />;
-            case 'message': return <MessageSquare color={colors.warning} size={16} />;
-            case 'add_member': return <UserPlus color={colors.purple} size={16} />;
-            default: return <Clock color={mutedColor} size={16} />;
-        }
+    const getMemberTasks = (memberId: string) => {
+        return tasks.filter(t => t.assignedTo === memberId);
     };
 
-    // Helper for Activity Text Color
-    const getActivityColor = (type: string) => {
-        switch (type) {
-            case 'create_list': return colors.info;
-            case 'complete_message': return colors.success;
-            case 'message': return colors.warning;
-            case 'add_member': return colors.purple;
-            default: return mutedColor;
-        }
+    const getMemberStats = (member: HouseholdMember) => {
+        const memberTasks = getMemberTasks(member.id);
+        const pendingTasks = memberTasks.filter(t => !t.completed).length;
+        return { pending: pendingTasks, total: memberTasks.length };
     };
 
-    const formatTime = (isoStringOrTimestamp: number) => {
-        const date = new Date(isoStringOrTimestamp);
-        const now = new Date();
-        const diffMs = now.getTime() - date.getTime();
-        const diffMins = Math.round(diffMs / 60000);
-        const diffHrs = Math.round(diffMs / 3600000);
-
-        if (diffMins < 1) return 'Agora mesmo';
-        if (diffMins < 60) return `${diffMins} min atrás`;
-        if (diffHrs < 24) return `${diffHrs} h atrás`;
-        return 'Ontem';
+    const getCategoryInfo = (categoryId: string) => {
+        return TASK_CATEGORIES.find(c => c.id === categoryId) || TASK_CATEGORIES[0];
     };
+
+    const formatJoinDate = (timestamp: number) => {
+        const days = Math.floor((Date.now() - timestamp) / (1000 * 60 * 60 * 24));
+        if (days === 0) return 'Entrou hoje';
+        if (days === 1) return 'Entrou ontem';
+        return `Há ${days} dias`;
+    };
+
+    // Ordenar membros por pontos
+    const sortedMembers = [...members].sort((a, b) => b.points - a.points);
+    const leaderMember = sortedMembers[0];
 
     return (
         <View style={[styles.container, { backgroundColor: bgColor }]}>
-            {/* Custom Header */}
+            {/* Header */}
             <View style={[styles.header, { paddingTop: insets.top + spacing.md }]}>
                 <TouchableOpacity onPress={() => setMenuOpen(true)} style={styles.menuButton}>
                     <Menu color={colors.white} size={24} />
                 </TouchableOpacity>
                 <View>
-                    <Text style={styles.headerGreeting}>Olá, {user?.name?.split(' ')[0] || 'Alex'}</Text>
-                    <Text style={styles.headerTitle}>Vamos às compras?</Text>
+                    <Text style={styles.headerGreeting}>{getGreeting()}, {user?.name?.split(' ')[0] || 'Usuário'}! 👋</Text>
+                    <Text style={styles.headerTitle}>Minha Casa</Text>
                 </View>
             </View>
 
             <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + spacing.xl }]} showsVerticalScrollIndicator={false}>
 
-                {!group ? (
+                {!household ? (
                     <View style={[styles.noGroupState, { backgroundColor: cardColor }]}>
                         <Users color={colors.primary} size={48} />
-                        <Text style={[styles.noGroupTitle, { color: textColor }]}>Modo Grupo</Text>
-                        <Text style={[styles.noGroupText, { color: mutedColor }]}>Crie ou entre em um grupo para sincronizar listas e recados com sua família.</Text>
+                        <Text style={[styles.noGroupTitle, { color: textColor }]}>Minha Casa</Text>
+                        <Text style={[styles.noGroupText, { color: mutedColor }]}>Crie ou entre em uma casa para organizar tarefas com sua família ou moradores.</Text>
                         <View style={styles.noGroupButtons}>
                             <TouchableOpacity style={styles.primaryBtn} onPress={() => setShowCreateModal(true)}>
-                                <Text style={styles.primaryBtnText}>Criar Grupo</Text>
+                                <Text style={styles.primaryBtnText}>Criar Casa</Text>
                             </TouchableOpacity>
                             <TouchableOpacity style={[styles.secondaryBtn, { borderColor: colors.primary }]} onPress={() => setShowJoinModal(true)}>
                                 <Text style={[styles.secondaryBtnText, { color: colors.primary }]}>Entrar com Código</Text>
@@ -227,192 +125,277 @@ export default function GroupScreen() {
                     </View>
                 ) : (
                     <>
-                        {/* Group ID Card */}
-                        <View style={styles.groupIdCard}>
-                            <View style={styles.groupIdHeader}>
-                                <Text style={styles.groupName}>{group.name}</Text>
+                        {/* Household Card */}
+                        <View style={styles.householdCard}>
+                            <View style={styles.householdHeader}>
+                                <View>
+                                    <Text style={styles.householdName}>{household.name}</Text>
+                                    <Text style={styles.householdCode}>Código: {household.code}</Text>
+                                </View>
                                 <View style={styles.syncBadge}>
                                     <View style={styles.syncDot} />
-                                    <Text style={styles.syncText}>SINCRONIZADO</Text>
+                                    <Text style={styles.syncText}>ATIVO</Text>
                                 </View>
                             </View>
 
-                            <View style={styles.groupMembersRow}>
-                                <View style={styles.avatarsPreview}>
-                                    {(group.members || []).slice(0, 3).map((m, i) => (
-                                        <View key={m.id} style={[styles.avatarCircle, { backgroundColor: i === 0 ? '#84CC16' : '#60A5FA', borderColor: '#4F46E5', zIndex: 10 - i, transform: [{ translateX: i * -15 }] }]}>
-                                            <Text style={styles.avatarText}>{m.name.charAt(0)}</Text>
-                                        </View>
-                                    ))}
-                                    <TouchableOpacity style={[styles.manageButton, { transform: [{ translateX: (group.members || []).length > 0 ? ((group.members || []).length * -15) + 10 : 0 }] }]} onPress={() => setShowMembersModal(true)}>
-                                        <Text style={styles.manageLengthText}>+{(group.members || []).length}</Text>
-                                        <Settings color={colors.white} size={14} />
-                                    </TouchableOpacity>
+                            <View style={styles.statsRow}>
+                                <View style={styles.statItem}>
+                                    <Text style={styles.statValue}>{members.length}</Text>
+                                    <Text style={styles.statLabel}>Moradores</Text>
                                 </View>
-                                <TouchableOpacity onPress={() => setShowMembersModal(true)}>
-                                    <Text style={styles.manageText}>Gerenciar</Text>
-                                </TouchableOpacity>
+                                <View style={styles.statDivider} />
+                                <View style={styles.statItem}>
+                                    <Text style={styles.statValue}>{tasks.filter(t => !t.completed).length}</Text>
+                                    <Text style={styles.statLabel}>Tarefas Pendentes</Text>
+                                </View>
+                                <View style={styles.statDivider} />
+                                <View style={styles.statItem}>
+                                    <Text style={styles.statValue}>{members.reduce((sum, m) => sum + m.points, 0)}</Text>
+                                    <Text style={styles.statLabel}>Pontos Total</Text>
+                                </View>
                             </View>
+
                             <TouchableOpacity style={styles.shareButton} onPress={copyCode}>
                                 <Share2 color={colors.white} size={20} />
                             </TouchableOpacity>
                         </View>
 
-                        {/* Message Board */}
+                        {/* Leader Card */}
+                        {leaderMember && (
+                            <View style={[styles.leaderCard, { backgroundColor: cardColor }]}>
+                                <View style={styles.leaderIcon}>
+                                    <Text style={styles.leaderEmoji}>👑</Text>
+                                </View>
+                                <View style={styles.leaderInfo}>
+                                    <Text style={[styles.leaderLabel, { color: mutedColor }]}>Líder da Semana</Text>
+                                    <Text style={[styles.leaderName, { color: textColor }]}>{leaderMember.name}</Text>
+                                    <Text style={[styles.leaderPoints, { color: colors.accent }]}>{leaderMember.points} pontos</Text>
+                                </View>
+                                <Award color={colors.accent} size={32} />
+                            </View>
+                        )}
+
+                        {/* Members Section */}
                         <View style={styles.sectionHeader}>
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                                <MessageSquare color={colors.orange} size={20} />
-                                <Text style={[styles.sectionTitle, { color: textColor }]}>MURAL DE RECADOS</Text>
+                                <Users color={colors.primary} size={20} />
+                                <Text style={[styles.sectionTitle, { color: textColor }]}>MORADORES ({members.length})</Text>
                             </View>
+                            <TouchableOpacity onPress={copyCode} style={styles.addMemberBtn}>
+                                <UserPlus color={colors.primary} size={16} />
+                                <Text style={styles.addMemberText}>Convidar</Text>
+                            </TouchableOpacity>
                         </View>
 
-                        <View style={[styles.messageBoard, { backgroundColor: cardColor }]}>
-                            {/* Input */}
-                            <View style={[styles.messageInputRow, { backgroundColor: isDark ? '#374151' : '#F9FAFB' }]}>
-                                <TextInput
-                                    style={[styles.messageInput, { color: textColor }]}
-                                    placeholder="Ex: Acabou o café..."
-                                    placeholderTextColor={mutedColor}
-                                    value={newMessage}
-                                    onChangeText={setNewMessage}
-                                    onSubmitEditing={postMessage}
-                                />
-                                <TouchableOpacity style={styles.sendButton} onPress={postMessage}>
-                                    <Send color={colors.white} size={18} />
-                                </TouchableOpacity>
-                            </View>
+                        {sortedMembers.map((member, index) => {
+                            const stats = getMemberStats(member);
+                            const memberTasks = getMemberTasks(member.id);
 
-                            {/* Messages List */}
-                            {(group.messages || []).slice(0, 3).map(msg => (
-                                <TouchableOpacity key={msg.id} style={[styles.messageItem, { opacity: msg.isCompleted ? 0.6 : 1 }]} onPress={() => toggleMessageCompletion(msg.id)}>
-                                    <View style={[styles.checkBox, { borderColor: msg.isCompleted ? colors.success : colors.border, backgroundColor: msg.isCompleted ? colors.success : 'transparent' }]}>
-                                        {msg.isCompleted && <Check color={colors.white} size={12} />}
+                            return (
+                                <TouchableOpacity
+                                    key={member.id}
+                                    style={[styles.memberCard, { backgroundColor: cardColor }]}
+                                    onPress={() => { setSelectedMember(member); setShowMembersModal(true); }}
+                                >
+                                    <View style={styles.memberRank}>
+                                        <Text style={[styles.rankNumber, index === 0 && styles.rankFirst]}>{index + 1}</Text>
                                     </View>
-                                    <View style={{ flex: 1 }}>
-                                        <Text style={[styles.messageText, { color: textColor, textDecorationLine: msg.isCompleted ? 'line-through' : 'none' }]}>{msg.text}</Text>
-                                        <Text style={[styles.messageMeta, { color: mutedColor }]}>{msg.userName} • {formatTime(msg.timestamp)}</Text>
+                                    <View style={[styles.memberAvatar, { backgroundColor: index === 0 ? colors.accent : colors.primary }]}>
+                                        <Text style={styles.memberAvatarText}>{member.name.charAt(0)}</Text>
+                                        {member.role === 'admin' && (
+                                            <View style={styles.adminCrown}>
+                                                <Crown color="#FCD34D" size={12} fill="#FCD34D" />
+                                            </View>
+                                        )}
+                                    </View>
+                                    <View style={styles.memberInfo}>
+                                        <Text style={[styles.memberName, { color: textColor }]}>{member.name}</Text>
+                                        <View style={styles.memberMeta}>
+                                            <Star color={colors.accent} size={12} fill={colors.accent} />
+                                            <Text style={[styles.memberPoints, { color: mutedColor }]}>{member.points} pts</Text>
+                                            <Text style={[styles.memberTasks, { color: mutedColor }]}>• {stats.pending} tarefas pendentes</Text>
+                                        </View>
+                                    </View>
+                                    <View style={styles.memberTasksPreview}>
+                                        {memberTasks.slice(0, 2).map(task => {
+                                            const cat = getCategoryInfo(task.category);
+                                            return (
+                                                <View key={task.id} style={[styles.taskMini, { backgroundColor: cat.color + '20' }]}>
+                                                    <Text style={styles.taskMiniEmoji}>{cat.icon}</Text>
+                                                </View>
+                                            );
+                                        })}
                                     </View>
                                 </TouchableOpacity>
-                            ))}
-                        </View>
+                            );
+                        })}
 
-                        {/* Shared Lists */}
+                        {/* Quick Assign Section */}
                         <View style={styles.sectionHeader}>
-                            <Text style={[styles.sectionTitle, { color: textColor }]}>Listas Compartilhadas</Text>
-                            <TouchableOpacity style={styles.addListButton} onPress={() => router.push('/lists')}>
-                                <Plus color={colors.primary} size={16} />
-                                <Text style={styles.addListText}>Nova</Text>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                <ClipboardList color={colors.accent} size={20} />
+                                <Text style={[styles.sectionTitle, { color: textColor }]}>TAREFAS ATRIBUÍDAS</Text>
+                            </View>
+                            <TouchableOpacity onPress={() => router.push('/tasks')} style={styles.viewAllBtn}>
+                                <Text style={styles.viewAllText}>Ver todas</Text>
                             </TouchableOpacity>
                         </View>
 
-                        {sharedLists.map(list => (
-                            <TouchableOpacity key={list.id} style={[styles.sharedListCard, { backgroundColor: cardColor }]} onPress={() => router.push(`/list/${list.id}`)}>
-                                <View style={[styles.listIcon, { backgroundColor: colors.primary }]}>
-                                    <ClipboardList color={colors.white} size={24} />
-                                </View>
-                                <View style={styles.listInfo}>
-                                    <Text style={[styles.listTitle, { color: textColor }]}>{list.name}</Text>
-                                    <Text style={[styles.listSub, { color: mutedColor }]}>{list.items.length} itens • {list.items.filter(i => i.completed).length} comprados</Text>
-                                </View>
-                                <MoreVertical color={mutedColor} size={20} />
-                            </TouchableOpacity>
-                        ))}
+                        {tasks.filter(t => !t.completed).slice(0, 3).map(task => {
+                            const cat = getCategoryInfo(task.category);
+                            const assignedMember = members.find(m => m.id === task.assignedTo);
 
-                        {/* Recent Activity */}
-                        <Text style={[styles.sectionTitle, { color: textColor, marginTop: spacing.xl, marginBottom: spacing.md }]}>Atividades Recentes</Text>
-                        <View style={styles.timeline}>
-                            {(group.activities || []).slice(0, 10).map((act, index) => (
-                                <View key={act.id} style={styles.timelineItem}>
-                                    <View style={[styles.timelineLine, { backgroundColor: borderColor, height: index === (group.activities || []).length - 1 ? 0 : '100%' }]} />
-                                    <View style={[styles.timelineDot, { backgroundColor: getActivityColor(act.type) }]}>
-                                        <Text style={{ color: colors.white, fontSize: 10, fontWeight: 'bold' }}>{act.userName.charAt(0)}</Text>
+                            return (
+                                <View key={task.id} style={[styles.taskCard, { backgroundColor: cardColor }]}>
+                                    <View style={[styles.taskIcon, { backgroundColor: cat.color + '20' }]}>
+                                        <Text style={styles.taskEmoji}>{cat.icon}</Text>
                                     </View>
-                                    <View style={[styles.timelineContent, { backgroundColor: cardColor }]}>
-                                        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                                            <Text style={[styles.timelineUser, { color: textColor }]}>{act.userName}</Text>
-                                            <Text style={[styles.timelineTime, { color: mutedColor }]}>{formatTime(act.timestamp)}</Text>
-                                        </View>
-                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
-                                            {renderActivityIcon(act.type)}
-                                            <Text style={[styles.timelineText, { color: mutedColor }]}>{act.content}</Text>
+                                    <View style={styles.taskInfo}>
+                                        <Text style={[styles.taskName, { color: textColor }]}>{task.name}</Text>
+                                        <View style={styles.taskMeta}>
+                                            {assignedMember && (
+                                                <View style={styles.assignedBadge}>
+                                                    <View style={styles.assignedAvatar}>
+                                                        <Text style={styles.assignedAvatarText}>{assignedMember.name.charAt(0)}</Text>
+                                                    </View>
+                                                    <Text style={[styles.assignedName, { color: mutedColor }]}>{assignedMember.name.split(' ')[0]}</Text>
+                                                </View>
+                                            )}
+                                            <Text style={[styles.taskPoints, { color: colors.accent }]}>+{task.points} pts</Text>
                                         </View>
                                     </View>
                                 </View>
-                            ))}
-                        </View>
+                            );
+                        })}
                     </>
                 )}
             </ScrollView>
 
-            {/* Members Modal */}
+            {/* Member Detail Modal */}
             <Modal visible={showMembersModal} transparent animationType="slide">
                 <View style={[styles.modalOverlay, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
-                    <View style={[styles.modalContent, { backgroundColor: cardColor, maxHeight: '80%' }]}>
+                    <View style={[styles.modalContent, { backgroundColor: cardColor }]}>
                         <View style={styles.modalHeader}>
-                            <Text style={[styles.modalTitle, { color: textColor }]}>Membros ({(group?.members || []).length})</Text>
-                            <TouchableOpacity onPress={() => setShowMembersModal(false)}><X color={mutedColor} size={24} /></TouchableOpacity>
+                            <Text style={[styles.modalTitle, { color: textColor }]}>
+                                {selectedMember ? selectedMember.name : 'Moradores'}
+                            </Text>
+                            <TouchableOpacity onPress={() => { setShowMembersModal(false); setSelectedMember(null); }}>
+                                <X color={mutedColor} size={24} />
+                            </TouchableOpacity>
                         </View>
 
-                        {/* Invite Code Section */}
-                        <View style={[styles.inviteSection, { backgroundColor: isDark ? '#374151' : '#F3F4F6' }]}>
+                        {selectedMember && (
+                            <>
+                                <View style={[styles.memberProfile, { backgroundColor: bgColor }]}>
+                                    <View style={[styles.profileAvatar, { backgroundColor: colors.primary }]}>
+                                        <Text style={styles.profileAvatarText}>{selectedMember.name.charAt(0)}</Text>
+                                    </View>
+                                    <Text style={[styles.profileName, { color: textColor }]}>{selectedMember.name}</Text>
+                                    <Text style={[styles.profileEmail, { color: mutedColor }]}>{selectedMember.email}</Text>
+                                    <View style={styles.profileStats}>
+                                        <View style={styles.profileStat}>
+                                            <Text style={[styles.profileStatValue, { color: textColor }]}>{selectedMember.points}</Text>
+                                            <Text style={[styles.profileStatLabel, { color: mutedColor }]}>Pontos</Text>
+                                        </View>
+                                        <View style={styles.profileStat}>
+                                            <Text style={[styles.profileStatValue, { color: textColor }]}>{getMemberStats(selectedMember).total}</Text>
+                                            <Text style={[styles.profileStatLabel, { color: mutedColor }]}>Tarefas</Text>
+                                        </View>
+                                        <View style={styles.profileStat}>
+                                            <Text style={[styles.profileStatValue, { color: textColor }]}>{formatJoinDate(selectedMember.joinedAt)}</Text>
+                                            <Text style={[styles.profileStatLabel, { color: mutedColor }]}>Membro</Text>
+                                        </View>
+                                    </View>
+                                </View>
+
+                                <Text style={[styles.modalSubtitle, { color: mutedColor }]}>Tarefas Atribuídas</Text>
+                                {getMemberTasks(selectedMember.id).map(task => {
+                                    const cat = getCategoryInfo(task.category);
+                                    return (
+                                        <View key={task.id} style={[styles.taskRow, { borderBottomColor: borderColor }]}>
+                                            <Text style={styles.taskRowEmoji}>{cat.icon}</Text>
+                                            <Text style={[styles.taskRowName, { color: textColor }]}>{task.name}</Text>
+                                            <Text style={[styles.taskRowPoints, { color: colors.accent }]}>+{task.points}</Text>
+                                        </View>
+                                    );
+                                })}
+                            </>
+                        )}
+
+                        {/* Invite Section */}
+                        <View style={[styles.inviteSection, { backgroundColor: bgColor }]}>
                             <View style={styles.inviteIcon}><Share2 color={colors.primary} size={24} /></View>
                             <View style={{ flex: 1 }}>
-                                <Text style={[styles.inviteTitle, { color: textColor }]}>Convidar Membro</Text>
-                                <Text style={[styles.inviteDesc, { color: mutedColor }]}>Compartilhe este código com quem mora com você.</Text>
+                                <Text style={[styles.inviteTitle, { color: textColor }]}>Convidar Morador</Text>
+                                <Text style={[styles.inviteDesc, { color: mutedColor }]}>Compartilhe o código com novos moradores.</Text>
                             </View>
                         </View>
                         <View style={styles.codeDisplay}>
-                            <Text style={[styles.codeMain, { color: textColor }]}>{group?.code}</Text>
+                            <Text style={[styles.codeMain, { color: textColor }]}>{household?.code}</Text>
                             <TouchableOpacity style={styles.copyBtn} onPress={copyCode}>
                                 <Text style={styles.copyBtnText}>Copiar Código</Text>
                             </TouchableOpacity>
                         </View>
+                    </View>
+                </View>
+            </Modal>
 
-                        <FlatList
-                            data={group?.members || []}
-                            keyExtractor={i => i.id}
-                            style={{ flex: 1 }}
-                            renderItem={({ item }) => (
-                                <View style={[styles.memberRow, { borderBottomColor: borderColor }]}>
-                                    <View style={[styles.memberAvatarFull, { backgroundColor: item.isAdmin ? '#FCD34D' : '#E5E7EB' }]}>
-                                        <Text style={{ fontSize: 16, fontWeight: 'bold', color: item.isAdmin ? '#78350F' : '#374151' }}>{item.name.charAt(0)}</Text>
-                                    </View>
-                                    <View style={{ flex: 1 }}>
-                                        <Text style={[styles.memberName, { color: textColor }]}>{item.name} {item.id === user?.id && '(Você)'}</Text>
-                                        <Text style={[styles.memberEmail, { color: mutedColor }]}>{item.email}</Text>
-                                    </View>
-                                    {item.isAdmin && <View style={styles.adminBadge}><Text style={styles.adminText}>Admin</Text></View>}
-                                </View>
-                            )}
+            {/* Create Household Modal */}
+            <Modal visible={showCreateModal} transparent animationType="fade">
+                <View style={[styles.modalOverlay, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+                    <View style={[styles.modalContent, { backgroundColor: cardColor }]}>
+                        <View style={styles.modalHeader}>
+                            <Text style={[styles.modalTitle, { color: textColor }]}>Criar Minha Casa</Text>
+                            <TouchableOpacity onPress={() => setShowCreateModal(false)}><X color={mutedColor} size={24} /></TouchableOpacity>
+                        </View>
+                        <Text style={[styles.inputLabel, { color: mutedColor }]}>Nome da Casa</Text>
+                        <TextInput
+                            style={[styles.modalInput, { backgroundColor: bgColor, color: textColor }]}
+                            value={householdName}
+                            onChangeText={setHouseholdName}
+                            placeholder="Ex: Casa da Família"
+                            placeholderTextColor={mutedColor}
                         />
-
-                        <TouchableOpacity style={styles.addMemberBtnSmall} onPress={copyCode}>
-                            <Text style={styles.addMemberTextSmall}>+ Adicionar Novo</Text>
+                        <TouchableOpacity style={styles.primaryBtn} onPress={() => {
+                            if (householdName.trim()) {
+                                setHousehold({
+                                    name: householdName.trim(),
+                                    code: Math.random().toString(36).substring(2, 6).toUpperCase() + '-' + Math.floor(1000 + Math.random() * 9000),
+                                    createdAt: Date.now()
+                                });
+                                setShowCreateModal(false);
+                                setHouseholdName('');
+                            }
+                        }}>
+                            <Text style={styles.primaryBtnText}>Criar Casa</Text>
                         </TouchableOpacity>
                     </View>
                 </View>
             </Modal>
 
-            {/* Create Group Modal */}
-            <Modal visible={showCreateModal} transparent animationType="fade">
-                <View style={[styles.modalOverlay, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
-                    <View style={[styles.modalContent, { backgroundColor: cardColor }]}>
-                        <View style={styles.modalHeader}><Text style={[styles.modalTitle, { color: textColor }]}>Criar Novo Grupo</Text><TouchableOpacity onPress={() => setShowCreateModal(false)}><X color={mutedColor} size={24} /></TouchableOpacity></View>
-                        <Text style={[styles.inputLabel, { color: mutedColor }]}>Nome do Grupo</Text>
-                        <TextInput style={[styles.modalInput, { backgroundColor: bgColor, color: textColor }]} value={groupName} onChangeText={setGroupName} placeholder="Ex: Casa Praia" placeholderTextColor={mutedColor} />
-                        <TouchableOpacity style={styles.primaryBtn} onPress={createGroup}><Text style={styles.primaryBtnText}>Criar</Text></TouchableOpacity>
-                    </View>
-                </View>
-            </Modal>
-
-            {/* Join Group Modal */}
+            {/* Join Household Modal */}
             <Modal visible={showJoinModal} transparent animationType="fade">
                 <View style={[styles.modalOverlay, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
                     <View style={[styles.modalContent, { backgroundColor: cardColor }]}>
-                        <View style={styles.modalHeader}><Text style={[styles.modalTitle, { color: textColor }]}>Entrar em Grupo</Text><TouchableOpacity onPress={() => setShowJoinModal(false)}><X color={mutedColor} size={24} /></TouchableOpacity></View>
-                        <Text style={[styles.inputLabel, { color: mutedColor }]}>Código do Grupo</Text>
-                        <TextInput style={[styles.modalInput, { backgroundColor: bgColor, color: textColor }]} value={joinCode} onChangeText={setJoinCode} placeholder="Ex: FAM-1234" placeholderTextColor={mutedColor} autoCapitalize="characters" />
-                        <TouchableOpacity style={styles.primaryBtn} onPress={() => { Alert.alert('Simulação', 'Você entrou no grupo!'); setShowJoinModal(false); }}><Text style={styles.primaryBtnText}>Entrar</Text></TouchableOpacity>
+                        <View style={styles.modalHeader}>
+                            <Text style={[styles.modalTitle, { color: textColor }]}>Entrar em Casa</Text>
+                            <TouchableOpacity onPress={() => setShowJoinModal(false)}><X color={mutedColor} size={24} /></TouchableOpacity>
+                        </View>
+                        <Text style={[styles.inputLabel, { color: mutedColor }]}>Código da Casa</Text>
+                        <TextInput
+                            style={[styles.modalInput, { backgroundColor: bgColor, color: textColor }]}
+                            value={joinCode}
+                            onChangeText={setJoinCode}
+                            placeholder="Ex: FAM-1234"
+                            placeholderTextColor={mutedColor}
+                            autoCapitalize="characters"
+                        />
+                        <TouchableOpacity style={styles.primaryBtn} onPress={() => {
+                            Alert.alert('Bem-vindo! 🏠', 'Você entrou na casa com sucesso!');
+                            setShowJoinModal(false);
+                        }}>
+                            <Text style={styles.primaryBtnText}>Entrar</Text>
+                        </TouchableOpacity>
                     </View>
                 </View>
             </Modal>
@@ -430,53 +413,67 @@ const styles = StyleSheet.create({
     headerTitle: { color: colors.white, fontSize: 20, fontWeight: 'bold' },
     content: { padding: spacing.lg },
 
-    // Group Card
-    groupIdCard: { backgroundColor: '#4F46E5', borderRadius: 24, padding: spacing.lg, ...shadows.lg, height: 180, justifyContent: 'space-between', marginBottom: spacing.lg },
-    groupIdHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
-    groupName: { fontSize: 28, fontWeight: '900', color: colors.white, letterSpacing: -1 },
+    // Household Card
+    householdCard: { backgroundColor: colors.primary, borderRadius: 24, padding: spacing.lg, ...shadows.lg, marginBottom: spacing.lg },
+    householdHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing.lg },
+    householdName: { fontSize: 24, fontWeight: '900', color: colors.white },
+    householdCode: { fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 4 },
     syncBadge: { flexDirection: 'row', alignItems: 'center', gap: 6 },
     syncDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#4ADE80' },
-    syncText: { color: colors.white, fontSize: 12, fontWeight: 'bold', opacity: 0.9 },
+    syncText: { color: colors.white, fontSize: 10, fontWeight: 'bold' },
+    statsRow: { flexDirection: 'row', backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 16, padding: spacing.md },
+    statItem: { flex: 1, alignItems: 'center' },
+    statValue: { fontSize: 20, fontWeight: 'bold', color: colors.white },
+    statLabel: { fontSize: 10, color: 'rgba(255,255,255,0.7)', marginTop: 2 },
+    statDivider: { width: 1, backgroundColor: 'rgba(255,255,255,0.2)' },
     shareButton: { position: 'absolute', top: 20, right: 20, padding: 8, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 12 },
 
-    groupMembersRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: 'rgba(0,0,0,0.2)', padding: 12, borderRadius: 16 },
-    avatarsPreview: { flexDirection: 'row', paddingLeft: 10 },
-    avatarCircle: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', borderWidth: 2 },
-    avatarText: { color: colors.white, fontSize: 14, fontWeight: 'bold' },
-    manageButton: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.3)', alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 2, borderWidth: 1, borderColor: 'rgba(255,255,255,0.4)', zIndex: 0 },
-    manageLengthText: { color: colors.white, fontSize: 10, fontWeight: 'bold' },
-    manageText: { color: colors.white, fontWeight: 'bold', marginRight: 4 },
+    // Leader Card
+    leaderCard: { flexDirection: 'row', alignItems: 'center', padding: spacing.md, borderRadius: 16, marginBottom: spacing.lg, ...shadows.sm },
+    leaderIcon: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#FEF3C7', alignItems: 'center', justifyContent: 'center', marginRight: spacing.md },
+    leaderEmoji: { fontSize: 24 },
+    leaderInfo: { flex: 1 },
+    leaderLabel: { fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.5 },
+    leaderName: { fontSize: 16, fontWeight: 'bold', marginTop: 2 },
+    leaderPoints: { fontSize: 12, fontWeight: '600', marginTop: 2 },
 
-    // Message Board
-    sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.xl, marginBottom: spacing.sm },
-    sectionTitle: { fontSize: 13, fontWeight: 'bold', letterSpacing: 1, textTransform: 'uppercase' },
-    messageBoard: { borderRadius: 20, padding: spacing.md, ...shadows.sm },
-    messageInputRow: { flexDirection: 'row', alignItems: 'center', padding: 4, paddingLeft: 16, borderRadius: 16, marginBottom: spacing.md },
-    messageInput: { flex: 1, height: 40 },
-    sendButton: { width: 40, height: 40, backgroundColor: colors.orange, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-    messageItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8, borderBottomWidth: 0 },
-    checkBox: { width: 20, height: 20, borderRadius: 6, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
-    messageText: { fontSize: 14, fontWeight: '500' },
-    messageMeta: { fontSize: 12 },
+    // Section Header
+    sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.lg, marginBottom: spacing.md },
+    sectionTitle: { fontSize: 12, fontWeight: 'bold', letterSpacing: 0.5 },
+    addMemberBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.primaryLight, paddingHorizontal: spacing.md, paddingVertical: spacing.xs, borderRadius: 20 },
+    addMemberText: { color: colors.primary, fontSize: 12, fontWeight: '600' },
+    viewAllBtn: { paddingHorizontal: spacing.sm },
+    viewAllText: { color: colors.primary, fontSize: 12, fontWeight: '600' },
 
-    // Shared Lists
-    addListButton: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.primaryLight, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, gap: 4 },
-    addListText: { color: colors.primary, fontSize: 12, fontWeight: 'bold' },
-    sharedListCard: { flexDirection: 'row', alignItems: 'center', padding: spacing.md, borderRadius: 20, marginBottom: spacing.md, ...shadows.sm },
-    listIcon: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginRight: spacing.md },
-    listInfo: { flex: 1 },
-    listTitle: { fontSize: 16, fontWeight: 'bold' },
-    listSub: { fontSize: 12 },
+    // Member Card
+    memberCard: { flexDirection: 'row', alignItems: 'center', padding: spacing.md, borderRadius: 16, marginBottom: spacing.sm, ...shadows.sm },
+    memberRank: { width: 24, alignItems: 'center', marginRight: spacing.sm },
+    rankNumber: { fontSize: 12, fontWeight: 'bold', color: '#6B7280' },
+    rankFirst: { color: colors.accent },
+    memberAvatar: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', marginRight: spacing.md },
+    memberAvatarText: { color: colors.white, fontSize: 16, fontWeight: 'bold' },
+    adminCrown: { position: 'absolute', top: -4, right: -4 },
+    memberInfo: { flex: 1 },
+    memberName: { fontSize: 14, fontWeight: '600' },
+    memberMeta: { flexDirection: 'row', alignItems: 'center', marginTop: 2, gap: 4 },
+    memberPoints: { fontSize: 12 },
+    memberTasks: { fontSize: 12 },
+    memberTasksPreview: { flexDirection: 'row', gap: 4 },
+    taskMini: { width: 28, height: 28, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+    taskMiniEmoji: { fontSize: 14 },
 
-    // Timeline
-    timeline: { paddingLeft: 10 },
-    timelineItem: { flexDirection: 'row', marginBottom: 20 },
-    timelineLine: { width: 2, position: 'absolute', left: 15, top: 30, bottom: -20, opacity: 0.3 },
-    timelineDot: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginRight: 12, zIndex: 1 },
-    timelineContent: { flex: 1, padding: 12, borderRadius: 16, ...shadows.xs },
-    timelineUser: { fontSize: 14, fontWeight: 'bold' },
-    timelineTime: { fontSize: 10 },
-    timelineText: { fontSize: 13 },
+    // Task Card
+    taskCard: { flexDirection: 'row', alignItems: 'center', padding: spacing.md, borderRadius: 16, marginBottom: spacing.sm, ...shadows.sm },
+    taskIcon: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginRight: spacing.md },
+    taskEmoji: { fontSize: 22 },
+    taskInfo: { flex: 1 },
+    taskName: { fontSize: 14, fontWeight: '600', marginBottom: 4 },
+    taskMeta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    assignedBadge: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    assignedAvatar: { width: 20, height: 20, borderRadius: 10, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
+    assignedAvatarText: { color: colors.white, fontSize: 10, fontWeight: 'bold' },
+    assignedName: { fontSize: 12 },
+    taskPoints: { fontSize: 12, fontWeight: '600' },
 
     // Empty State
     noGroupState: { alignItems: 'center', padding: 40, borderRadius: 24, marginTop: 20 },
@@ -493,26 +490,34 @@ const styles = StyleSheet.create({
     modalContent: { borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24, paddingBottom: 40 },
     modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
     modalTitle: { fontSize: 20, fontWeight: 'bold' },
+    modalSubtitle: { fontSize: 12, fontWeight: '600', letterSpacing: 0.5, marginTop: spacing.lg, marginBottom: spacing.sm },
+    inputLabel: { fontSize: 14, marginBottom: 8 },
+    modalInput: { padding: 16, borderRadius: 12, marginBottom: 20, fontSize: 16 },
 
-    // Invite Modal specific
-    inviteSection: { flexDirection: 'row', padding: 16, borderRadius: 16, marginBottom: 24, alignItems: 'center', gap: 16 },
+    // Member Profile
+    memberProfile: { alignItems: 'center', padding: spacing.lg, borderRadius: 16, marginBottom: spacing.lg },
+    profileAvatar: { width: 72, height: 72, borderRadius: 36, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.md },
+    profileAvatarText: { color: colors.white, fontSize: 28, fontWeight: 'bold' },
+    profileName: { fontSize: 20, fontWeight: 'bold' },
+    profileEmail: { fontSize: 14, marginTop: 4 },
+    profileStats: { flexDirection: 'row', marginTop: spacing.lg, gap: spacing.xl },
+    profileStat: { alignItems: 'center' },
+    profileStatValue: { fontSize: 18, fontWeight: 'bold' },
+    profileStatLabel: { fontSize: 12, marginTop: 2 },
+
+    // Task Row
+    taskRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md, borderBottomWidth: 1, gap: spacing.md },
+    taskRowEmoji: { fontSize: 20 },
+    taskRowName: { flex: 1, fontSize: 14 },
+    taskRowPoints: { fontSize: 14, fontWeight: '600' },
+
+    // Invite Section
+    inviteSection: { flexDirection: 'row', padding: 16, borderRadius: 16, marginTop: spacing.lg, alignItems: 'center', gap: 16 },
     inviteIcon: { width: 48, height: 48, borderRadius: 24, backgroundColor: 'rgba(255,255,255,0.5)', alignItems: 'center', justifyContent: 'center' },
     inviteTitle: { fontSize: 16, fontWeight: 'bold' },
     inviteDesc: { fontSize: 12, marginTop: 2 },
-    codeDisplay: { alignItems: 'center', padding: 20, borderRadius: 20, borderWidth: 2, borderColor: '#E5E7EB', borderStyle: 'dashed', marginBottom: 24 },
-    codeMain: { fontSize: 32, fontWeight: '900', letterSpacing: 2, marginBottom: 16 },
+    codeDisplay: { alignItems: 'center', padding: 20, borderRadius: 20, borderWidth: 2, borderColor: '#E5E7EB', borderStyle: 'dashed', marginTop: spacing.md },
+    codeMain: { fontSize: 28, fontWeight: '900', letterSpacing: 2, marginBottom: 16 },
     copyBtn: { backgroundColor: colors.primary, paddingVertical: 12, paddingHorizontal: 32, borderRadius: 12 },
     copyBtnText: { color: colors.white, fontWeight: 'bold' },
-
-    memberRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, gap: 12 },
-    memberAvatarFull: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-    memberName: { fontWeight: 'bold', fontSize: 14 },
-    memberEmail: { fontSize: 12 },
-    adminBadge: { backgroundColor: '#DBEAFE', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 },
-    adminText: { color: '#1E40AF', fontSize: 10, fontWeight: 'bold' },
-    addMemberBtnSmall: { width: '100%', paddingVertical: 16, alignItems: 'center', borderWidth: 1, borderColor: colors.primary, borderRadius: 16, marginTop: 16 },
-    addMemberTextSmall: { color: colors.primary, fontWeight: 'bold' },
-
-    inputLabel: { fontSize: 14, marginBottom: 8 },
-    modalInput: { padding: 16, borderRadius: 12, marginBottom: 20, fontSize: 16 },
 });

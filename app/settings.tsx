@@ -15,7 +15,7 @@ import { useRouter } from 'expo-router';
 import {
     Menu, Moon, Sun, Bell, Volume2, Smartphone, Trash2, ChevronRight, HelpCircle, Shield, Edit2, X, LogOut
 } from 'lucide-react-native';
-import { colors, spacing, borderRadius, fontSize, shadows } from '../constants/theme';
+import { colors, darkColors, spacing, borderRadius, fontSize, shadows } from '../constants/theme';
 import { storageService } from '../services/storage-service';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -40,7 +40,7 @@ export default function SettingsScreen() {
         const p = await storageService.getProfile();
         setProfile(p || {
             id: 'default', name: user?.name, email: user?.email,
-            stats: { listsCreated: 0, itemsAdded: 0, itemsCompleted: 0, listsCompleted: 0, daysActive: 0, currentStreak: 0, lastActiveDate: '', xp: 0, level: 1 },
+            stats: { tasksCompleted: 0, tasksCreated: 0, daysActive: 0, currentStreak: 0, lastActiveDate: '', xp: 0, level: 1, totalPoints: 0 },
             achievements: [],
             settings: { theme: 'light', notificationsEnabled: true, soundEnabled: true, hapticEnabled: true, currency: 'BRL' }
         });
@@ -64,13 +64,14 @@ export default function SettingsScreen() {
     const saveProfile = async () => { if (editName.trim()) await updateProfile({ name: editName.trim(), email: editEmail.trim() }); setShowEditModal(false); };
     const handleLogout = () => Alert.alert('Sair', 'Tem certeza?', [{ text: 'Cancelar', style: 'cancel' }, { text: 'Sair', style: 'destructive', onPress: async () => { await logout(); router.replace('/goodbye'); } }]);
     const handleDeleteAccount = () => Alert.alert('Excluir Conta', 'Isso apagará todos os seus dados.', [{ text: 'Cancelar', style: 'cancel' }, { text: 'Excluir', style: 'destructive', onPress: async () => { await deleteAccount(); router.replace('/onboarding'); } }]);
-    const clearData = () => Alert.alert('Apagar Dados', 'Apagar todas as listas?', [{ text: 'Cancelar', style: 'cancel' }, { text: 'Apagar', style: 'destructive', onPress: async () => { await storageService.clearAll(); Alert.alert('Sucesso', 'Dados apagados.'); loadProfile(); } }]);
+    const clearData = () => Alert.alert('Apagar Dados', 'Apagar todas as tarefas e histórico?', [{ text: 'Cancelar', style: 'cancel' }, { text: 'Apagar', style: 'destructive', onPress: async () => { await storageService.clearAll(); Alert.alert('Sucesso', 'Dados apagados.'); loadProfile(); } }]);
 
-    const bgColor = isDark ? '#111827' : colors.background;
-    const cardColor = isDark ? '#1F2937' : colors.white;
-    const textColor = isDark ? '#F9FAFB' : colors.textPrimary;
-    const mutedColor = isDark ? '#9CA3AF' : colors.textMuted;
-    const borderColor = isDark ? '#374151' : colors.border;
+    // WCAG 2.1 AA Compliant Colors
+    const bgColor = isDark ? darkColors.background : colors.background;
+    const cardColor = isDark ? darkColors.card : colors.white;
+    const textColor = isDark ? darkColors.textPrimary : colors.textPrimary;
+    const mutedColor = isDark ? darkColors.textMuted : colors.textMuted;
+    const borderColor = isDark ? darkColors.border : colors.border;
 
     if (!profile) return null;
 

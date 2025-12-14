@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { colors, spacing, fontSize, shadows, borderRadius } from '../constants/theme';
 import { LinearGradient } from 'expo-linear-gradient';
-import { LogOut } from 'lucide-react-native';
+import { LogOut, Home } from 'lucide-react-native';
 
 export default function GoodbyeScreen() {
     const insets = useSafeAreaInsets();
@@ -13,7 +13,6 @@ export default function GoodbyeScreen() {
     const scaleAnim = new Animated.Value(0.8);
 
     useEffect(() => {
-        // Animate in
         Animated.parallel([
             Animated.timing(fadeAnim, {
                 toValue: 1,
@@ -28,7 +27,6 @@ export default function GoodbyeScreen() {
             }),
         ]).start();
 
-        // Redirect to login after 5 seconds
         const timer = setTimeout(() => {
             router.replace('/login');
         }, 3000);
@@ -39,7 +37,7 @@ export default function GoodbyeScreen() {
     return (
         <View style={styles.container}>
             <LinearGradient
-                colors={['#1E293B', '#0F172A']} // Dark Slate Gradient
+                colors={['#312E81', '#1E1B4B']}
                 style={StyleSheet.absoluteFill}
             />
 
@@ -50,7 +48,7 @@ export default function GoodbyeScreen() {
 
                 <Text style={styles.title}>Até logo!</Text>
                 <Text style={styles.subtitle}>
-                    Esperamos te ver em breve para mais compras inteligentes.
+                    Esperamos te ver em breve para organizar mais tarefas juntos.
                 </Text>
 
                 <View style={styles.divider} />
@@ -63,8 +61,8 @@ export default function GoodbyeScreen() {
                     style={styles.button}
                     onPress={() => router.replace('/login')}
                 >
-                    <LogOut color={colors.white} size={20} />
-                    <Text style={styles.buttonText}>Entrar Novamente</Text>
+                    <Home color={colors.white} size={20} />
+                    <Text style={styles.buttonText}>Voltar ao Início</Text>
                 </TouchableOpacity>
             </Animated.View>
         </View>
