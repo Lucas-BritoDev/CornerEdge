@@ -1,65 +1,60 @@
 import React, { useState } from 'react';
 import {
-    View,
-    Text,
-    StyleSheet,
-    TouchableOpacity,
-    TextInput,
-    KeyboardAvoidingView,
-    Platform,
-    Alert,
+    View, Text, StyleSheet, TouchableOpacity, TextInput,
+    KeyboardAvoidingView, Platform, Alert, ActivityIndicator, ScrollView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Mail, KeyRound, ArrowRight } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
+import { Mail, KeyRound, ArrowLeft, CheckCircle } from 'lucide-react-native';
 import { useAuth } from '../context/AuthContext';
-import { colors, spacing, borderRadius, fontSize, shadows } from '../constants/theme';
-import { LinearGradient } from 'expo-linear-gradient';
+import { useTheme } from '../context/ThemeContext';
 
 export default function ForgotPasswordScreen() {
     const insets = useSafeAreaInsets();
     const router = useRouter();
     const { resetPassword } = useAuth();
+    const { colors } = useTheme();
+    const { t } = useTranslation();
+
     const [email, setEmail] = useState('');
     const [loading, setLoading] = useState(false);
     const [sent, setSent] = useState(false);
 
     const handleReset = async () => {
         if (!email.trim()) {
-            Alert.alert('Ops!', 'Precisamos do seu email para continuar.');
+            Alert.alert(t('common.error'), t('auth.forgot_email_required'));
             return;
         }
         setLoading(true);
-        const exists = await resetPassword(email.trim());
+        const result = await resetPassword(email.trim().toLowerCase());
         setLoading(false);
-        if (exists) {
+
+        if (result.success) {
             setSent(true);
         } else {
-            Alert.alert('Não encontrado', 'Não encontramos uma conta com este email.');
+            // Supabase não revela se e-mail existe por segurança – sempre mostramos sucesso
+            setSent(true);
         }
     };
 
     if (sent) {
         return (
-            <View style={styles.container}>
-                <LinearGradient
-                    colors={[colors.primary, '#0891B2']}
-                    style={StyleSheet.absoluteFill}
-                />
-                <View style={styles.content}>
-                    <View style={styles.card}>
-                        <View style={[styles.iconCircle, { backgroundColor: '#DCFCE7' }]}>
-                            <Mail color={colors.primary} size={40} />
-                        </View>
-                        <Text style={styles.successTitle}>Email Enviado!</Text>
-                        <Text style={styles.successText}>
-                            Verifique sua caixa de entrada. Enviamos as instruções para você recuperar sua senha.
+            <View style={[styles.container, { backgroundColor: colors.backgroundPrimary }]}>
+                <View style={[styles.center, { paddingTop: insets.top + 40 }]}>
+                    <View style={[styles.card, { backgroundColor: colors.backgroundSecondary }]}>
+                        <CheckCircle color={colors.accentGold} size={64} />
+                        <Text style={[styles.successTitle, { color: colors.textPrimary }]}>
+                            {t('auth.forgot_sent_title')}
+                        </Text>
+                        <Text style={[styles.successText, { color: colors.textMuted }]}>
+                            {t('auth.forgot_sent_body')}
                         </Text>
                         <TouchableOpacity
-                            style={styles.button}
+                            style={[styles.button, { backgroundColor: colors.primary }]}
                             onPress={() => router.replace('/login')}
                         >
-                            <Text style={styles.buttonText}>Voltar ao Login</Text>
+                            <Text style={styles.buttonText}>{t('auth.go_to_login')}</Text>
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -68,61 +63,65 @@ export default function ForgotPasswordScreen() {
     }
 
     return (
-        <View style={styles.container}>
-            <LinearGradient
-                colors={[colors.primary, '#0891B2']}
-                style={StyleSheet.absoluteFill}
-            />
+        <View style={[styles.container, { backgroundColor: colors.backgroundPrimary }]}>
+            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.container}>
+                <ScrollView
+                    contentContainerStyle={[
+                        styles.scrollContent,
+                        { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24 },
+                    ]}
+                    showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
+                >
+                    {/* Botão Voltar */}
+                    <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+                        <ArrowLeft color={colors.textPrimary} size={24} />
+                    </TouchableOpacity>
 
-            <KeyboardAvoidingView
-                style={styles.content}
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            >
-                <View style={[styles.card, { marginTop: insets.top + spacing.lg }]}>
-                    <View style={styles.header}>
-                        <View style={styles.iconCircle}>
-                            <KeyRound color={colors.primary} size={32} />
+                    <View style={[styles.card, { backgroundColor: colors.backgroundSecondary }]}>
+                        <View style={[styles.iconCircle, { backgroundColor: colors.backgroundTertiary }]}>
+                            <KeyRound color={colors.accentGold} size={36} />
                         </View>
-                        <Text style={styles.title}>Recuperar Senha</Text>
-                        <Text style={styles.subtitle}>
-                            Digite seu email e nós ajudaremos você a criar uma nova senha.
+                        <Text style={[styles.title, { color: colors.textPrimary }]}>
+                            {t('auth.forgot_title')}
                         </Text>
-                    </View>
+                        <Text style={[styles.subtitle, { color: colors.textMuted }]}>
+                            {t('auth.forgot_subtitle')}
+                        </Text>
 
-                    <View style={styles.form}>
-                        <View style={styles.inputGroup}>
-                            <Text style={styles.label}>Email Cadastrado</Text>
-                            <View style={styles.inputContainer}>
+                        {/* Email */}
+                        <View style={styles.form}>
+                            <Text style={[styles.label, { color: colors.textPrimary }]}>
+                                {t('auth.email')}
+                            </Text>
+                            <View style={[styles.inputContainer, { backgroundColor: colors.background, borderColor: colors.cardBorder }]}>
                                 <Mail color={colors.textMuted} size={20} />
                                 <TextInput
-                                    style={styles.input}
-                                    placeholder="exemplo@email.com"
+                                    style={[styles.input, { color: colors.textPrimary }]}
+                                    placeholder={t('auth.email_placeholder')}
                                     placeholderTextColor={colors.textMuted}
                                     value={email}
                                     onChangeText={setEmail}
                                     keyboardType="email-address"
                                     autoCapitalize="none"
+                                    autoCorrect={false}
+                                    editable={!loading}
                                 />
                             </View>
+
+                            <TouchableOpacity
+                                style={[styles.button, { backgroundColor: colors.primary }, loading && styles.buttonDisabled]}
+                                onPress={handleReset}
+                                disabled={loading}
+                                activeOpacity={0.8}
+                            >
+                                {loading
+                                    ? <ActivityIndicator color="#FFFFFF" />
+                                    : <Text style={styles.buttonText}>{t('auth.forgot_send').toUpperCase()}</Text>}
+                            </TouchableOpacity>
                         </View>
-
-                        <TouchableOpacity
-                            style={[styles.button, loading && styles.buttonDisabled]}
-                            onPress={handleReset}
-                            disabled={loading}
-                            activeOpacity={0.8}
-                        >
-                            <Text style={styles.buttonText}>
-                                {loading ? 'Enviando...' : 'ENVIAR INSTRUÇÕES'}
-                            </Text>
-                            {!loading && <ArrowRight color={colors.white} size={20} />}
-                        </TouchableOpacity>
                     </View>
-
-                    <TouchableOpacity onPress={() => router.replace('/login')} style={styles.backLink}>
-                        <Text style={styles.backLinkText}>Voltar para Login</Text>
-                    </TouchableOpacity>
-                </View>
+                </ScrollView>
             </KeyboardAvoidingView>
         </View>
     );
@@ -130,56 +129,30 @@ export default function ForgotPasswordScreen() {
 
 const styles = StyleSheet.create({
     container: { flex: 1 },
-    content: { flex: 1, justifyContent: 'center', padding: spacing.lg },
-    card: {
-        backgroundColor: colors.white,
-        borderRadius: 32,
-        padding: spacing.xl,
-        ...shadows.lg,
-        alignItems: 'center',
-    },
-    header: { alignItems: 'center', marginBottom: spacing.xl },
+    scrollContent: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 24 },
+    center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 },
+    backButton: { marginBottom: 24 },
+    card: { borderRadius: 24, padding: 24, alignItems: 'center' },
     iconCircle: {
-        width: 64,
-        height: 64,
-        borderRadius: 32,
-        backgroundColor: colors.primaryLight,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: spacing.md,
+        width: 72, height: 72, borderRadius: 36,
+        alignItems: 'center', justifyContent: 'center', marginBottom: 16,
     },
-    title: { fontSize: 24, fontWeight: 'bold', color: colors.textPrimary, marginBottom: spacing.xs },
-    subtitle: { fontSize: fontSize.md, color: colors.textMuted, textAlign: 'center' },
-    form: { width: '100%', marginBottom: spacing.lg },
-    inputGroup: { marginBottom: spacing.lg },
-    label: { fontSize: fontSize.sm, fontWeight: '600', color: colors.textPrimary, marginBottom: spacing.xs, marginLeft: spacing.xs },
+    title: { fontSize: 24, fontWeight: 'bold', marginBottom: 8 },
+    subtitle: { fontSize: 14, textAlign: 'center', lineHeight: 20, marginBottom: 24 },
+    form: { width: '100%' },
+    label: { fontSize: 14, fontWeight: '600', marginBottom: 8 },
     inputContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: colors.background,
-        borderRadius: borderRadius.lg,
-        paddingHorizontal: spacing.md,
-        height: 56,
-        borderWidth: 1,
-        borderColor: colors.border,
+        flexDirection: 'row', alignItems: 'center', height: 48,
+        borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, marginBottom: 24,
     },
-    input: { flex: 1, marginLeft: spacing.sm, fontSize: fontSize.md, color: colors.textPrimary },
+    input: { flex: 1, marginLeft: 8, fontSize: 16 },
     button: {
-        backgroundColor: colors.primary,
-        height: 56,
-        borderRadius: borderRadius.lg,
-        flexDirection: 'row',
-        alignItems: 'center',
+        height: 48, borderRadius: 12, alignItems: 'center',
         justifyContent: 'center',
-        gap: spacing.sm,
-        ...shadows.md,
     },
-    buttonDisabled: { opacity: 0.7 },
-    buttonText: { color: colors.white, fontSize: fontSize.lg, fontWeight: 'bold' },
-
-    backLink: { padding: spacing.sm },
-    backLinkText: { color: colors.textMuted, fontSize: fontSize.md, fontWeight: '600' },
-
-    successTitle: { fontSize: 24, fontWeight: 'bold', color: colors.textPrimary, marginBottom: spacing.md, textAlign: 'center' },
-    successText: { fontSize: fontSize.md, color: colors.textMuted, textAlign: 'center', marginBottom: spacing.xl, lineHeight: 24 },
+    buttonDisabled: { opacity: 0.6 },
+    buttonText: { color: '#FFFFFF', fontSize: 16, fontWeight: 'bold' },
+    // Sucesso
+    successTitle: { fontSize: 22, fontWeight: 'bold', marginTop: 20, marginBottom: 12, textAlign: 'center' },
+    successText: { fontSize: 14, textAlign: 'center', lineHeight: 22, marginBottom: 32 },
 });

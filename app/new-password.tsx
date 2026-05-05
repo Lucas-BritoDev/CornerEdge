@@ -1,125 +1,156 @@
 import React, { useState } from 'react';
 import {
-    View,
-    Text,
-    StyleSheet,
-    TouchableOpacity,
-    TextInput,
-    KeyboardAvoidingView,
-    Platform,
-    Alert,
+    View, Text, StyleSheet, TouchableOpacity, TextInput,
+    KeyboardAvoidingView, Platform, Alert, ActivityIndicator, ScrollView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { Lock, Eye, EyeOff, CheckCircle } from 'lucide-react-native';
-import { colors, spacing, borderRadius, fontSize, shadows } from '../constants/theme';
-import { LinearGradient } from 'expo-linear-gradient';
+import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 
-// NOTE: This screen would typically be reached via a deep link from an email.
-// For this demo, we assume the user has arrived here with a valid token.
 export default function NewPasswordScreen() {
     const insets = useSafeAreaInsets();
     const router = useRouter();
-    const [password, setPassword] = useState('');
-    const [confirmPassword, setConfirmPassword] = useState('');
-    const [showPassword, setShowPassword] = useState(false);
-    const [loading, setLoading] = useState(false);
+    const { updateNewPassword } = useAuth();
+    const { colors } = useTheme();
+    const { t } = useTranslation();
 
-    const handleResetPassword = async () => {
-        if (!password || !confirmPassword) {
-            Alert.alert('Atenção', 'Preencha todos os campos.');
-            return;
-        }
-        if (password !== confirmPassword) {
-            Alert.alert('Erro', 'As senhas não coincidem.');
+    const [password, setPassword] = useState('');
+    const [confirm, setConfirm] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirm, setShowConfirm] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [done, setDone] = useState(false);
+
+    const handleUpdate = async () => {
+        if (!password || !confirm) {
+            Alert.alert(t('common.error'), t('auth.new_password_error_fields'));
             return;
         }
         if (password.length < 6) {
-            Alert.alert('Senha Curta', 'A senha deve ter pelo menos 6 caracteres.');
+            Alert.alert(t('common.error'), t('auth.signup_error_password_length'));
+            return;
+        }
+        if (password !== confirm) {
+            Alert.alert(t('common.error'), t('auth.new_password_error_match'));
             return;
         }
 
         setLoading(true);
-        // Simulate API call
-        setTimeout(() => {
-            setLoading(false);
-            Alert.alert('Sucesso', 'Sua senha foi redefinida!', [
-                { text: 'OK', onPress: () => router.replace('/login') }
-            ]);
-        }, 1500);
+        const result = await updateNewPassword(password);
+        setLoading(false);
+
+        if (result.success) {
+            setDone(true);
+        } else {
+            Alert.alert(t('common.error'), result.error ?? t('common.generic_error'));
+        }
     };
 
-    return (
-        <View style={styles.container}>
-            <LinearGradient
-                colors={[colors.primary, '#0891B2']}
-                style={StyleSheet.absoluteFill}
-            />
-
-            <KeyboardAvoidingView
-                style={styles.content}
-                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-            >
-                <View style={[styles.card, { marginTop: insets.top + spacing.lg }]}>
-                    <View style={styles.header}>
-                        <View style={styles.iconCircle}>
-                            <Lock color={colors.primary} size={32} />
-                        </View>
-                        <Text style={styles.title}>Nova Senha</Text>
-                        <Text style={styles.subtitle}>
-                            Crie uma nova senha segura para sua conta.
+    if (done) {
+        return (
+            <View style={[styles.container, { backgroundColor: colors.backgroundPrimary }]}>
+                <View style={[styles.center, { paddingTop: insets.top + 40 }]}>
+                    <View style={[styles.card, { backgroundColor: colors.backgroundSecondary }]}>
+                        <CheckCircle color={colors.accentGold} size={64} />
+                        <Text style={[styles.successTitle, { color: colors.textPrimary }]}>
+                            {t('auth.new_password_success_title')}
                         </Text>
+                        <Text style={[styles.successText, { color: colors.textMuted }]}>
+                            {t('auth.new_password_success_body')}
+                        </Text>
+                        <TouchableOpacity
+                            style={[styles.button, { backgroundColor: colors.primary }]}
+                            onPress={() => router.replace('/login')}
+                        >
+                            <Text style={styles.buttonText}>{t('auth.go_to_login')}</Text>
+                        </TouchableOpacity>
                     </View>
+                </View>
+            </View>
+        );
+    }
 
-                    <View style={styles.form}>
-                        <View style={styles.inputGroup}>
-                            <Text style={styles.label}>Nova Senha</Text>
-                            <View style={styles.inputContainer}>
+    return (
+        <View style={[styles.container, { backgroundColor: colors.backgroundPrimary }]}>
+            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.container}>
+                <ScrollView
+                    contentContainerStyle={[
+                        styles.scrollContent,
+                        { paddingTop: insets.top + 40, paddingBottom: insets.bottom + 24 },
+                    ]}
+                    showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
+                >
+                    <View style={[styles.card, { backgroundColor: colors.backgroundSecondary }]}>
+                        <Text style={[styles.logo, { color: colors.accentGold }]}>GoalEdge</Text>
+                        <Text style={[styles.title, { color: colors.textPrimary }]}>
+                            {t('auth.new_password_title')}
+                        </Text>
+                        <Text style={[styles.subtitle, { color: colors.textMuted }]}>
+                            {t('auth.new_password_subtitle')}
+                        </Text>
+
+                        <View style={styles.form}>
+                            {/* Nova Senha */}
+                            <Text style={[styles.label, { color: colors.textPrimary }]}>
+                                {t('auth.new_password_label')}
+                            </Text>
+                            <View style={[styles.inputContainer, { backgroundColor: colors.background, borderColor: colors.cardBorder }]}>
                                 <Lock color={colors.textMuted} size={20} />
                                 <TextInput
-                                    style={styles.input}
-                                    placeholder="Mínimo 6 caracteres"
+                                    style={[styles.input, { color: colors.textPrimary }]}
+                                    placeholder={t('auth.new_password_placeholder')}
                                     placeholderTextColor={colors.textMuted}
                                     value={password}
                                     onChangeText={setPassword}
                                     secureTextEntry={!showPassword}
+                                    editable={!loading}
                                 />
                                 <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                                    {showPassword ?
-                                        <EyeOff color={colors.textMuted} size={20} /> :
-                                        <Eye color={colors.textMuted} size={20} />
-                                    }
+                                    {showPassword ? <EyeOff color={colors.textMuted} size={20} /> : <Eye color={colors.textMuted} size={20} />}
                                 </TouchableOpacity>
                             </View>
-                        </View>
 
-                        <View style={styles.inputGroup}>
-                            <Text style={styles.label}>Confirmar Nova Senha</Text>
-                            <View style={styles.inputContainer}>
-                                <CheckCircle color={colors.textMuted} size={20} />
-                                <TextInput
-                                    style={styles.input}
-                                    placeholder="Repita a senha"
-                                    placeholderTextColor={colors.textMuted}
-                                    value={confirmPassword}
-                                    onChangeText={setConfirmPassword}
-                                    secureTextEntry={!showPassword}
-                                />
-                            </View>
-                        </View>
-
-                        <TouchableOpacity
-                            style={[styles.button, loading && styles.buttonDisabled]}
-                            onPress={handleResetPassword}
-                            disabled={loading}
-                            activeOpacity={0.8}
-                        >
-                            <Text style={styles.buttonText}>
-                                {loading ? 'Salvando...' : 'REDEFINIR SENHA'}
+                            {/* Confirmar Senha */}
+                            <Text style={[styles.label, { color: colors.textPrimary }]}>
+                                {t('auth.confirm_password_label')}
                             </Text>
-                        </TouchableOpacity>
+                            <View style={[styles.inputContainer, { backgroundColor: colors.background, borderColor: colors.cardBorder }]}>
+                                <Lock color={colors.textMuted} size={20} />
+                                <TextInput
+                                    style={[styles.input, { color: colors.textPrimary }]}
+                                    placeholder={t('auth.confirm_password_placeholder')}
+                                    placeholderTextColor={colors.textMuted}
+                                    value={confirm}
+                                    onChangeText={setConfirm}
+                                    secureTextEntry={!showConfirm}
+                                    editable={!loading}
+                                />
+                                <TouchableOpacity onPress={() => setShowConfirm(!showConfirm)}>
+                                    {showConfirm ? <EyeOff color={colors.textMuted} size={20} /> : <Eye color={colors.textMuted} size={20} />}
+                                </TouchableOpacity>
+                            </View>
+
+                            <Text style={[styles.hint, { color: colors.textMuted }]}>
+                                {t('auth.password_hint')}
+                            </Text>
+
+                            <TouchableOpacity
+                                style={[styles.button, { backgroundColor: colors.primary }, loading && styles.buttonDisabled]}
+                                onPress={handleUpdate}
+                                disabled={loading}
+                                activeOpacity={0.8}
+                            >
+                                {loading
+                                    ? <ActivityIndicator color="#FFFFFF" />
+                                    : <Text style={styles.buttonText}>{t('auth.new_password_save').toUpperCase()}</Text>}
+                            </TouchableOpacity>
+                        </View>
                     </View>
-                </View>
+                </ScrollView>
             </KeyboardAvoidingView>
         </View>
     );
@@ -127,49 +158,26 @@ export default function NewPasswordScreen() {
 
 const styles = StyleSheet.create({
     container: { flex: 1 },
-    content: { flex: 1, justifyContent: 'center', padding: spacing.lg },
-    card: {
-        backgroundColor: colors.white,
-        borderRadius: 32,
-        padding: spacing.xl,
-        ...shadows.lg,
-        alignItems: 'center',
-    },
-    header: { alignItems: 'center', marginBottom: spacing.xl },
-    iconCircle: {
-        width: 64,
-        height: 64,
-        borderRadius: 32,
-        backgroundColor: colors.primaryLight,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: spacing.md,
-    },
-    title: { fontSize: 24, fontWeight: 'bold', color: colors.textPrimary, marginBottom: spacing.xs },
-    subtitle: { fontSize: fontSize.md, color: colors.textMuted, textAlign: 'center' },
+    scrollContent: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 24 },
+    center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 },
+    card: { borderRadius: 24, padding: 24, alignItems: 'center' },
+    logo: { fontSize: 32, fontWeight: 'bold', marginBottom: 8 },
+    title: { fontSize: 22, fontWeight: 'bold', marginBottom: 8 },
+    subtitle: { fontSize: 14, textAlign: 'center', lineHeight: 20, marginBottom: 24 },
     form: { width: '100%' },
-    inputGroup: { marginBottom: spacing.md },
-    label: { fontSize: fontSize.sm, fontWeight: '600', color: colors.textPrimary, marginBottom: spacing.xs, marginLeft: spacing.xs },
+    label: { fontSize: 14, fontWeight: '600', marginBottom: 8 },
     inputContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: colors.background,
-        borderRadius: borderRadius.lg,
-        paddingHorizontal: spacing.md,
-        height: 56,
-        borderWidth: 1,
-        borderColor: colors.border,
+        flexDirection: 'row', alignItems: 'center', height: 48,
+        borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, marginBottom: 16,
     },
-    input: { flex: 1, marginLeft: spacing.sm, fontSize: fontSize.md, color: colors.textPrimary },
+    input: { flex: 1, marginLeft: 8, fontSize: 16 },
+    hint: { fontSize: 12, marginBottom: 24, marginTop: -8 },
     button: {
-        backgroundColor: colors.primary,
-        height: 56,
-        borderRadius: borderRadius.lg,
-        alignItems: 'center',
+        height: 48, borderRadius: 12, alignItems: 'center',
         justifyContent: 'center',
-        marginTop: spacing.md,
-        ...shadows.md,
     },
-    buttonDisabled: { opacity: 0.7 },
-    buttonText: { color: colors.white, fontSize: fontSize.lg, fontWeight: 'bold' },
+    buttonDisabled: { opacity: 0.6 },
+    buttonText: { color: '#FFFFFF', fontSize: 16, fontWeight: 'bold' },
+    successTitle: { fontSize: 22, fontWeight: 'bold', marginTop: 20, marginBottom: 12, textAlign: 'center' },
+    successText: { fontSize: 14, textAlign: 'center', lineHeight: 22, marginBottom: 32 },
 });
