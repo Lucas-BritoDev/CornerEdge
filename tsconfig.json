@@ -8,7 +8,7 @@
       "ESNext"
     ],
     "moduleResolution": "bundler",
-    "module": "ESNext",
+    "module": "esnext",
     "target": "ESNext",
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,

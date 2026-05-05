@@ -6,58 +6,56 @@ import {
     TouchableOpacity,
     Dimensions,
     FlatList,
-    Animated,
-    ImageBackground
+    Animated
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../context/AuthContext';
-import { colors, spacing, borderRadius, fontSize } from '../constants/theme';
 import { LinearGradient } from 'expo-linear-gradient';
-import { ChevronRight, Check } from 'lucide-react-native';
+import { ChevronRight } from 'lucide-react-native';
 
 const { width, height } = Dimensions.get('window');
 
 const SLIDES = [
     {
         id: '1',
-        icon: '🏠',
-        title: 'Organize sua Casa',
-        subtitle: 'Tarefas em família',
-        description: 'Cadastre tarefas domésticas e distribua entre os moradores. Todos sabem o que fazer!',
-        bgColors: ['#4F46E5', '#818CF8']
+        icon: '⚽',
+        title: 'Análise Estatística',
+        subtitle: 'DATASCIENCE',
+        description: 'Models preditivos treinados com miles de dados históricos. Análise deep learning para precisão maxima.',
+        bgColors: ['#1A1A2E', '#C9A84C']
     },
     {
         id: '2',
-        icon: '✅',
-        title: 'Tarefas Compartilhadas',
-        subtitle: 'Divida responsabilidades',
-        description: 'Atribua tarefas diárias, semanais ou mensais. Rotatividade automática para ser justo.',
-        bgColors: ['#059669', '#34D399']
+        icon: '📊',
+        title: 'Picks de Alta Confiança',
+        subtitle: 'AI POWERED',
+        description: 'Apenas picks com 65%+ de confiança. Média de acerto de 72% nos ultimos 30 dias.',
+        bgColors: ['#16213E', '#0F3460']
     },
     {
         id: '3',
-        icon: '🏆',
-        title: 'Ranking de Pontos',
-        subtitle: 'Gamificação divertida',
-        description: 'Ganhe pontos ao completar tarefas. Veja quem está mandando bem no ranking semanal!',
-        bgColors: ['#F59E0B', '#FBBF24']
+        icon: '🎯',
+        title: 'Cobertura Global',
+        subtitle: 'WORLDWIDE',
+        description: 'Mais de 50 ligas worldwide. Premier League, La Liga, Serie A, Bundesliga, Brasileirão e mais.',
+        bgColors: ['#0F3460', '#C9A84C']
     },
     {
         id: '4',
-        icon: '🔔',
-        title: 'Lembretes Automáticos',
-        subtitle: 'Nunca esqueça',
-        description: 'Notificações inteligentes para lembrar de tarefas pendentes. Mantenha a casa em ordem!',
-        bgColors: ['#7C3AED', '#A78BFA']
+        icon: '💰',
+        title: 'Freemium Acessível',
+        subtitle: '2 FREE / DIA',
+        description: '2 picks gratis diarios. Upgrade para Premium e receba ate 5 picks com 75%+ de confiança.',
+        bgColors: ['#1A1A2E', '#16213E']
     },
     {
         id: '5',
         icon: '🚀',
         title: 'Vamos Começar?',
-        subtitle: 'Casa organizada, vida feliz',
-        description: 'Junte-se a milhares de famílias que já organizam suas atividades domésticas conosco.',
-        bgColors: ['#4F46E5', '#60A5FA']
+        subtitle: 'GOALEDGE',
+        description: 'Junte-se a milhares de apostadores que confiam na nossa analise estatística.',
+        bgColors: ['#C9A84C', '#B8922A']
     },
 ];
 
@@ -67,7 +65,7 @@ export default function OnboardingScreen() {
     const { completeOnboarding } = useAuth();
     const [currentIndex, setCurrentIndex] = useState(0);
     const flatListRef = useRef<FlatList>(null);
-    const scrollX = useRef(new Animated.Value(0)).current;
+    const scrollX = new Animated.Value(0);
 
     const handleNext = () => {
         if (currentIndex < SLIDES.length - 1) {
@@ -95,7 +93,7 @@ export default function OnboardingScreen() {
                     <View style={styles.iconCircle}>
                         <Text style={styles.emoji}>{item.icon}</Text>
                     </View>
-                    <Text style={styles.subtitle}>{item.subtitle.toUpperCase()}</Text>
+                    <Text style={styles.subtitle}>{item.subtitle}</Text>
                     <Text style={styles.title}>{item.title}</Text>
                     <Text style={styles.description}>{item.description}</Text>
                 </View>
@@ -153,10 +151,11 @@ export default function OnboardingScreen() {
                 pagingEnabled
                 showsHorizontalScrollIndicator={false}
                 bounces={false}
-                onScroll={Animated.event(
-                    [{ nativeEvent: { contentOffset: { x: scrollX } } }],
-                    { useNativeDriver: false }
-                )}
+                onScroll={(e) => {
+                    const offsetX = e.nativeEvent.contentOffset.x;
+                    scrollX.setValue(offsetX);
+                }}
+                scrollEventThrottle={16}
                 onMomentumScrollEnd={(e) => {
                     const index = Math.round(e.nativeEvent.contentOffset.x / width);
                     setCurrentIndex(index);
@@ -174,7 +173,7 @@ export default function OnboardingScreen() {
                     <Text style={styles.buttonText}>
                         {currentIndex === SLIDES.length - 1 ? 'Começar Agora' : 'Próximo'}
                     </Text>
-                    {currentIndex !== SLIDES.length - 1 && <ChevronRight color="white" size={20} />}
+                    {currentIndex !== SLIDES.length - 1 && <ChevronRight color="#1A1A2E" size={20} />}
                 </TouchableOpacity>
 
                 {currentIndex !== SLIDES.length - 1 && (
@@ -190,7 +189,7 @@ export default function OnboardingScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#000',
+        backgroundColor: '#1A1A2E',
     },
     slide: {
         width,
@@ -204,36 +203,36 @@ const styles = StyleSheet.create({
         alignItems: 'flex-start',
     },
     iconCircle: {
-        width: 80,
-        height: 80,
-        borderRadius: 40,
-        backgroundColor: 'rgba(255,255,255,0.2)',
+        width: 100,
+        height: 100,
+        borderRadius: 50,
+        backgroundColor: 'rgba(255,255,255,0.15)',
         alignItems: 'center',
         justifyContent: 'center',
-        marginBottom: 32,
-        borderWidth: 1,
+        marginBottom: 40,
+        borderWidth: 2,
         borderColor: 'rgba(255,255,255,0.3)',
     },
     emoji: {
-        fontSize: 40,
+        fontSize: 48,
     },
     subtitle: {
-        color: 'rgba(255,255,255,0.7)',
+        color: '#C9A84C',
         fontSize: 12,
         fontWeight: 'bold',
         marginBottom: 12,
-        letterSpacing: 2,
+        letterSpacing: 3,
     },
     title: {
-        fontSize: 40,
+        fontSize: 38,
         fontWeight: '900',
         color: 'white',
         marginBottom: 16,
-        lineHeight: 48,
+        lineHeight: 46,
     },
     description: {
         fontSize: 16,
-        color: 'rgba(255,255,255,0.9)',
+        color: 'rgba(255,255,255,0.85)',
         lineHeight: 24,
         maxWidth: '90%',
     },
@@ -253,13 +252,13 @@ const styles = StyleSheet.create({
         width: 8,
         height: 8,
         borderRadius: 4,
-        backgroundColor: 'white',
+        backgroundColor: 'rgba(255,255,255,0.4)',
     },
     dotActive: {
-        backgroundColor: 'white',
+        backgroundColor: '#C9A84C',
     },
     button: {
-        backgroundColor: 'white',
+        backgroundColor: '#C9A84C',
         paddingVertical: 18,
         borderRadius: 16,
         alignItems: 'center',
@@ -276,7 +275,7 @@ const styles = StyleSheet.create({
         elevation: 8,
     },
     buttonText: {
-        color: colors.primary,
+        color: '#1A1A2E',
         fontSize: 16,
         fontWeight: 'bold',
     },
@@ -286,7 +285,7 @@ const styles = StyleSheet.create({
         padding: 8,
     },
     skipText: {
-        color: 'rgba(255,255,255,0.6)',
+        color: 'rgba(255,255,255,0.5)',
         fontSize: 14,
     },
 });

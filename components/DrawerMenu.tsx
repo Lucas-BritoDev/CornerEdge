@@ -3,8 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Modal, useWindowDimensions, S
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import {
-    X, Home, ClipboardList, Users, Trophy, Settings, Moon, Sun,
-    Dices, Zap, AlertTriangle, Gift, Cpu, History
+    X, Home, Moon, Sun
 } from 'lucide-react-native';
 import { colors, darkColors, spacing, borderRadius, fontSize, shadows } from '../constants/theme';
 import { useAuth } from '../context/AuthContext';
@@ -58,31 +57,11 @@ export function DrawerMenu({ visible, onClose }: DrawerMenuProps) {
 
     // Icon colors with good visibility on dark backgrounds
     const getIconColor = (itemId: string) => {
-        switch (itemId) {
-            case 'roulette': return isDark ? '#A78BFA' : colors.purple;
-            case 'blitz': return isDark ? '#FBBF24' : colors.warning;
-            case 'debt': return isDark ? '#F87171' : colors.error;
-            case 'rewards': return isDark ? '#FBBF24' : colors.accent;
-            case 'ai-assign': return isDark ? '#34D399' : colors.success;
-            case 'ranking': return isDark ? '#FB923C' : colors.orange;
-            case 'group': return isDark ? '#2DD4BF' : colors.teal;
-            case 'history': return isDark ? '#A78BFA' : colors.purple;
-            default: return themeColors.iconDefault;
-        }
+        return themeColors.iconDefault;
     };
 
     const menuItems: MenuItem[] = [
-        { id: 'home', label: 'Dashboard', icon: <Home color={themeColors.iconDefault} size={22} />, route: '/' },
-        { id: 'tasks', label: 'Tarefas', icon: <ClipboardList color={themeColors.iconDefault} size={22} />, route: '/tasks' },
-        { id: 'group', label: 'Minha Casa', icon: <Users color={getIconColor('group')} size={22} />, route: '/group' },
-        { id: 'ai-assign', label: 'IA Distribuição', icon: <Cpu color={getIconColor('ai-assign')} size={22} />, route: '/ai-assign', badge: 'IA', badgeColor: isDark ? '#34D399' : colors.success },
-        { id: 'roulette', label: 'Roleta', icon: <Dices color={getIconColor('roulette')} size={22} />, route: '/roulette', badge: 'NOVO', badgeColor: isDark ? '#A78BFA' : colors.purple },
-        { id: 'blitz', label: 'Modo Blitz', icon: <Zap color={getIconColor('blitz')} size={22} />, route: '/blitz', badge: '2x', badgeColor: isDark ? '#FBBF24' : colors.warning },
-        { id: 'debt', label: 'Dívidas', icon: <AlertTriangle color={getIconColor('debt')} size={22} />, route: '/debt' },
-        { id: 'rewards', label: 'Recompensas', icon: <Gift color={getIconColor('rewards')} size={22} />, route: '/rewards' },
-        { id: 'ranking', label: 'Ranking', icon: <Trophy color={getIconColor('ranking')} size={22} />, route: '/ranking' },
-        { id: 'history', label: 'Histórico', icon: <History color={getIconColor('history')} size={22} />, route: '/history' },
-        { id: 'settings', label: 'Configurações', icon: <Settings color={themeColors.iconDefault} size={22} />, route: '/settings' },
+        { id: 'home', label: 'Início', icon: <Home color={themeColors.iconDefault} size={22} />, route: '/' },
     ];
 
     const handleNavigation = (route: string) => {
@@ -183,7 +162,7 @@ export function DrawerMenu({ visible, onClose }: DrawerMenuProps) {
 
                     {/* Version */}
                     <Text style={[styles.version, { color: themeColors.textMuted }]}>
-                        Organizador de Casa v1.0.0
+                        Template Base v1.0.0
                     </Text>
                 </View>
 

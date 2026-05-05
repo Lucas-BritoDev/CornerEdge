@@ -14,7 +14,7 @@ interface AuthContextType {
     isOnboarded: boolean;
     login: (email: string, password: string) => Promise<boolean>;
     signup: (name: string, email: string, password: string) => Promise<boolean>;
-    logout: () => Promise<void>;
+    signOut: () => Promise<void>;
     resetPassword: (email: string) => Promise<boolean>;
     updateProfile: (data: Partial<User>) => Promise<void>;
     completeOnboarding: () => Promise<void>;
@@ -111,7 +111,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
     };
 
-    const logout = async () => {
+    const signOut = async () => {
         await AsyncStorage.removeItem('@user');
         setUser(null);
     };
@@ -154,7 +154,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
             isOnboarded,
             login,
             signup,
-            logout,
+            signOut,
             resetPassword,
             updateProfile,
             completeOnboarding,

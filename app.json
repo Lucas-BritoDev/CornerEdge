@@ -1,27 +1,27 @@
 {
   "expo": {
-    "name": "Organizador de Casa",
-    "slug": "household-organizer",
+    "name": "GoalEdge",
+    "slug": "goaledge",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "householdorg",
+    "scheme": "goaledge",
     "userInterfaceStyle": "automatic",
     "splash": {
       "image": "./assets/images/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#1A1A2E"
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.lucas.householdorganizer"
+      "bundleIdentifier": "com.goaledge.app"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#1A1A2E"
       },
-      "package": "com.lucas.householdorganizer"
+      "package": "com.goaledge.app"
     },
     "web": {
       "bundler": "metro",
