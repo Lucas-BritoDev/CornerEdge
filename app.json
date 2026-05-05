@@ -30,13 +30,6 @@
     },
     "plugins": [
       "expo-router",
-      [
-        "react-native-google-mobile-ads",
-        {
-          "androidAppId": "ca-app-pub-xxxxxxxx~xxxxxxxx",
-          "iosAppId": "ca-app-pub-xxxxxxxx~xxxxxxxx"
-        }
-      ],
       "expo-web-browser"
     ],
     "experiments": {

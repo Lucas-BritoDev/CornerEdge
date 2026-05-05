@@ -1,12 +1,12 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, Alert, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { useRouter } from 'expo-router';
 import { User, Globe, Moon, Sun, LogOut, Crown, TrendingUp, Bell, Settings, ChevronRight } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
-import { mockUserStats, mockSubscription } from '../../data/mockData';
+import { fetchUserStats } from '../../services/picks-service';
 
 const languages = [
     { code: 'pt', label: 'PT', flag: '🇧🇷' },
@@ -18,12 +18,17 @@ export default function ProfileScreen() {
     const insets = useSafeAreaInsets();
     const router = useRouter();
     const { colors, setTheme, resolvedTheme } = useTheme();
-    const { user, signOut } = useAuth();
+    const { user, profile, signOut, isPremium } = useAuth();
     const { t, i18n } = useTranslation();
     const [notifications, setNotifications] = React.useState(true);
+    const [stats, setStats] = React.useState({ totalPicks: 0, hitRate7Days: 0, hitRateAllTime: 0, roi: 0 });
+    const [loadingStats, setLoadingStats] = React.useState(true);
+
+    React.useEffect(() => {
+        fetchUserStats().then(s => setStats(s)).finally(() => setLoadingStats(false));
+    }, []);
 
     const currentLang = i18n.language || 'pt';
-    const isPremium = mockSubscription.tier.toLowerCase() === 'premium';
 
     const formatDate = () => {
         const locale = i18n.language === 'en' ? 'en-US' : i18n.language === 'es' ? 'es-ES' : 'pt-BR';
@@ -56,7 +61,7 @@ export default function ProfileScreen() {
                     <View style={[styles.avatar, { backgroundColor: colors.accentGold }]}>
                         <User color="#FFFFFF" size={32} />
                     </View>
-                    <Text style={[styles.userName, { color: colors.textPrimary }]}>{user?.name || t('profile.user')}</Text>
+                    <Text style={[styles.userName, { color: colors.textPrimary }]}>{profile?.full_name || t('profile.user')}</Text>
                     <View style={[styles.planBadge, { backgroundColor: isPremium ? colors.accentGold : colors.statusGreen }]}>
                         <Crown color="#FFFFFF" size={12} />
                         <Text style={styles.planText}>{isPremium ? t('common.premium').toUpperCase() : t('common.free').toUpperCase()}</Text>
@@ -68,16 +73,16 @@ export default function ProfileScreen() {
                     <View style={styles.statsGrid}>
                         <View style={[styles.statCard, { backgroundColor: colors.backgroundSecondary }]}>
                             <TrendingUp color={colors.statusGreen} size={24} />
-                            <Text style={[styles.statValue, { color: colors.textPrimary }]}>{mockUserStats.totalPicks}</Text>
+                            <Text style={[styles.statValue, { color: colors.textPrimary }]}>{loadingStats ? '—' : stats.totalPicks}</Text>
                             <Text style={[styles.statLabel, { color: colors.textMuted }]}>{t('profile.total_picks')}</Text>
                         </View>
                         <View style={[styles.statCard, { backgroundColor: colors.backgroundSecondary }]}>
-                            <Text style={[styles.statValue, { color: colors.statusGreen }]}>{mockUserStats.hitRate7Days}%</Text>
+                            <Text style={[styles.statValue, { color: colors.statusGreen }]}>{loadingStats ? '—' : `${stats.hitRate7Days}%`}</Text>
                             <Text style={[styles.statLabel, { color: colors.textMuted }]}>{t('profile.hit_rate_7days')}</Text>
                         </View>
                         <View style={[styles.statCard, { backgroundColor: colors.backgroundSecondary }]}>
-                            <Text style={[styles.statValue, { color: mockUserStats.roi >= 0 ? colors.statusGreen : colors.statusRed }]}>
-                                {mockUserStats.roi > 0 ? '+' : ''}{mockUserStats.roi}%
+                            <Text style={[styles.statValue, { color: stats.roi >= 0 ? colors.statusGreen : colors.statusRed }]}>
+                                {loadingStats ? '—' : `${stats.roi > 0 ? '+' : ''}${stats.roi}%`}
                             </Text>
                             <Text style={[styles.statLabel, { color: colors.textMuted }]}>{t('profile.roi')}</Text>
                         </View>

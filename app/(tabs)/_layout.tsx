@@ -2,10 +2,15 @@ import { Tabs } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../context/ThemeContext';
 import { Home, Calendar, Clock, Crown, User } from 'lucide-react-native';
+import { useNotifications } from '../../hooks/useNotifications';
+import { useAuth } from '../../context/AuthContext';
 
 export default function TabLayout() {
     const { colors } = useTheme();
     const { t } = useTranslation();
+    const { user } = useAuth();
+    
+    useNotifications(user?.id);
 
     return (
         <Tabs

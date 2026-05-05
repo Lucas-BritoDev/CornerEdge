@@ -1,32 +1,11 @@
-import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, Platform } from 'react-native';
-import {
-    BannerAd,
-    BannerAdSize,
-    TestIds,
-} from 'react-native-google-mobile-ads';
-import { mockSubscription } from '../data/mockData';
-
-// Em produção, substitua pelos seus IDs reais do AdMob
-const BANNER_ID = Platform.select({
-    android: __DEV__ ? TestIds.BANNER : 'ca-app-pub-xxxxxxxx/xxxxxxxxxx',
-    ios: __DEV__ ? TestIds.BANNER : 'ca-app-pub-xxxxxxxx/xxxxxxxxxx',
-}) ?? TestIds.BANNER;
+import React from 'react';
+import { View, StyleSheet } from 'react-native';
 
 export function AdBanner() {
-    const isPremium = mockSubscription.tier.toLowerCase() === 'premium';
-
-    // Usuários premium nunca veem anúncios
-    if (isPremium) return null;
-
+    // Placeholder - banner ads will be implemented after backend integration
+    // For now, this shows a simple placeholder or can return null
     return (
-        <View style={styles.container}>
-            <BannerAd
-                unitId={BANNER_ID}
-                size={BannerAdSize.BANNER}
-                requestOptions={{ requestNonPersonalizedAdsOnly: false }}
-            />
-        </View>
+        <View style={styles.container} />
     );
 }
 
@@ -34,6 +13,7 @@ const styles = StyleSheet.create({
     container: {
         alignItems: 'center',
         width: '100%',
+        height: 50,
         backgroundColor: 'transparent',
     },
 });

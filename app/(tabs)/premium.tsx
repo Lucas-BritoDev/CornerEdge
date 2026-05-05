@@ -77,10 +77,10 @@ export default function PremiumScreen() {
     if (isPremium) {
         return (
             <View style={[styles.container, { backgroundColor: colors.backgroundPrimary }]}>
-            <View style={[styles.header, { paddingTop: insets.top + 16, backgroundColor: colors.backgroundTertiary }]}>
-                <Text style={styles.headerTitle}>{t('common.premium')}</Text>
-                <Text style={styles.headerDate}>{formatDate()}</Text>
-            </View>
+                <View style={[styles.header, { paddingTop: insets.top + 16, backgroundColor: colors.backgroundTertiary }]}>
+                    <Text style={styles.headerTitle}>{t('common.premium')}</Text>
+                    <Text style={styles.headerDate}>{formatDate()}</Text>
+                </View>
 
                 <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}>
                     <View style={[styles.activeCard, { backgroundColor: colors.backgroundSecondary }]}>
@@ -148,14 +148,16 @@ export default function PremiumScreen() {
                     <View style={[styles.featureTable, { backgroundColor: colors.backgroundSecondary, borderColor: colors.cardBorder }]}>
                         <View style={[styles.tableHeader, { borderBottomColor: colors.cardBorder }]}>
                             <Text style={[styles.tableHeaderText, { color: colors.textMuted }]}>{t('premium.feature')}</Text>
-                            <Text style={[styles.tableHeaderText, { color: colors.textMuted }]}>{t('premium.free')}</Text>
+                            <Text style={[styles.tableHeaderText, { color: colors.textMuted, textAlign: 'center' }]}>{t('premium.free')}</Text>
                             <Text style={[styles.tableHeaderTextPremium, { color: colors.accentGold }]}>{t('common.premium')}</Text>
                         </View>
                         {features.map((feature, index) => (
                             <View key={index} style={[styles.tableRow, { borderBottomColor: colors.cardBorder }]}>
-                                <Text style={[styles.tableCell, { color: colors.textPrimary }]}>{feature.free.split('(')[0]}</Text>
-                                <Text style={[styles.tableCellCross, { color: colors.textMuted }]}>-</Text>
-                                <Check color={colors.statusGreen} size={20} />
+                                <Text style={[styles.tableCell, { color: colors.textSecondary }]}>{feature.premium.split(' (')[0].split(' ').slice(2).join(' ') || feature.premium.split(' (')[0]}</Text>
+                                <Text style={[styles.tableCell, { color: colors.textMuted, textAlign: 'center' }]}>{feature.free.includes('No') || feature.free.includes('Limited') || feature.free.includes('2') ? feature.free.split(' ')[0] : '✓'}</Text>
+                                <View style={{ flex: 1, alignItems: 'flex-end' }}>
+                                    <Check color={colors.statusGreen} size={20} />
+                                </View>
                             </View>
                         ))}
                     </View>

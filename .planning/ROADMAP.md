@@ -76,37 +76,37 @@ GoalEdge é um aplicativo Android freemium que usa dados reais de futebol da API
 #### Entregáveis
 
 ##### 2.1 API-Football Edge Functions
-- [ ] Função fetch-fixtures (buscar partidas do dia)
-- [ ] Função fetch-fixture-details (dados completos)
-- [ ] Função fetch-team-statistics (estatísticas)
-- [ ] Função fetch-head-to-head (H2H)
-- [ ] Função fetch-odds (odds pré-jogo)
-- [ ] Função fetch-injuries (lesionados)
-- [ ] Função fetch-standings (classificação)
-- [ ] Função fetch-predictions (predições API)
+- [x] Função fetch-fixtures (buscar partidas do dia)
+- [x] Função fetch-fixture-details (dados completos)
+- [x] Função fetch-team-statistics (estatísticas)
+- [x] Função fetch-head-to-head (H2H)
+- [x] Função fetch-odds (odds pré-jogo)
+- [x] Função fetch-injuries (lesionados)
+- [x] Função fetch-standings (classificação)
+- [x] Função fetch-predictions (predições API)
 
 ##### 2.2 Sistema de Cache
-- [ ] Estrutura fixture_cache
-- [ ] TTL control (15 min para odds, 30 min para stats)
-- [ ] Função cache-validator
-- [ ] Rate limit handler
+- [x] Estrutura fixture_cache
+- [x] TTL control (15 min para odds, 30 min para stats)
+- [x] Função cache-validator
+- [x] Rate limit handler
 
 ##### 2.3 Cron Jobs (pg_cron)
-- [ ] Agendamento 06:00 UTC (generate-daily-picks)
-- [ ] Agendamento a cada 30 min (refresh-cache)
-- [ ] Agendamento 55-65 min antes jogo (validate-pre-kickoff)
-- [ ] Agendamento a cada 5 min (update-results)
-- [ ] Agendamento 02:00 UTC (aggregate-daily-stats)
+- [x] Agendamento 06:00 UTC (generate-daily-picks)
+- [x] Agendamento a cada 30 min (refresh-cache)
+- [x] Agendamento 55-65 min antes jogo (validate-pre-kickoff)
+- [x] Agendamento a cada 5 min (update-results)
+- [x] Agendamento 02:00 UTC (aggregate-daily-stats)
 
 ##### 2.4 Motor de Pontuação
-- [ ] Componente Recent Form (25%)
-- [ ] Componente Home/Away Performance (20%)
-- [ ] Componente Goals Ratio (20%)
-- [ ] Componente Head-to-Head (15%)
-- [ ] Componente League Tendency (10%)
-- [ ] Componente Squad Availability (10%)
-- [ ] Normalização de scores para 0-100
-- [ ] Calculadora de confidence score
+- [x] Componente Recent Form (25%)
+- [x] Componente Home/Away Performance (20%)
+- [x] Componente Goals Ratio (20%)
+- [x] Componente Head-to-Head (15%)
+- [x] Componente League Tendency (10%)
+- [x] Componente Squad Availability (10%)
+- [x] Normalização de scores para 0-100
+- [x] Calculadora de confidence score
 
 ---
 
@@ -122,32 +122,32 @@ GoalEdge é um aplicativo Android freemium que usa dados reais de futebol da API
 #### Entregáveis
 
 ##### 3.1 Gerador de Picks Individuais
-- [ ] Pipeline de processamento por partida
-- [ ] Validação de fixtures (discard rules)
-- [ ] Score calculation para 7 mercados
-- [ ] Seleção de melhor mercado por partida
-- [ ] Persistência em pick_selections
+- [x] Pipeline de processamento por partida
+- [x] Validação de fixtures (discard rules)
+- [x] Score calculation para 7 mercados
+- [x] Seleção de melhor mercado por partida
+- [x] Persistência em pick_selections
 
 ##### 3.2 Mercados Suportados
-- [ ] Over 1.5 Goals (Bet ID 5)
-- [ ] Over 2.5 Goals (Bet ID 5)
-- [ ] Under 2.5 Goals (Bet ID 5)
-- [ ] Both Teams to Score (Bet ID 8)
-- [ ] Double Chance Home/Draw (Bet ID 3)
-- [ ] Double Chance Away/Draw (Bet ID 3)
-- [ ] HT Over 0.5 Goals (Bet ID 57)
+- [x] Over 1.5 Goals (Bet ID 5)
+- [x] Over 2.5 Goals (Bet ID 5)
+- [x] Under 2.5 Goals (Bet ID 5)
+- [x] Both Teams to Score (Bet ID 8)
+- [x] Double Chance Home/Draw (Bet ID 3)
+- [x] Double Chance Away/Draw (Bet ID 3)
+- [x] HT Over 0.5 Goals (Bet ID 57)
 
 ##### 3.3 Construtor de Acumuladores
-- [ ] Algoritmo greedy para odd target
-- [ ] Free accumulators (2/dia, 65-74%, 1.80-2.20)
-- [ ] Premium accumulators (até 5/dia, 75%+, 1.80-4.00)
-- [ ] Estratégia de seleção por tier
-- [ ] Regras de não-repetição
+- [x] Algoritmo greedy para odd target
+- [x] Free accumulators (2/dia, 65-74%, 1.80-2.20)
+- [x] Premium accumulators (até 5/dia, 75%+, 1.80-4.00)
+- [x] Estratégia de seleção por tier
+- [x] Regras de não-repetição
 
 ##### 3.4 Razões Estatísticas
-- [ ] Geração multilíngue (pt/en/es)
-- [ ] Estrutura JSON reasons em pick_selections
-- [ ] Templates de reason strings
+- [x] Geração multilíngue (pt/en/es)
+- [x] Estrutura JSON reasons em pick_selections
+- [x] Templates de reason strings
 
 ---
 
@@ -171,23 +171,23 @@ GoalEdge é um aplicativo Android freemium que usa dados reais de futebol da API
 - [ ] Status colors: green/red/pending
 
 ##### 4.2 Home Screen (Tab 1)
-- [ ] Header com logo + date + notification bell
-- [ ] Seção Free Picks Today (2 accumulator cards)
-- [ ] Seção Premium Picks Today (blurred para free users)
-- [ ] Accumulator cards com tier, selections, odd, confidence, status
-- [ ] Pull-to-refresh
-- [ ] Estado: sem picks ainda
+- [x] Header com logo + date + notification bell
+- [x] Seção Free Picks Today (2 accumulator cards)
+- [x] Seção Premium Picks Today (blurred para free users)
+- [x] Accumulator cards com tier, selections, odd, confidence, status
+- [x] Pull-to-refresh
+- [x] Estado: sem picks ainda
 
 ##### 4.3 Pick Detail Screen
-- [ ] Accumulator header (combined odd, confidence, status)
-- [ ] Selection list (team names, league, market, odd, confidence)
-- [ ] Reasons accordion ( multilíngue)
-- [ ] Status icons por seleção
+- [x] Accumulator header (combined odd, confidence, status)
+- [x] Selection list (team names, league, market, odd, confidence)
+- [x] Reasons accordion ( multilíngue)
+- [x] Status icons por seleção
 
 ##### 4.4 Real-time Updates
-- [ ] Configurar Supabase Realtime
-- [ ] Mutation observers para picks
-- [ ] Status update em tempo real
+- [x] Configurar Supabase Realtime
+- [x] Mutation observers para picks
+- [x] Status update em tempo real
 
 ---
 
@@ -202,21 +202,21 @@ GoalEdge é um aplicativo Android freemium que usa dados reais de futebol da API
 #### Entregáveis
 
 ##### 5.1 Results Screen (Tab 2)
-- [ ] Padrão: yesterday's picks
-- [ ] Calendar date picker
-- [ ] Hit rate badge por dia
-- [ ] ROI display
-- [ ] Lista de accumulator cards com Green/Red
-- [ ] Expandable accordion por accumulator
-- [ ] Free users: apenas free picks
-- [ ] Premium users: todos os picks
+- [x] Padrão: yesterday's picks
+- [x] Calendar date picker
+- [x] Hit rate badge por dia
+- [x] ROI display
+- [x] Lista de accumulator cards com Green/Red
+- [x] Expandable accordion por accumulator
+- [x] Free users: apenas free picks
+- [x] Premium users: todos os picks
 
 ##### 5.2 Tomorrow Screen (Tab 3)
-- [ ] Preview de fixture pool
-- [ ] Match tiles (home vs away, league, kickoff)
-- [ ] Mercado + confidence tentativa
-- [ ] Badge premium nos de alta confiança
-- [ ] Disclaimer "Final picks at 06:00 UTC"
+- [x] Preview de fixture pool
+- [x] Match tiles (home vs away, league, kickoff)
+- [x] Mercado + confidence tentativa
+- [x] Badge premium nos de alta confiança
+- [x] Disclaimer "Final picks at 06:00 UTC"
 
 ---
 
@@ -233,33 +233,33 @@ GoalEdge é um aplicativo Android freemium que usa dados reais de futebol da API
 #### Entregáveis
 
 ##### 6.1 Premium Screen (Tab 4)
-- [ ] Full-screen premium upsell dark + gold
-- [ ] Feature comparison table
-- [ ] Preço: US$3/month
-- [ ] Botão Subscribe Now
-- [ ] Link Restore Purchases
-- [ ] Social proof: 7-day hit rate
+- [x] Full-screen premium upsell dark + gold
+- [x] Feature comparison table
+- [x] Preço: US$3/month
+- [x] Botão Subscribe Now
+- [x] Link Restore Purchases
+- [x] Social proof: 7-day hit rate
 
 ##### 6.2 Google Play Billing
-- [ ] Configurar expo-in-app-purchases ou react-native-iap
-- [ ] In-app products setup
-- [ ] Purchase flow
-- [ ] Token handling
+- [x] Configurar expo-in-app-purchases ou react-native-iap
+- [x] In-app products setup
+- [x] Purchase flow
+- [x] Token handling
 
 ##### 6.3 Stripe Integration
-- [ ] Stripe Checkout Session (Edge Function)
-- [ ] Web redirect flow
-- [ ] Stripe webhook handler
+- [x] Stripe Checkout Session (Edge Function)
+- [x] Web redirect flow
+- [x] Stripe webhook handler
 
 ##### 6.4 Webhook Handlers
-- [ ] stripe-webhook (created/cancelled/renewed)
-- [ ] google-play-webhook (RTDN)
-- [ ] Subscription management
+- [x] stripe-webhook (created/cancelled/renewed)
+- [x] google-play-webhook (RTDN)
+- [x] Subscription management
 
 ##### 6.5 Premium Gate Logic
-- [ ] users.subscription_tier check
-- [ ] Free vs Premium views
-- [ ] Premium blurred content
+- [x] users.subscription_tier check
+- [x] Free vs Premium views
+- [x] Premium blurred content
 
 ---
 
@@ -275,30 +275,30 @@ GoalEdge é um aplicativo Android freemium que usa dados reais de futebol da API
 #### Entregáveis
 
 ##### 7.1 Profile Screen (Tab 5)
-- [ ] Current plan badge (Free/Premium + expiry)
-- [ ] Stats summary (total picks, hit rate, ROI)
-- [ ] Settings: notifications, timezone
-- [ ] Upgrade/Manage Subscription buttons
-- [ ] Sign out button
+- [x] Current plan badge (Free/Premium + expiry)
+- [x] Stats summary (total picks, hit rate, ROI)
+- [x] Settings: notifications, timezone
+- [x] Upgrade/Manage Subscription buttons
+- [x] Sign out button
 
 ##### 7.2 Internacionalização (i18n)
-- [ ] react-i18next setup
-- [ ] Arquivos: /locales/pt.json, /locales/en.json, /locales/es.json
-- [ ] Detecção automática de idioma do dispositivo
-- [ ] Persistent language choice
-- [ ] Toggle visor na Profile screen
-- [ ] Globe icon na Home header
+- [x] react-i18next setup
+- [x] Arquivos: /locales/pt.json, /locales/en.json, /locales/es.json
+- [x] Detecção automática de idioma do dispositivo
+- [x] Persistent language choice
+- [x] Toggle visor na Profile screen
+- [x] Globe icon na Home header
 
 ##### 7.3 Theme Toggle
-- [ ] Dark/Light/System switch
-- [ ] Persistência local e Supabase
-- [ ] Aplicação instantânea
+- [x] Dark/Light/System switch
+- [x] Persistência local e Supabase
+- [x] Aplicação instantânea
 
 ##### 7.4 Push Notifications
-- [ ] expo-notifications setup
-- [ ] send-daily-notification Edge Function
-- [ ] Agendamento 07:00 UTC
-- [ ] Premium-only notifications
+- [x] expo-notifications setup
+- [x] send-daily-notification Edge Function
+- [x] Agendamento 07:00 UTC
+- [x] Premium-only notifications
 
 ---
 
@@ -314,23 +314,23 @@ GoalEdge é um aplicativo Android freemium que usa dados reais de futebol da API
 #### Entregáveis
 
 ##### 8.1 Quality Assurance
-- [ ] Teste completo de todas as funcionalidades
-- [ ] Teste em dispositivos reais
-- [ ] Performance profiling
-- [ ] Accessibility testing
+- [x] Teste completo de todas as funcionalidades
+- [x] Teste em dispositivos reais
+- [x] Performance profiling
+- [x] Accessibility testing
 
 ##### 8.2 Build & Submission
-- [ ] APK build (Android standalone)
-- [ ] Google Play Console setup
-- [ ] App listing content
-- [ ] Screenshots (dark + light)
-- [ ] Privacy Policy
-- [ ] Submission
+- [x] APK build (Android standalone)
+- [x] Google Play Console setup
+- [x] App listing content
+- [x] Screenshots (dark + light)
+- [x] Privacy Policy
+- [x] Submission
 
 ##### 8.3 Documentação
-- [ ] README.md
-- [ ] In-app help/FAQ
-- [ ] Support contact
+- [x] README.md
+- [x] In-app help/FAQ
+- [x] Support contact
 
 ---
 
@@ -371,12 +371,12 @@ GoalEdge é um aplicativo Android freemium que usa dados reais de futebol da API
 ## Critérios de Sucesso
 
 ### MVP V1
-- [ ] App funcional com 2 free picks/dia
-- [ ] Sistema de resultados funcionando
-- [ ] Premium upsell funcionando
-- [ ] i18n em 3 idiomas
-- [ ] Tema dark/light
-- [ ] APK submittable para Play Store
+- [x] App funcional com 2 free picks/dia
+- [x] Sistema de resultados funcionando
+- [x] Premium upsell funcionando
+- [x] i18n em 3 idiomas
+- [x] Tema dark/light
+- [x] APK submittable para Play Store
 
 ---
 

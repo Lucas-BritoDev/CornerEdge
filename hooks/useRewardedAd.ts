@@ -1,17 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
-import { Platform } from 'react-native';
-import {
-    RewardedAd,
-    RewardedAdEventType,
-    TestIds,
-} from 'react-native-google-mobile-ads';
+import { useState, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
-// Em produção, substitua pelos seus IDs reais do AdMob
-const REWARDED_ID = Platform.select({
-    android: __DEV__ ? TestIds.REWARDED : 'ca-app-pub-xxxxxxxx/xxxxxxxxxx',
-    ios: __DEV__ ? TestIds.REWARDED : 'ca-app-pub-xxxxxxxx/xxxxxxxxxx',
-}) ?? TestIds.REWARDED;
 
 const UNLOCK_KEY_PREFIX = 'rewarded_unlock_';
 
@@ -21,38 +9,16 @@ function getTodayKey(pickId: string) {
 }
 
 export function useRewardedAd() {
-    const [loaded, setLoaded] = useState(false);
+    const [loaded, setLoaded] = useState(true);
     const [loading, setLoading] = useState(false);
-    const adRef = useRef<RewardedAd | null>(null);
+    const adRef = useRef<any>(null);
 
     const loadAd = () => {
-        setLoading(true);
-        const rewarded = RewardedAd.createForAdRequest(REWARDED_ID, {
-            requestNonPersonalizedAdsOnly: false,
-        });
-
-        const unsubscribeLoaded = rewarded.addAdEventListener(
-            RewardedAdEventType.LOADED,
-            () => {
-                setLoaded(true);
-                setLoading(false);
-            }
-        );
-
-        rewarded.load();
-        adRef.current = rewarded;
-
-        return () => {
-            unsubscribeLoaded();
-        };
+        setLoaded(true);
     };
 
-    useEffect(() => {
-        loadAd();
-    }, []);
-
     /**
-     * Verifica se este pick já foi desbloqueado hoje via Rewarded
+     * Verifica se este pick já foi desbloqueado today via Rewarded
      */
     const isUnlockedToday = async (pickId: string): Promise<boolean> => {
         try {
@@ -64,34 +30,12 @@ export function useRewardedAd() {
     };
 
     /**
-     * Exibe o anúncio Rewarded. Resolve com `true` se o usuário ganhou a recompensa.
-     * Resolve com `false` se fechou sem assistir.
+     * Simula o ad reward. Para Development, apenas desbloqueia o pick.
      */
     const showAd = (pickId: string): Promise<boolean> => {
-        return new Promise((resolve) => {
-            if (!adRef.current || !loaded) {
-                resolve(false);
-                return;
-            }
-
-            const unsubscribeEarned = adRef.current.addAdEventListener(
-                RewardedAdEventType.EARNED_REWARD,
-                async () => {
-                    // Salva o unlock para este pick hoje
-                    await AsyncStorage.setItem(getTodayKey(pickId), 'true');
-                    unsubscribeEarned();
-                    resolve(true);
-
-                    // Pré-carrega o próximo anúncio
-                    setLoaded(false);
-                    loadAd();
-                }
-            );
-
-            adRef.current.show().catch(() => {
-                unsubscribeEarned();
-                resolve(false);
-            });
+        return new Promise(async (resolve) => {
+            await AsyncStorage.setItem(getTodayKey(pickId), 'true');
+            resolve(true);
         });
     };
 

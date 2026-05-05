@@ -8,7 +8,6 @@
       "ESNext"
     ],
     "moduleResolution": "bundler",
-    "module": "esnext",
     "target": "ESNext",
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
@@ -29,6 +28,7 @@
     "expo-env.d.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "supabase/functions"
   ]
 }
