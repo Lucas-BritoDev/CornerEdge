@@ -1,29 +1,10 @@
 # ============================================================================
-# GoalEdge - CI/CD Pipeline para Android (Expo + EAS Build)
+# GoalEdge - CI/CD Pipeline para Android (EAS Build)
 # ============================================================================
-# Pipeline profissional de CI/CD para automatizar build, teste e deploy do app.
-#
-# 🚀 SUPORTA:
-# - Expo Managed Workflow
-# - Expo + EAS Build
-# - React Native CLI
-#
-# 📦 ARTEFATOS:
-# - AAB (Android App Bundle) - para Google Play
-# - APK (Debug/Release) - distribuição direta
-#
-# 🔐 GATILHOS:
-# - Push para main/develop
-# - Pull Requests
-# - Tags de release
-# - Manual (workflow_dispatch)
-#
-# CONFIGURAÇÃO NECESSÁRIA:
-# - Secrets: EXPO_TOKEN (obrigatório)
-# - Para signed release: ANDROID_SIGNING_KEY, KEYSTORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD
+# Pipeline profissional usando EAS Build (mais confiável que Gradle local)
 #
 # Authores: GoalEdge Team
-# Versão: 2.0.0
+# Versão: 3.0.0
 # ============================================================================
 
 name: Android CI/CD
@@ -34,195 +15,135 @@ on:
     paths-ignore:
       - '**.md'
       - 'docs/**'
-      - '.github/workflows/local-*.yml'
   pull_request:
     branches: [main, develop]
-  release:
-    types: [published]
-  workflow_dispatch:
-    inputs:
-      build_type:
-        description: 'Tipo de build'
-        required: true
-        default: 'production-aab'
-        type: choice
-        options:
-          - 'production-aab'
-          - 'production-apk'
-          - 'preview'
 
 env:
   NODE_VERSION: '20'
-  EXPO_VERSION: '~54.0.0'
 
 permissions:
   contents: read
-  id-token: write
 
 jobs:
   # ==========================================================================
-  # Job 1: Validação (TypeScript + Lint + Testes)
+  # Job 1: Validação
   # ==========================================================================
   test:
-    name: ✅ Test & Validate
+    name: ✅ Validate
     runs-on: ubuntu-latest
     steps:
-      - name: 📥 Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: 🔧 Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
 
-      - name: 📦 Instalar dependências
-        run: npm ci --legacy-peer-deps
+      - run: npm ci --legacy-peer-deps
 
-      - name: 🔍 TypeScript Check
-        run: npx tsc --noEmit
+      - run: npx tsc --noEmit
         continue-on-error: true
 
-      - name: 📝 ESLint
-        run: |
-          if [ -f ".eslintrc.json" ]; then
-            npx eslint . --max-warnings 50 || echo "ESLint não crítico"
-          fi
-        continue-on-error: true
-
-      - name: 🧪 Testes
-        run: |
-          if grep -q '"test"' package.json; then
-            npm test -- --passWithNoTests || echo "Sem testes configurados"
-          fi
-        continue-on-error: true
-
-      - name: 📊 Resumo
-        if: always()
+      - name: 📊 Summary
         run: |
           echo "## ✅ Validação" >> $GITHUB_STEP_SUMMARY
-          echo "- TypeScript: ✅ OK" >> $GITHUB_STEP_SUMMARY
-          echo "- Lint: ✅ OK" >> $GITHUB_STEP_SUMMARY
+          echo "- TypeScript: OK" >> $GITHUB_STEP_SUMMARY
 
   # ==========================================================================
-  # Job 2: Build AAB (Google Play Store)
+  # Job 2: Build AAB (via EAS)
   # ==========================================================================
   build-aab:
-    name: 📦 Build AAB
+    name: 📦 Build AAB (EAS)
     needs: test
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    timeout-minutes: 60
+    timeout-minutes: 50
     steps:
-      - name: 📥 Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: 🔧 Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
 
-      - name: 📦 Instalar dependências
-        run: npm ci --legacy-peer-deps
+      - run: npm ci --legacy-peer-deps
 
-      - name: 🔐 Login EAS
+      - name: 🔐 Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: 🚀 Build AAB via EAS
+        id: eas-build
+        run: |
+          echo "🚀 Starting EAS build for AAB..."
+          
+          # Start build and get ID
+          BUILD_JSON=$(npx eas build --platform android --profile production --non-interactive --json 2>&1)
+          echo "Build response: $BUILD_JSON"
+          
+          # Extract build ID
+          BUILD_ID=$(echo "$BUILD_JSON" | jq -r '.[0].id // empty')
+          
+          if [ -z "$BUILD_ID" ] || [ "$BUILD_ID" = "null" ]; then
+            echo "❌ Failed to get build ID"
+            echo "Response: $BUILD_JSON"
+            exit 1
+          fi
+          
+          echo "✅ Build started: $BUILD_ID"
+          echo "build_id=$BUILD_ID" >> $GITHUB_OUTPUT
+
+      - name: ⏳ Wait for Build
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
-          if [ -n "$EXPO_TOKEN" ]; then
-            npx expo login --token $EXPO_TOKEN
-          else
-            echo "❌ EXPO_TOKEN não configurado"
+          BUILD_ID="${{ steps.eas-build.outputs.build_id }}"
+          MAX_ATTEMPTS=90
+          ATTEMPT=0
+          
+          while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+            ATTEMPT=$((ATTEMPT + 1))
+            
+            STATUS=$(npx eas build:view $BUILD_ID --json 2>/dev/null | jq -r '.[0].status' 2>/dev/null || echo "UNKNOWN")
+            echo "[$((ATTEMPT * 30))s] Status: $STATUS"
+            
+            case $STATUS in
+              FINISHED)
+                echo "✅ Build finished!"
+                break
+                ;;
+              ERRORED|FAILED)
+                echo "❌ Build failed: $STATUS"
+                exit 1
+                ;;
+             _canceled_)
+                echo "❌ Build canceled"
+                exit 1
+                ;;
+            esac
+            
+            sleep 30
+          done
+          
+          if [ $ATTEMPT -ge $MAX_ATTEMPTS ]; then
+            echo "❌ Timeout"
             exit 1
           fi
 
-      - name: 🔧 Gerar android/ com Expo Prebuild
-        run: |
-          echo "🔧 Executando expo prebuild..."
-          npx expo prebuild --platform android --clean
-          
-          # Verificar se android/ foi gerado
-          if [ -d "android" ]; then
-            echo "✅ Diretório android/ gerado"
-            ls -la android/
-          else
-            echo "❌ Falha ao gerar android/"
-            exit 1
-          fi
-
-      - name: 🔧 Aplicar Patch Fresco (versão fixa)
-        run: |
-          BUILD_FILE="android/app/build.gradle"
-          
-          if [ -f "$BUILD_FILE" ]; then
-            # Verificar se precisa de patch
-            if grep -q "expoLibs.versions.fresco" "$BUILD_FILE"; then
-              echo "🔧 Aplicando patch para Fresco..."
-              sed -i 's/\${expoLibs\.versions\.fresco\.get()}/3.1.3/g' "$BUILD_FILE"
-              sed -i 's/${expoLibs.versions.fresco}/3.1.3/g' "$BUILD_FILE"
-              echo "✅ Patch aplicado"
-            else
-              echo "ℹ️ Patch não necessário (Fresco não encontrado)"
-            fi
-          else
-            echo "⚠️ Arquivo $BUILD_FILE não encontrado"
-          fi
-
-      - name: 🔐 Configurar Assinatura (se disponível)
+      - name: 📥 Download AAB
         env:
-          ANDROID_SIGNING_KEY: ${{ secrets.ANDROID_SIGNING_KEY }}
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
-          if [ -n "$ANDROID_SIGNING_KEY" ]; then
-            echo "🔐 Configurando assinatura..."
-            
-            # Criar diretório android/app se não existir
-            mkdir -p android/app
-            
-            # Decodificar keystore
-            echo "$ANDROID_SIGNING_KEY" | base64 -d > android/app/release.keystore
-            
-            # Criar gradle.properties com configurações de assinatura
-            cat >> android/gradle.properties << EOF
-            android.signing.store=android/app/release.keystore
-            android.signing.alias=$KEY_ALIAS
-            android.signing.storePassword=$KEYSTORE_PASSWORD
-            android.signing.keyPassword=$KEY_PASSWORD
-            EOF
-            
-            echo "✅ Assinatura configurada"
-          else
-            echo "ℹ️ Assinatura não configurada - usando debug"
-          fi
-
-      - name: 🏗️ Build AAB
-        run: |
-          cd android
-          chmod +x gradlew
-          ./gradlew assembleRelease --no-daemon 2>&1 | tail -50
+          BUILD_ID="${{ steps.eas-build.outputs.build_id }}"
+          npx eas build:download --id $BUILD_ID --output ./goaledge.aab
           
-          # Verificar se o AAB foi gerado
-          if [ -f "app/build/outputs/bundle/release/app-release.aab" ]; then
-            echo "✅ AAB gerado com sucesso!"
-            ls -lh app/build/outputs/bundle/release/
-          elif [ -f "app/build/outputs/apk/release/app-release-unsigned.apk" ]; then
-            echo "⚠️ AAB não assinado (precisa de keystore)"
-            ls -lh app/build/outputs/apk/release/
-          else
-            echo "❌ Build falhou"
-            ls -la app/build/outputs/ 2>/dev/null || true
-            exit 1
-          fi
-        continue-on-error: true
-
-      - name: 📦 Copy AAB to root
-        run: |
-          if [ -f "android/app/build/outputs/bundle/release/app-release.aab" ]; then
-            cp android/app/build/outputs/bundle/release/app-release.aab ./goaledge.aab
+          if [ -f "./goaledge.aab" ]; then
             ls -lh goaledge.aab
+          else
+            echo "❌ Download failed"
+            exit 1
           fi
 
       - name: 📤 Upload AAB
@@ -233,88 +154,78 @@ jobs:
           retention-days: 30
 
   # ==========================================================================
-  # Job 3: Build APK (Distribuição Direta)
+  # Job 3: Build APK (via EAS)
   # ==========================================================================
   build-apk:
-    name: 📦 Build APK
+    name: 📦 Build APK (EAS)
     needs: test
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    timeout-minutes: 60
+    timeout-minutes: 50
     steps:
-      - name: 📥 Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: 🔧 Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
 
-      - name: 📦 Instalar dependências
-        run: npm ci --legacy-peer-deps
+      - run: npm ci --legacy-peer-deps
 
-      - name: 🔐 Login EAS
+      - name: 🔐 Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: 🚀 Build APK via EAS
+        id: eas-apk
+        run: |
+          echo "🚀 Starting EAS build for APK..."
+          
+          BUILD_JSON=$(npx eas build --platform android --profile production-apk --non-interactive --json 2>&1)
+          BUILD_ID=$(echo "$BUILD_JSON" | jq -r '.[0].id // empty')
+          
+          if [ -z "$BUILD_ID" ]; then
+            echo "❌ Failed to get build ID"
+            exit 1
+          fi
+          
+          echo "✅ APK Build started: $BUILD_ID"
+          echo "apk_build_id=$BUILD_ID" >> $GITHUB_OUTPUT
+
+      - name: ⏳ Wait for APK Build
+        run: |
+          BUILD_ID="${{ steps.eas-apk.outputs.apk_build_id }}"
+          MAX_ATTEMPTS=90
+          ATTEMPT=0
+          
+          while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+            ATTEMPT=$((ATTEMPT + 1))
+            STATUS=$(npx eas build:view $BUILD_ID --json 2>/dev/null | jq -r '.[0].status' 2>/dev/null || echo "UNKNOWN")
+            echo "[$((ATTEMPT * 30))s] Status: $STATUS"
+            
+            case $STATUS in
+              FINISHED) echo "✅ APK Built!"; break ;;
+              ERRORED|FAILED|_canceled_) echo "❌ Failed: $STATUS"; exit 1 ;;
+            esac
+            sleep 30
+          done
+
+      - name: 📥 Download APK
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
-          if [ -n "$EXPO_TOKEN" ]; then
-            npx expo login --token $EXPO_TOKEN
-          fi
-
-      - name: 🔧 Expo Prebuild
-        run: npx expo prebuild --platform android --clean
-
-      - name: 🔧 Patch Fresco
-        run: |
-          BUILD_FILE="android/app/build.gradle"
-          if [ -f "$BUILD_FILE" ] && grep -q "expoLibs.versions.fresco" "$BUILD_FILE"; then
-            sed -i 's/\${expoLibs\.versions\.fresco\.get()}/3.1.3/g' "$BUILD_FILE"
-          fi
-
-      - name: 🏗️ Build APK
-        run: |
-          cd android
-          chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon 2>&1 | tail -30
+          BUILD_ID="${{ steps.eas-apk.outputs.apk_build_id }}"
+          npx eas build:download --id $BUILD_ID --output ./goaledge.apk
           
-          if [ -f "app/build/outputs/apk/debug/app-debug.apk" ]; then
-            echo "✅ APK Debug gerado!"
-          else
-            exit 1
-          fi
-        continue-on-error: true
-
-      - name: 📦 Copy APK
-        run: |
-          if [ -f "android/app/build/outputs/apk/debug/app-debug.apk" ]; then
-            cp android/app/build/outputs/apk/debug/app-debug.apk ./goaledge-debug.apk
-            ls -lh goaledge-debug.apk
+          if [ -f "./goaledge.apk" ]; then
+            ls -lh goaledge.apk
           fi
 
       - name: 📤 Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: goaledge-apk
-          path: goaledge-debug.apk
+          path: goaledge.apk
           retention-days: 30
-
-  # ==========================================================================
-  # Job 4: Resumo Final
-  # ==========================================================================
-  summary:
-    name: 📊 Resumo
-    needs: [build-aab, build-apk]
-    runs-on: ubuntu-latest
-    if: always()
-    steps:
-      - name: 📊 Resumo do Build
-        run: |
-          echo "## 📦 Artefatos Gerados" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Artefato | Status |" >> $GITHUB_STEP_SUMMARY
-          echo "|--------|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| AAB (Play Store) | ✅ Pronto |" >> $GITHUB_STEP_SUMMARY
-          echo "| APK (Debug) | ✅ Pronto |" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "📎 Os artefatos estão disponíveis para download na aba 'Artifacts'" >> $GITHUB_STEP_SUMMARY
