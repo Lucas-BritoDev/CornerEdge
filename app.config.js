@@ -44,8 +44,19 @@ export default {
     
     plugins: [
       "expo-router",
-      "expo-web-browser"
-      // Removido: "./plugins/withFixedFrescoVersion" (pode causar problemas)
+      "expo-web-browser",
+      // ✅ AdMob Plugin - Configuração oficial seguindo documentação
+      // Docs: https://github.com/invertase/react-native-google-mobile-ads
+      [
+        "react-native-google-mobile-ads",
+        {
+          // Application IDs de PRODUÇÃO
+          "androidAppId": "ca-app-pub-8609967398609187~5936939727",
+          "iosAppId": "ca-app-pub-8609967398609187~5936939727",
+          // Descrição para App Tracking Transparency (iOS)
+          "userTrackingUsageDescription": "Este identificador será usado para fornecer anúncios personalizados para você."
+        }
+      ]
     ],
     
     experiments: {

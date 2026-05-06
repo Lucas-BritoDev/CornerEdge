@@ -41,7 +41,7 @@
   },
   "tomorrow": {
     "title": "Mañana",
-    "disclaimer": "Picks finales generados a las 06:00 UTC",
+    "disclaimer": "Picks finales generados a las 09:00 BRT",
     "fixture_preview": "Vista previa de Partidos",
     "analyzing": "Analizando...",
     "premium_hint": "Premium"
@@ -74,7 +74,7 @@
     "benefit_2_title": "Cobertura Total del Mercado",
     "benefit_2_desc": "Desbloquea múltiples mercados, incluyendo BTTS, Over/Under y Draw No Bet en más de 50 ligas.",
     "benefit_3_title": "Notificaciones Prioritarias",
-    "benefit_3_desc": "Sé el primero en saber quando se identifiquen nuevos picks de alto valor a lo largo del día.",
+    "benefit_3_desc": "Sé el primero en saber cuando se identifiquen nuevos picks de alto valor a lo largo del día.",
     "monthly": "Mensual",
     "quarterly": "Trimestral",
     "month": "mes",
@@ -88,7 +88,7 @@
     "limited_preview": "Vista previa limitada",
     "full_tomorrow": "Pool completo de mañana",
     "no_notifications": "Sin notificaciones",
-    "push_notifications": "Notificações push",
+    "push_notifications": "Notificaciones push",
     "no_roi": "Sin seguimiento de ROI",
     "full_stats": "Estadísticas completas + ROI",
     "gamble_responsibly": "Por favor, juega con responsabilidad",
@@ -114,7 +114,28 @@
     "daily_alerts": "Alertas diarios",
     "upgrade": "Upgrade to Premium",
     "manage_subscription": "Gestionar Suscripción",
-    "sign_out": "Cerrar Sesión"
+    "sign_out": "Cerrar Sesión",
+    "signing_out": "Cerrando sesión..."
+  },
+  "onboarding": {
+    "slide1_subtitle": "DATASCIENCE",
+    "slide1_title": "Análisis Estadístico",
+    "slide1_desc": "Modelos predictivos entrenados con miles de datos históricos. Análisis avanzado para máxima precisión.",
+    "slide2_subtitle": "AI POWERED",
+    "slide2_title": "Predicciones de Alta Confianza",
+    "slide2_desc": "Solo predicciones con 65%+ de confianza. Promedio de aciertos del 72% en los últimos 30 días.",
+    "slide3_subtitle": "WORLDWIDE",
+    "slide3_title": "Cobertura Global",
+    "slide3_desc": "Más de 50 ligas monitoreadas. Premier League, La Liga, Serie A, Bundesliga, Brasileirão y más.",
+    "slide4_subtitle": "2 FREE / DÍA",
+    "slide4_title": "Plan Gratuito y Premium",
+    "slide4_desc": "2 predicciones gratuitas por día. Actualiza a Premium y recibe hasta 5 predicciones con 75%+ de confianza.",
+    "slide5_subtitle": "GOALEDGE",
+    "slide5_title": "¿Listo para Empezar?",
+    "slide5_desc": "Únete a miles de aficionados al fútbol que siguen nuestros análisis estadísticos.",
+    "next": "Siguiente",
+    "start": "Comenzar Ahora",
+    "skip": "Saltar introducción"
   },
   "auth": {
     "login": "Iniciar Sesión",

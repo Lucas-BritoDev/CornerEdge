@@ -46,7 +46,8 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const API_BASE = "https://v3.football.api-sports.io";
 
-const LEAGUE_IDS = [39, 140, 135, 78, 61, 71, 2, 3, 94, 88, 144, 203, 128, 71, 253, 317];
+// BUG 1 CORRIGIDO: Liga 71 (Brasileirão) estava duplicada — removida a duplicata
+const LEAGUE_IDS = [...new Set([39, 140, 135, 78, 61, 71, 2, 3, 94, 88, 144, 203, 128, 253, 317])];
 const SEASON = 2026;
 
 const MARKETS = [
@@ -324,99 +325,110 @@ function calcRecentForm(stats: any): number {
   }
 }
 
-function calcGoalsRatio(stats: any, isHome: boolean): number {
+// BUG 4 CORRIGIDO: calcGoalsRatio somava gols marcados + sofridos indistintamente,
+// fazendo um time que marca 3 e sofre 1 ter o mesmo score que um que marca 1 e sofre 3.
+// Agora retorna separadamente o score ofensivo e defensivo para uso correto em cada mercado.
+function calcGoalsScores(stats: any, isHome: boolean): { offensive: number; defensive: number; total: number } {
   try {
-    const scored = isHome 
+    const scored = isHome
       ? parseFloat(stats?.goals?.for?.average?.home ?? "1.0")
       : parseFloat(stats?.goals?.for?.average?.away ?? "1.0");
-    
+
     const conceded = isHome
       ? parseFloat(stats?.goals?.against?.average?.home ?? "1.0")
       : parseFloat(stats?.goals?.against?.average?.away ?? "1.0");
-    
-    // Média de gols total por jogo
-    const totalAvg = scored + conceded;
-    
-    // Converter para score (0-100)
-    // 0 gols = 0, 1.5 gols = 50, 3+ gols = 100
-    const score = Math.min((totalAvg / 3.0) * 100, 100);
-    
-    return Math.round(score);
-  } catch { 
-    return 50; 
+
+    // Ofensivo: quanto o time marca (0-100, 3+ gols = 100)
+    const offensive = Math.min((scored / 3.0) * 100, 100);
+    // Defensivo: quanto o time sofre — invertido (0 sofridos = 100, 3+ sofridos = 0)
+    const defensive = Math.max(100 - (conceded / 3.0) * 100, 0);
+    // Total: soma de gols por jogo (para Over/Under)
+    const total = Math.min(((scored + conceded) / 3.0) * 100, 100);
+
+    return {
+      offensive: Math.round(offensive),
+      defensive: Math.round(defensive),
+      total: Math.round(total),
+    };
+  } catch {
+    return { offensive: 50, defensive: 50, total: 50 };
   }
 }
 
+// BUG 2 CORRIGIDO: bttsRate e over25Rate eram calculados mas nunca usados.
+// Agora o score H2H é composto por 3 fatores reais:
+//   50% média de gols, 30% taxa BTTS histórica, 20% taxa Over 2.5 histórica
 function calcH2HScore(h2h: any[]): number {
   if (!h2h || h2h.length === 0) return 50;
-  
+
   let totalGoals = 0;
   let matchesWithBTTS = 0;
   let matchesOver25 = 0;
-  
+
   const recentMatches = h2h.slice(0, 10);
-  
+
   for (const match of recentMatches) {
     const homeGoals = match.goals?.home ?? 0;
     const awayGoals = match.goals?.away ?? 0;
     const total = homeGoals + awayGoals;
-    
+
     totalGoals += total;
-    
     if (homeGoals > 0 && awayGoals > 0) matchesWithBTTS++;
     if (total > 2.5) matchesOver25++;
   }
-  
-  const avgGoals = totalGoals / recentMatches.length;
-  const bttsRate = (matchesWithBTTS / recentMatches.length) * 100;
-  const over25Rate = (matchesOver25 / recentMatches.length) * 100;
-  
-  // Retornar score baseado na média de gols
-  return Math.round(Math.min((avgGoals / 3.0) * 100, 100));
+
+  const n = recentMatches.length;
+  const avgGoals   = totalGoals / n;
+  const bttsRate   = (matchesWithBTTS / n) * 100;   // 0-100
+  const over25Rate = (matchesOver25 / n) * 100;      // 0-100
+  const goalsScore = Math.min((avgGoals / 3.0) * 100, 100);
+
+  // Score composto: 50% gols médios + 30% BTTS histórico + 20% Over2.5 histórico
+  return Math.round(goalsScore * 0.5 + bttsRate * 0.3 + over25Rate * 0.2);
 }
 
 function scoreMarket(
-  market: typeof MARKETS[0], 
-  homeStats: any, 
-  awayStats: any, 
+  market: typeof MARKETS[0],
+  homeStats: any,
+  awayStats: any,
   h2h: any[]
 ): number {
   const homeForm = calcRecentForm(homeStats);
   const awayForm = calcRecentForm(awayStats);
-  const homeGoalsRatio = calcGoalsRatio(homeStats, true);
-  const awayGoalsRatio = calcGoalsRatio(awayStats, false);
-  const h2hScore = calcH2HScore(h2h);
-  
-  // Análise específica por mercado
+  const homeScores = calcGoalsScores(homeStats, true);
+  const awayScores = calcGoalsScores(awayStats, false);
+  const h2hScore  = calcH2HScore(h2h);
+
   let confidence = 50;
-  
+
   if (market.name === "Over 2.5 Goals" || market.name === "Over 1.5 Goals") {
-    // Over: precisa de times ofensivos
-    const offensiveScore = (homeGoalsRatio + awayGoalsRatio) / 2;
+    // Over: usa score TOTAL (gols marcados + sofridos) de ambos os times
+    const offensiveScore = (homeScores.total + awayScores.total) / 2;
     confidence = Math.round(offensiveScore * 0.6 + h2hScore * 0.4);
-    
+
   } else if (market.name === "BTTS") {
-    // BTTS: ambos times precisam marcar
-    const bothScore = Math.min(homeGoalsRatio, awayGoalsRatio);
-    confidence = Math.round(bothScore * 0.7 + h2hScore * 0.3);
-    
+    // BTTS: precisa que AMBOS marquem → usa score OFENSIVO do time mais fraco
+    // (o gargalo é o time que menos ataca)
+    const bttsScore = Math.min(homeScores.offensive, awayScores.offensive);
+    confidence = Math.round(bttsScore * 0.7 + h2hScore * 0.3);
+
   } else if (market.name === "Under 2.5 Goals") {
-    // Under: times defensivos
-    const defensiveScore = 100 - ((homeGoalsRatio + awayGoalsRatio) / 2);
+    // Under: usa score DEFENSIVO de ambos os times (quanto menos sofrem, melhor)
+    const defensiveScore = (homeScores.defensive + awayScores.defensive) / 2;
     confidence = Math.round(defensiveScore * 0.6 + (100 - h2hScore) * 0.4);
-    
+
   } else if (market.name.includes("Double Chance")) {
-    // Double Chance: mais seguro, baseado em forma
+    // Double Chance: mercado mais seguro, baseado em forma recente
     const formScore = (homeForm + awayForm) / 2;
     confidence = Math.round(formScore * 0.8 + h2hScore * 0.2);
-    
+
   } else {
-    // Outros mercados: análise geral
-    const generalScore = (homeForm + awayForm + homeGoalsRatio + awayGoalsRatio) / 4;
+    // HT Over 0.5 e outros: análise geral balanceada
+    const generalScore = (homeForm + awayForm + homeScores.total + awayScores.total) / 4;
     confidence = Math.round(generalScore * 0.7 + h2hScore * 0.3);
   }
-  
-  // Limitar entre 50-95% (nunca 100% - futebol é imprevisível)
+
+  // Limitar entre 50-95% (nunca 100% — futebol é imprevisível)
   return Math.max(50, Math.min(confidence, 95));
 }
 
@@ -484,40 +496,28 @@ interface PickCandidate {
 // Não inventamos dados - usamos form, média de gols, H2H histórico
 // ============================================================================
 
-function buildAccumulators(candidates: PickCandidate[], tier: "free" | "premium") {
-  // FREE: 70-75% de confiança | PREMIUM: 75-80% de confiança
-  const confMin = tier === "free" ? 70 : 75;
-  const confMax = tier === "free" ? 75 : 80;
-  
-  // Odds razoáveis para múltiplas (1.30 a 3.50 por seleção)
-  const oddMin = 1.30;
-  const oddMax = tier === "free" ? 5.00 : 8.00;
-  
-  // FREE: 2-3 múltiplas | PREMIUM: 5-7 múltiplas
-  const minAccumulators = tier === "free" ? 2 : 5;
+// FREE: candidatos com confiança 65-74% (mais acessíveis)
+// PREMIUM: candidatos com confiança ≥ 75% (mais assertivos — SEMPRE mais acertivo que FREE)
+// globalUsed compartilhado garante que o mesmo jogo não aparece em tiers diferentes.
+function buildAccumulators(candidates: PickCandidate[], tier: "free" | "premium", globalUsed: Set<number>) {
+  const confMin = tier === "free" ? 65 : 75;
+  const confMax = tier === "free" ? 74 : 95; // FREE: 65-74% | PREMIUM: 75-95%
+  const oddMin  = 1.30;
+  const oddMax  = tier === "free" ? 5.00 : 8.00;
   const maxAccumulators = tier === "free" ? 3 : 7;
 
-  // Filtrar apenas candidatos com confiança REAL dentro do range
   const filtered = candidates
-    .filter(c => {
-      // Confiança deve estar no range específico do tier
-      const confOk = c.confidence >= confMin && c.confidence <= confMax;
-      // Odds razoáveis (1.20 a 3.50 por seleção individual)
-      const oddOk = c.odd >= 1.20 && c.odd <= 3.50;
-      return confOk && oddOk;
-    })
-    .sort((a, b) => b.confidence - a.confidence); // Ordenar por confiança (maior primeiro)
+    .filter(c => c.confidence >= confMin && c.confidence <= confMax && c.odd >= 1.20 && c.odd <= 3.50)
+    .sort((a, b) => b.confidence - a.confidence);
 
-  console.log(`[${tier.toUpperCase()}] Filtered candidates: ${filtered.length} (conf: ${confMin}-${confMax}%)`);
+  console.log(`[${tier.toUpperCase()}] Filtered candidates: ${filtered.length} (conf ${confMin}-${confMax}%)`);
 
   const accumulators: PickCandidate[][] = [];
-  const used = new Set<number>();
 
-  // Tentar gerar o número desejado de múltiplas
   for (let i = 0; i < maxAccumulators; i++) {
-    const pool = filtered.filter(c => !used.has(c.fixture.fixture.id));
-    
-    // Precisamos de pelo menos 2 seleções para uma múltipla
+    // Excluir fixtures já usados em qualquer tier
+    const pool = filtered.filter(c => !globalUsed.has(c.fixture.fixture.id));
+
     if (pool.length < 2) {
       console.log(`[${tier.toUpperCase()}] Not enough candidates for accumulator ${i + 1}`);
       break;
@@ -526,24 +526,27 @@ function buildAccumulators(candidates: PickCandidate[], tier: "free" | "premium"
     const acc: PickCandidate[] = [];
     let combinedOdd = 1.0;
     let totalConfidence = 0;
+    const usedMarkets = new Set<string>();
 
-    // Construir múltipla com 2-4 seleções
     for (const c of pool) {
-      // Máximo 4 seleções por múltipla
       if (acc.length >= 4) break;
-      
-      // Verificar se a odd combinada não ultrapassa o limite
+
+      const marketGroup = c.market.name.startsWith("Double Chance")
+        ? "Double Chance"
+        : c.market.name;
+
+      if (usedMarkets.has(marketGroup)) continue;
+
       const newCombinedOdd = combinedOdd * c.odd;
       if (newCombinedOdd > oddMax) continue;
-      
-      // Adicionar seleção
+
       acc.push(c);
       combinedOdd = newCombinedOdd;
       totalConfidence += c.confidence;
-      used.add(c.fixture.fixture.id);
+      globalUsed.add(c.fixture.fixture.id); // marca no set global
+      usedMarkets.add(marketGroup);
     }
 
-    // Validar múltipla: mínimo 2 seleções, odd combinada >= oddMin
     if (acc.length >= 2 && combinedOdd >= oddMin) {
       const avgConfidence = Math.round(totalConfidence / acc.length);
       console.log(`[${tier.toUpperCase()}] Accumulator ${i + 1}: ${acc.length} selections, ${combinedOdd.toFixed(2)} odds, ${avgConfidence}% confidence`);
@@ -553,11 +556,6 @@ function buildAccumulators(candidates: PickCandidate[], tier: "free" | "premium"
     }
   }
 
-  // Garantir mínimo de múltiplas
-  if (accumulators.length < minAccumulators) {
-    console.warn(`[${tier.toUpperCase()}] WARNING: Only ${accumulators.length} accumulators generated (expected ${minAccumulators}-${maxAccumulators})`);
-  }
-
   console.log(`[${tier.toUpperCase()}] Final: ${accumulators.length} accumulators generated`);
   return accumulators;
 }
@@ -565,29 +563,34 @@ function buildAccumulators(candidates: PickCandidate[], tier: "free" | "premium"
 Deno.serve(async (req) => {
   try {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
-    const today = new Date().toISOString().split("T")[0];
+    
+    // ✅ MUDANÇA: Gerar picks para AMANHÃ ao invés de hoje
+    // Isso permite que usuários vejam análises com 1 dia de antecedência
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const targetDate = tomorrow.toISOString().split("T")[0];
 
-    // Verificar se já gerou hoje
+    // Verificar se já gerou para a data alvo
     const { data: existing } = await supabase
       .from("daily_picks")
       .select("id")
-      .eq("pick_date", today)
+      .eq("pick_date", targetDate)
       .limit(1);
 
     const forceRegen = new URL(req.url).searchParams.get("force") === "true";
 
     if (existing && existing.length > 0 && !forceRegen) {
-      return new Response(JSON.stringify({ message: "Picks already generated for today", date: today }), {
+      return new Response(JSON.stringify({ message: "Picks already generated for target date", date: targetDate }), {
         headers: { "Content-Type": "application/json" },
       });
     }
 
-    // Buscar fixtures do dia
-    const fixtures = await getFixturesForDate(today);
-    console.log(`Found ${fixtures.length} fixtures for ${today}`);
+    // Buscar fixtures da data alvo
+    const fixtures = await getFixturesForDate(targetDate);
+    console.log(`Found ${fixtures.length} fixtures for ${targetDate}`);
 
     if (fixtures.length === 0) {
-      return new Response(JSON.stringify({ message: "No fixtures today", date: today }), {
+      return new Response(JSON.stringify({ message: "No fixtures for target date", date: targetDate }), {
         headers: { "Content-Type": "application/json" },
       });
     }
@@ -671,12 +674,14 @@ Deno.serve(async (req) => {
     console.log(`Generated ${candidates.length} candidates`);
 
     if (forceRegen) {
-      await supabase.from("daily_picks").delete().eq("pick_date", today);
+      await supabase.from("daily_picks").delete().eq("pick_date", targetDate);
     }
 
-    // Gerar acumuladores free e premium
-    const freeAccs = buildAccumulators(candidates, "free");
-    const premiumAccs = buildAccumulators(candidates, "premium");
+    // PREMIUM roda primeiro para reservar os candidatos de maior confiança (≥75%).
+    // FREE usa o restante (65-74%). Isso garante que PREMIUM seja sempre mais assertivo.
+    const globalUsedFixtures = new Set<number>();
+    const premiumAccs = buildAccumulators(candidates, "premium", globalUsedFixtures);
+    const freeAccs    = buildAccumulators(candidates, "free",    globalUsedFixtures);
 
     const allAccs = [
       ...freeAccs.map((acc, i) => ({ acc, tier: "free" as const, sortOrder: i })),
@@ -692,7 +697,7 @@ Deno.serve(async (req) => {
       const { data: pick, error: pickError } = await supabase
         .from("daily_picks")
         .insert({
-          pick_date: today,
+          pick_date: targetDate,
           tier,
           combined_odds: parseFloat(combinedOdds.toFixed(2)),
           confidence: avgConf,
@@ -733,7 +738,7 @@ Deno.serve(async (req) => {
 
     return new Response(JSON.stringify({ 
       success: true, 
-      date: today, 
+      date: targetDate, 
       picksCreated, 
       candidates: candidates.length, 
       errors: JSON.parse(JSON.stringify(errors)) 

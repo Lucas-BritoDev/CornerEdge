@@ -8,6 +8,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from '../context/AuthContext';
 import { ThemeProvider, useTheme } from '../context/ThemeContext';
 import { LanguageProvider } from '../context/LanguageContext';
+import { initializeAdMob } from '../lib/admob-init';
 import '../i18n';
 
 // ============================================================================
@@ -25,9 +26,20 @@ const queryClient = new QueryClient({
   },
 });
 
+// ============================================================================
+// ADMOB INITIALIZATION - Inicializar SDK no início do app
+// ============================================================================
+// IMPORTANTE: Deve ser chamado UMA VEZ no início do app
+// Docs: https://github.com/invertase/react-native-google-mobile-ads
+// ============================================================================
+initializeAdMob().catch((error) => {
+  console.error('[App] Erro ao inicializar AdMob:', error);
+  // Não bloquear o app se AdMob falhar
+});
+
 // ─── Proteção de rotas baseada em sessão ──────────────────────────────
 function AuthGate() {
-    const { user, isLoading } = useAuth();
+    const { user, isLoading, isOnboarded } = useAuth();
     const segments = useSegments();
     const router = useRouter();
 
@@ -36,20 +48,31 @@ function AuthGate() {
 
         const inAuthGroup = ['login', 'signup', 'forgot-password', 'new-password', 'onboarding'].includes(segments[0] as string);
 
-        if (!user && !inAuthGroup) {
-            // Usuário não autenticado tentando acessar área protegida
+        if (!isOnboarded) {
+            // Primeira vez: mostrar onboarding independente de estar logado ou não
+            if (segments[0] !== 'onboarding') {
+                router.replace('/onboarding');
+            }
+        } else if (!user && !inAuthGroup) {
+            // Onboarding feito, mas não autenticado
             router.replace('/login');
         } else if (user && inAuthGroup) {
-            // Usuário autenticado tentando acessar telas de auth
+            // Autenticado tentando acessar telas de auth/onboarding
             router.replace('/');
         }
-    }, [user, isLoading, segments]);
+    }, [user, isLoading, isOnboarded, segments]);
 
     return null;
 }
 
 function AppContent() {
     const { resolvedTheme } = useTheme();
+    const segments = useSegments();
+
+    const isAuthScreen = ['login', 'signup', 'forgot-password', 'new-password', 'onboarding'].includes(segments[0] as string);
+    
+    // Fundo da status bar basedo no tema
+    const statusBarBg = resolvedTheme === 'dark' ? '#0D0D0D' : '#FFFFFF';
 
     return (
         <>
@@ -63,7 +86,10 @@ function AppContent() {
                 <Stack.Screen name="new-password" />
                 <Stack.Screen name="goodbye" />
             </Stack>
-            <StatusBar style="light" />
+            <StatusBar
+                style={resolvedTheme === 'dark' ? 'light' : 'dark'}
+                backgroundColor={statusBarBg}
+            />
         </>
     );
 }

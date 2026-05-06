@@ -15,7 +15,6 @@ export const picksKeys = {
   dates: () => [...picksKeys.all, 'dates'] as const,
   stats: (date: string) => [...picksKeys.all, 'stats', date] as const,
   userStats: () => [...picksKeys.all, 'user-stats'] as const,
-  tomorrow: () => [...picksKeys.all, 'tomorrow'] as const,
 };
 
 // ============================================================================
@@ -169,13 +168,16 @@ export function useTodayPicks() {
  * const { data: picks, isLoading } = usePicksByDate('2026-05-05');
  */
 export function usePicksByDate(dateStr: string) {
+  const today = new Date().toISOString().split('T')[0];
+  const isToday = dateStr === today;
+
   return useQuery({
     queryKey: picksKeys.byDate(dateStr),
     queryFn: () => fetchPicksByDateBase(dateStr),
-    staleTime: 10 * 60 * 1000,       // 10 minutos (dados históricos)
-    gcTime: 60 * 60 * 1000,          // 1 hora no cache
-    refetchOnWindowFocus: false,
-    enabled: !!dateStr,              // Só busca se tiver data
+    staleTime: isToday ? 60 * 1000 : 10 * 60 * 1000, // 1 min para hoje, 10 min para histórico
+    gcTime: 60 * 60 * 1000,
+    refetchOnWindowFocus: isToday,   // Refaz ao voltar pro app se for hoje
+    enabled: !!dateStr,
   });
 }
 
@@ -297,41 +299,6 @@ export async function fetchAvailableDates(): Promise<string[]> {
 export async function fetchDailyStats(dateStr: string): Promise<DailyStats | null> {
     console.warn('⚠️ fetchDailyStats() is deprecated. Use useDailyStats() hook instead for automatic caching.');
     return fetchDailyStatsBase(dateStr);
-}
-
-// ─── Fixtures de amanhã ───────────────────────────────────────────────────────
-
-export interface TomorrowFixture {
-    id: number;
-    homeTeam: string;
-    homeLogo?: string;
-    awayTeam: string;
-    awayLogo?: string;
-    league: string;
-    leagueId: number;
-    kickoffAt: string;
-}
-
-export async function fetchTomorrowFixtures(): Promise<TomorrowFixture[]> {
-    const supabaseUrl = Constants.expoConfig?.extra?.supabaseUrl || process.env.EXPO_PUBLIC_SUPABASE_URL || '';
-    const anonKey = Constants.expoConfig?.extra?.supabaseAnonKey || process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
-
-    if (!supabaseUrl || !anonKey) {
-        console.error('Supabase configuration missing');
-        return [];
-    }
-
-    try {
-        const res = await fetch(`${supabaseUrl}/functions/v1/get-tomorrow-fixtures`, {
-            headers: { Authorization: `Bearer ${anonKey}` },
-        });
-        if (!res.ok) return [];
-        const json = await res.json();
-        return (json.fixtures ?? []) as TomorrowFixture[];
-    } catch (e) {
-        console.error('fetchTomorrowFixtures error:', e);
-        return [];
-    }
 }
 
 // ─── Forçar geração de picks (admin) ─────────────────────────────────────────

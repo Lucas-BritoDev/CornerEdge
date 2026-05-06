@@ -1,7 +1,7 @@
 import { Tabs } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../context/ThemeContext';
-import { Home, Calendar, Clock, Crown, User } from 'lucide-react-native';
+import { Home, Calendar, Crown, User } from 'lucide-react-native';
 import { useNotifications } from '../../hooks/useNotifications';
 import { useAuth } from '../../context/AuthContext';
 
@@ -45,13 +45,6 @@ export default function TabLayout() {
                 options={{
                     title: t('tabs.results'),
                     tabBarIcon: ({ color, size }) => <Calendar color={color} size={size} />,
-                }}
-            />
-            <Tabs.Screen
-                name="tomorrow"
-                options={{
-                    title: t('tabs.tomorrow'),
-                    tabBarIcon: ({ color, size }) => <Clock color={color} size={size} />,
                 }}
             />
             <Tabs.Screen

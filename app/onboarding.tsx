@@ -11,61 +11,35 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../context/AuthContext';
+import { useTranslation } from 'react-i18next';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ChevronRight } from 'lucide-react-native';
 
 const { width, height } = Dimensions.get('window');
 
-const SLIDES = [
-    {
-        id: '1',
-        icon: '⚽',
-        title: 'Análise Estatística',
-        subtitle: 'DATASCIENCE',
-        description: 'Models preditivos treinados com miles de dados históricos. Análise deep learning para precisão maxima.',
-        bgColors: ['#1A1A2E', '#C9A84C']
-    },
-    {
-        id: '2',
-        icon: '📊',
-        title: 'Picks de Alta Confiança',
-        subtitle: 'AI POWERED',
-        description: 'Apenas picks com 65%+ de confiança. Média de acerto de 72% nos ultimos 30 dias.',
-        bgColors: ['#16213E', '#0F3460']
-    },
-    {
-        id: '3',
-        icon: '🎯',
-        title: 'Cobertura Global',
-        subtitle: 'WORLDWIDE',
-        description: 'Mais de 50 ligas worldwide. Premier League, La Liga, Serie A, Bundesliga, Brasileirão e mais.',
-        bgColors: ['#0F3460', '#C9A84C']
-    },
-    {
-        id: '4',
-        icon: '💰',
-        title: 'Freemium Acessível',
-        subtitle: '2 FREE / DIA',
-        description: '2 picks gratis diarios. Upgrade para Premium e receba ate 5 picks com 75%+ de confiança.',
-        bgColors: ['#1A1A2E', '#16213E']
-    },
-    {
-        id: '5',
-        icon: '🚀',
-        title: 'Vamos Começar?',
-        subtitle: 'GOALEDGE',
-        description: 'Junte-se a milhares de apostadores que confiam na nossa analise estatística.',
-        bgColors: ['#C9A84C', '#B8922A']
-    },
+const SLIDE_KEYS = [
+    { id: '1', icon: '⚽', bgColors: ['#1A1A2E', '#C9A84C'] },
+    { id: '2', icon: '📊', bgColors: ['#16213E', '#0F3460'] },
+    { id: '3', icon: '🎯', bgColors: ['#0F3460', '#C9A84C'] },
+    { id: '4', icon: '🏆', bgColors: ['#1A1A2E', '#16213E'] },
+    { id: '5', icon: '🚀', bgColors: ['#C9A84C', '#B8922A'] },
 ];
 
 export default function OnboardingScreen() {
     const insets = useSafeAreaInsets();
     const router = useRouter();
     const { completeOnboarding } = useAuth();
+    const { t } = useTranslation();
     const [currentIndex, setCurrentIndex] = useState(0);
     const flatListRef = useRef<FlatList>(null);
     const scrollX = new Animated.Value(0);
+
+    const SLIDES = SLIDE_KEYS.map((s) => ({
+        ...s,
+        subtitle: t(`onboarding.slide${s.id}_subtitle`),
+        title:    t(`onboarding.slide${s.id}_title`),
+        description: t(`onboarding.slide${s.id}_desc`),
+    }));
 
     const handleNext = () => {
         if (currentIndex < SLIDES.length - 1) {
@@ -81,7 +55,7 @@ export default function OnboardingScreen() {
         router.replace('/login');
     };
 
-    const renderSlide = ({ item, index }: { item: typeof SLIDES[0], index: number }) => (
+    const renderSlide = ({ item }: { item: typeof SLIDES[0] }) => (
         <View style={styles.slide}>
             <LinearGradient
                 colors={item.bgColors as any}
@@ -101,44 +75,42 @@ export default function OnboardingScreen() {
         </View>
     );
 
-    const renderDots = () => {
-        return (
-            <View style={styles.paginationContainer}>
-                {SLIDES.map((_, index) => {
-                    const opacity = scrollX.interpolate({
-                        inputRange: [
-                            (index - 1) * width,
-                            index * width,
-                            (index + 1) * width,
-                        ],
-                        outputRange: [0.3, 1, 0.3],
-                        extrapolate: 'clamp',
-                    });
+    const renderDots = () => (
+        <View style={styles.paginationContainer}>
+            {SLIDES.map((_, index) => {
+                const opacity = scrollX.interpolate({
+                    inputRange: [
+                        (index - 1) * width,
+                        index * width,
+                        (index + 1) * width,
+                    ],
+                    outputRange: [0.3, 1, 0.3],
+                    extrapolate: 'clamp',
+                });
 
-                    const scale = scrollX.interpolate({
-                        inputRange: [
-                            (index - 1) * width,
-                            index * width,
-                            (index + 1) * width,
-                        ],
-                        outputRange: [1, 1.25, 1],
-                        extrapolate: 'clamp',
-                    });
+                const scale = scrollX.interpolate({
+                    inputRange: [
+                        (index - 1) * width,
+                        index * width,
+                        (index + 1) * width,
+                    ],
+                    outputRange: [1, 1.25, 1],
+                    extrapolate: 'clamp',
+                });
 
-                    return (
-                        <Animated.View
-                            key={index}
-                            style={[
-                                styles.dot,
-                                { opacity, transform: [{ scale }] },
-                                index === currentIndex ? styles.dotActive : null
-                            ]}
-                        />
-                    );
-                })}
-            </View>
-        );
-    };
+                return (
+                    <Animated.View
+                        key={index}
+                        style={[
+                            styles.dot,
+                            { opacity, transform: [{ scale }] },
+                            index === currentIndex ? styles.dotActive : null,
+                        ]}
+                    />
+                );
+            })}
+        </View>
+    );
 
     return (
         <View style={styles.container}>
@@ -171,14 +143,14 @@ export default function OnboardingScreen() {
                     activeOpacity={0.8}
                 >
                     <Text style={styles.buttonText}>
-                        {currentIndex === SLIDES.length - 1 ? 'Começar Agora' : 'Próximo'}
+                        {currentIndex === SLIDES.length - 1 ? t('onboarding.start') : t('onboarding.next')}
                     </Text>
                     {currentIndex !== SLIDES.length - 1 && <ChevronRight color="#1A1A2E" size={20} />}
                 </TouchableOpacity>
 
                 {currentIndex !== SLIDES.length - 1 && (
                     <TouchableOpacity onPress={handleComplete} style={styles.skipButton}>
-                        <Text style={styles.skipText}>Pular introdução</Text>
+                        <Text style={styles.skipText}>{t('onboarding.skip')}</Text>
                     </TouchableOpacity>
                 )}
             </View>

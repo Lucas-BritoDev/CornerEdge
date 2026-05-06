@@ -1,6 +1,9 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Session, User } from '@supabase/supabase-js';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase, Profile } from '../lib/supabase';
+
+const ONBOARDING_KEY = '@goaledge:onboarded';
 
 interface AuthContextType {
     user: User | null;
@@ -37,7 +40,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const [session, setSession] = useState<Session | null>(null);
     const [profile, setProfile] = useState<Profile | null>(null);
     const [isLoading, setIsLoading] = useState(true);
-    const [isOnboarded, setIsOnboarded] = useState(true); // onboarding já feito
+    const [isOnboarded, setIsOnboarded] = useState(false); // false até verificar AsyncStorage
 
     // Derivado: usuário é premium?
     const isPremium =
@@ -46,6 +49,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
             new Date(profile.subscription_expires_at) > new Date());
 
     useEffect(() => {
+        // Verifica se o onboarding já foi concluído
+        AsyncStorage.getItem(ONBOARDING_KEY).then((value) => {
+            if (value === 'true') setIsOnboarded(true);
+        });
+
         // Recupera sessão inicial
         supabase.auth.getSession().then(({ data: { session } }) => {
             setSession(session);
@@ -178,6 +186,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     // ─── Onboarding ─────────────────────────────────────────────────────
     const completeOnboarding = async () => {
+        await AsyncStorage.setItem(ONBOARDING_KEY, 'true');
         setIsOnboarded(true);
     };
 

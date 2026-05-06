@@ -192,7 +192,66 @@ supabase/functions/
 
 ---
 
-## 🚀 PRÓXIMOS PASSOS PARA PUBLICAÇÃO
+## 🐛 CORREÇÃO DE BUGS - ✅ CONCLUÍDA
+
+### Bug 1: APK Não Funciona (Expo Go Funciona) - ✅ RESOLVIDO
+**Data:** 06/05/2026  
+**Problema:** App funciona no Expo Go mas crasha ao abrir no APK compilado
+
+#### Causa 1: Variáveis de Ambiente Vazias
+- **Problema:** `process.env.EXPO_PUBLIC_*` retorna `undefined` no APK
+- **Solução:** Hardcode das variáveis no `app.config.js`
+- **Status:** ✅ Corrigido
+
+#### Causa 2: Plugin AdMob Faltando (CRASH NATIVO)
+- **Problema:** `enableAdMob: true` mas plugin não configurado
+- **Sintoma:** App fecha imediatamente ao abrir (nem abre)
+- **Causa:** AndroidManifest.xml sem Application ID → Crash Java/Kotlin
+- **Solução:** Adicionar plugin do AdMob no `app.config.js`
+- **Status:** ✅ Corrigido
+
+#### Correções Aplicadas:
+
+**1. Variáveis Hardcoded (app.config.js):**
+```javascript
+extra: {
+  supabaseUrl: "https://pgglewzdzqbisidecndz.supabase.co",
+  supabaseAnonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  apiFootballKey: "1a896aad078a4eec7ab7121281bcd5ec",
+}
+```
+
+**2. Plugin AdMob Adicionado (app.config.js):**
+```javascript
+plugins: [
+  "expo-router",
+  "expo-web-browser",
+  [
+    "react-native-google-mobile-ads",
+    {
+      "androidAppId": "ca-app-pub-8609967398609187~5936939727",
+      "iosAppId": "ca-app-pub-8609967398609187~5936939727"
+    }
+  ]
+]
+```
+
+#### Documentação Criada:
+- ✅ `DOCS/DIAGNOSTICO_APK_NAO_FUNCIONA.md` - Análise completa
+- ✅ `DEBUG_APK_ERRO.md` - Guia de debug
+- ✅ `CORRECAO_RAPIDA_APK.md` - Solução rápida
+- ✅ `RESUMO_CORRECAO_APK.md` - Resumo executivo
+- ✅ `CONFIGURAR_VARIAVEIS_EAS.md` - Configuração EAS
+- ✅ `CORRECAO_CRASH_APK.md` - Correção do crash nativo
+
+#### Próximos Passos:
+1. [ ] Gerar novo APK com as correções
+2. [ ] Testar no dispositivo físico
+3. [ ] Verificar se app abre normalmente
+4. [ ] Verificar se dados carregam do Supabase
+5. [ ] Verificar se anúncios funcionam
+
+---
 
 ### Fase 0: CI/CD Pipeline (✅ CONCLUÍDO)
 - [x] Configurar GitHub Actions

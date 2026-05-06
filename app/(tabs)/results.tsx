@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Image } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Image, RefreshControl } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
-import { Calendar, ChevronLeft, ChevronRight, CheckCircle, XCircle, Clock, TrendingUp, TrendingDown } from 'lucide-react-native';
+import { Calendar, ChevronLeft, ChevronRight, CheckCircle, XCircle, Clock, TrendingUp, TrendingDown, RefreshCw } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { DailyPick } from '../../lib/supabase';
 import { usePicksByDate, useAvailableDates } from '../../services/picks-service';
@@ -18,9 +18,21 @@ export default function ResultsScreen() {
     const [selectedDate, setSelectedDate] = useState('');
     const [expandedPick, setExpandedPick] = useState<string | null>(null);
 
+    const today = new Date().toISOString().split('T')[0];
+    const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+    const isToday = selectedDate === today;
+
     // ✅ Usando hooks com cache
-    const { data: availableDates = [], isLoading: datesLoading } = useAvailableDates();
-    const { data: allPicks = [], isLoading: picksLoading } = usePicksByDate(selectedDate);
+    const { data: allAvailableDates = [], isLoading: datesLoading } = useAvailableDates();
+    const {
+        data: allPicks = [],
+        isLoading: picksLoading,
+        refetch: refetchPicks,
+        isRefetching,
+    } = usePicksByDate(selectedDate);
+
+    // Limitar a apenas hoje e ontem
+    const availableDates = allAvailableDates.filter(d => d === today || d === yesterday);
 
     // Filtrar picks baseado no plano do usuário
     const picks = isPremium ? allPicks : allPicks.filter(p => p.tier === 'free');
@@ -29,12 +41,24 @@ export default function ResultsScreen() {
     // Definir data inicial quando as datas estiverem disponíveis
     useEffect(() => {
         if (availableDates.length > 0 && !selectedDate) {
-            // Default: ontem ou primeira data disponível
-            const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-            const initial = availableDates.find(d => d <= yesterday) ?? availableDates[0] ?? yesterday;
+            const initial = availableDates.find(d => d === today) ?? availableDates[0];
             setSelectedDate(initial);
         }
-    }, [availableDates, selectedDate]);
+    }, [availableDates.length, selectedDate]);
+
+    // ✅ Polling automático a cada 3 minutos quando estiver vendo o dia de hoje
+    // e ainda houver picks pendentes
+    useEffect(() => {
+        if (!isToday) return;
+        const hasPending = allPicks.some(p => p.status === 'pending');
+        if (!hasPending) return;
+
+        const interval = setInterval(() => {
+            refetchPicks();
+        }, 3 * 60 * 1000); // 3 minutos
+
+        return () => clearInterval(interval);
+    }, [isToday, allPicks, refetchPicks]);
 
     const totalWon = picks.filter(p => p.status === 'won').length;
     const totalLost = picks.filter(p => p.status === 'lost').length;
@@ -59,6 +83,7 @@ export default function ResultsScreen() {
     const getStatusColor = (status: string) => {
         if (status === 'won') return colors.statusGreen;
         if (status === 'lost') return colors.statusRed;
+        if (status === 'void') return colors.textMuted;
         return colors.statusPending;
     };
 
@@ -76,7 +101,17 @@ export default function ResultsScreen() {
     return (
         <View style={[styles.container, { backgroundColor: colors.backgroundPrimary }]}>
             <View style={[styles.header, { paddingTop: insets.top + 16, backgroundColor: colors.backgroundTertiary }]}>
-                <Text style={styles.headerTitle}>{t('results.title')}</Text>
+                <View style={styles.headerRow}>
+                    <Text style={styles.headerTitle}>{t('results.title')}</Text>
+                    {isToday && (
+                        <TouchableOpacity onPress={() => refetchPicks()} disabled={isRefetching} style={styles.refreshBtn}>
+                            {isRefetching
+                                ? <ActivityIndicator size="small" color="#FFFFFF" />
+                                : <RefreshCw size={18} color="#FFFFFF" />
+                            }
+                        </TouchableOpacity>
+                    )}
+                </View>
                 <Text style={styles.headerDate}>{selectedDate ? formatDate(selectedDate) : ''}</Text>
             </View>
 
@@ -133,7 +168,17 @@ export default function ResultsScreen() {
                     </View>
                 )}
 
-                <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}>
+                <ScrollView
+                    contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={isRefetching}
+                            onRefresh={() => refetchPicks()}
+                            tintColor={colors.accentOrange}
+                            colors={[colors.accentOrange]}
+                        />
+                    }
+                >
                     <View style={styles.section}>
                         <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>{t('results.picks')}</Text>
 
@@ -148,18 +193,12 @@ export default function ResultsScreen() {
                                 const isExpanded = expandedPick === pick.id;
                                 const statusColor = getStatusColor(pick.status);
                                 const selections: any[] = (pick as any).pick_selections ?? [];
-                                
-                                // Traduzir status
+
                                 let statusLabel = '';
-                                if (pick.status === 'won') {
-                                    statusLabel = t('common.green');
-                                } else if (pick.status === 'lost') {
-                                    statusLabel = t('common.red');
-                                } else if (pick.status === 'void') {
-                                    statusLabel = 'VOID';
-                                } else {
-                                    statusLabel = t('common.pending');
-                                }
+                                if (pick.status === 'won') statusLabel = t('common.green');
+                                else if (pick.status === 'lost') statusLabel = t('common.red');
+                                else if (pick.status === 'void') statusLabel = t('common.void');
+                                else statusLabel = t('common.pending');
 
                                 return (
                                     <TouchableOpacity
@@ -239,8 +278,10 @@ export default function ResultsScreen() {
 const styles = StyleSheet.create({
     container: { flex: 1 },
     header: { paddingHorizontal: 24, paddingBottom: 24, borderBottomLeftRadius: 24, borderBottomRightRadius: 24 },
+    headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
     headerTitle: { color: '#FFFFFF', fontSize: 28, fontWeight: 'bold' },
     headerDate: { color: 'rgba(255,255,255,0.8)', fontSize: 14, marginTop: 4, textTransform: 'capitalize' },
+    refreshBtn: { padding: 6 },
     dateNav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, marginHorizontal: 16, marginTop: 16, borderRadius: 12 },
     dateButton: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, justifyContent: 'center' },
     dateText: { fontSize: 14, fontWeight: '600', textAlign: 'center', textTransform: 'capitalize' },

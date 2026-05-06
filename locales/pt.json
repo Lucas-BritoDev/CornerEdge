@@ -41,7 +41,7 @@
   },
   "tomorrow": {
     "title": "Amanhã",
-    "disclaimer": "Picks finais gerados às 06:00 UTC",
+    "disclaimer": "Picks finais gerados às 09:00 BRT",
     "fixture_preview": "Prévia de Jogos",
     "analyzing": "Analisando...",
     "premium_hint": "Premium"
@@ -114,7 +114,28 @@
     "daily_alerts": "Alertas diários",
     "upgrade": "Upgrade to Premium",
     "manage_subscription": "Gerenciar Assinatura",
-    "sign_out": "Sair da Conta"
+    "sign_out": "Sair da Conta",
+    "signing_out": "Saindo..."
+  },
+  "onboarding": {
+    "slide1_subtitle": "DATASCIENCE",
+    "slide1_title": "Análise Estatística",
+    "slide1_desc": "Modelos preditivos treinados com milhares de dados históricos. Análise avançada para máxima precisão.",
+    "slide2_subtitle": "AI POWERED",
+    "slide2_title": "Previsões de Alta Confiança",
+    "slide2_desc": "Apenas previsões com 65%+ de confiança. Média de acerto de 72% nos últimos 30 dias.",
+    "slide3_subtitle": "WORLDWIDE",
+    "slide3_title": "Cobertura Global",
+    "slide3_desc": "Mais de 50 ligas monitoradas. Premier League, La Liga, Serie A, Bundesliga, Brasileirão e mais.",
+    "slide4_subtitle": "2 FREE / DIA",
+    "slide4_title": "Plano Gratuito e Premium",
+    "slide4_desc": "2 previsões gratuitas por dia. Faça upgrade para Premium e receba até 5 previsões com 75%+ de confiança.",
+    "slide5_subtitle": "GOALEDGE",
+    "slide5_title": "Vamos Começar?",
+    "slide5_desc": "Junte-se a milhares de fãs de futebol que acompanham nossas análises estatísticas.",
+    "next": "Próximo",
+    "start": "Começar Agora",
+    "skip": "Pular introdução"
   },
   "auth": {
     "login": "Entrar",

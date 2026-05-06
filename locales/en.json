@@ -41,7 +41,7 @@
   },
   "tomorrow": {
     "title": "Tomorrow",
-    "disclaimer": "Final picks generated at 06:00 UTC",
+    "disclaimer": "Final picks generated at 09:00 BRT",
     "fixture_preview": "Fixture Preview",
     "analyzing": "Analyzing...",
     "premium_hint": "Premium"
@@ -114,7 +114,28 @@
     "daily_alerts": "Daily alerts",
     "upgrade": "Upgrade to Premium",
     "manage_subscription": "Manage Subscription",
-    "sign_out": "Sign Out"
+    "sign_out": "Sign Out",
+    "signing_out": "Signing out..."
+  },
+  "onboarding": {
+    "slide1_subtitle": "DATASCIENCE",
+    "slide1_title": "Statistical Analysis",
+    "slide1_desc": "Predictive models trained on thousands of historical data points. Advanced analysis for maximum accuracy.",
+    "slide2_subtitle": "AI POWERED",
+    "slide2_title": "High Confidence Predictions",
+    "slide2_desc": "Only predictions with 65%+ confidence. Average accuracy of 72% over the last 30 days.",
+    "slide3_subtitle": "WORLDWIDE",
+    "slide3_title": "Global Coverage",
+    "slide3_desc": "Over 50 monitored leagues. Premier League, La Liga, Serie A, Bundesliga, Brasileirão and more.",
+    "slide4_subtitle": "2 FREE / DAY",
+    "slide4_title": "Free and Premium Plans",
+    "slide4_desc": "2 free predictions per day. Upgrade to Premium and get up to 5 predictions with 75%+ confidence.",
+    "slide5_subtitle": "GOALEDGE",
+    "slide5_title": "Ready to Start?",
+    "slide5_desc": "Join thousands of football fans who follow our statistical analysis.",
+    "next": "Next",
+    "start": "Get Started",
+    "skip": "Skip intro"
   },
   "auth": {
     "login": "Login",

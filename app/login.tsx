@@ -6,7 +6,6 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { StatusBar } from 'expo-status-bar';
 import { Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react-native';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -42,7 +41,6 @@ export default function LoginScreen() {
 
     return (
         <View style={[styles.container, { backgroundColor: colors.backgroundPrimary }]}>
-            <StatusBar style={resolvedTheme === 'dark' ? 'light' : 'light'} />
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : undefined}
                 style={styles.container}

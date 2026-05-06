@@ -35,10 +35,8 @@ export default function ProfileScreen() {
         try {
             setIsSigningOut(true);
             await signOut();
-            // Aguardar um pouco para garantir que o signOut completou
-            await new Promise(resolve => setTimeout(resolve, 300));
-            // Usar caminho absoluto para a rota de login
-            router.replace('/(auth)/login');
+            // AuthGate no _layout.tsx redireciona automaticamente para /login
+            // quando user vira null após o signOut
         } catch (error) {
             console.error('Erro ao sair:', error);
             Alert.alert(t('common.error') || 'Erro', t('profile.sign_out_error') || 'Não foi possível sair. Tente novamente.');

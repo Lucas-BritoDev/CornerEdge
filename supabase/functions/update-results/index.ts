@@ -17,7 +17,21 @@ async function fetchFixtureResult(fixtureId: number) {
 
 function evaluateSelection(sel: any, fixture: any): "won" | "lost" | "void" | "pending" {
   const status = fixture?.fixture?.status?.short;
-  if (!status || !["FT", "AET", "PEN"].includes(status)) return "pending";
+  
+  // ✅ TIMEOUT AUTOMÁTICO: Se jogo passou do kickoff + 2h e ainda está "NS", marcar como void
+  if (status === "NS" || !status) {
+    const kickoffTime = new Date(sel.kickoff_at).getTime();
+    const now = Date.now();
+    const hoursSinceKickoff = (now - kickoffTime) / (1000 * 60 * 60);
+    
+    if (hoursSinceKickoff > 2) {
+      console.log(`⚠️ Game ${sel.fixture_id} timeout: ${hoursSinceKickoff.toFixed(1)}h since kickoff, still NS`);
+      return "void";
+    }
+    return "pending";
+  }
+  
+  if (!["FT", "AET", "PEN"].includes(status)) return "pending";
 
   const home = fixture.goals?.home ?? 0;
   const away = fixture.goals?.away ?? 0;
