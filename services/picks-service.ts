@@ -2,6 +2,7 @@
 // Camada de dados com CACHE NO CLIENTE usando React Query
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase, DailyPick, PickSelection, DailyStats } from '../lib/supabase';
+import Constants from 'expo-constants';
 
 // ============================================================================
 // QUERY KEYS - Centralizados para fácil invalidação
@@ -155,7 +156,7 @@ export function useTodayPicks() {
     queryFn: fetchTodayPicksBase,
     staleTime: 5 * 60 * 1000,        // 5 minutos - dados considerados "frescos"
     gcTime: 30 * 60 * 1000,          // 30 minutos - tempo no cache
-    refetchOnWindowFocus: false,     // Não refaz query ao voltar pro app
+    refetchOnWindowFocus: true,      // Busca dados frescos ao voltar pro app
     retry: 2,                        // Tenta 2 vezes se falhar
   });
 }
@@ -238,8 +239,12 @@ export function useGeneratePicks() {
   
   return useMutation({
     mutationFn: async ({ force = false }: { force?: boolean }) => {
-      const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL!;
-      const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!;
+      const supabaseUrl = Constants.expoConfig?.extra?.supabaseUrl || process.env.EXPO_PUBLIC_SUPABASE_URL || '';
+      const anonKey = Constants.expoConfig?.extra?.supabaseAnonKey || process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
+      
+      if (!supabaseUrl || !anonKey) {
+        throw new Error('Supabase configuration missing');
+      }
       
       const url = `${supabaseUrl}/functions/v1/generate-daily-picks${force ? '?force=true' : ''}`;
       const res = await fetch(url, {
@@ -293,19 +298,6 @@ export async function fetchDailyStats(dateStr: string): Promise<DailyStats | nul
     return fetchDailyStatsBase(dateStr);
 }
 
-/**
- * @deprecated Use useUserStats() hook instead
- */
-export async function fetchUserStats(): Promise<{
-    totalPicks: number;
-    hitRate7Days: number;
-    hitRateAllTime: number;
-    roi: number;
-}> {
-    console.warn('⚠️ fetchUserStats() is deprecated. Use useUserStats() hook instead for automatic caching.');
-    return fetchUserStatsBase();
-}
-
 // ─── Fixtures de amanhã ───────────────────────────────────────────────────────
 
 export interface TomorrowFixture {
@@ -320,8 +312,13 @@ export interface TomorrowFixture {
 }
 
 export async function fetchTomorrowFixtures(): Promise<TomorrowFixture[]> {
-    const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL!;
-    const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!;
+    const supabaseUrl = Constants.expoConfig?.extra?.supabaseUrl || process.env.EXPO_PUBLIC_SUPABASE_URL || '';
+    const anonKey = Constants.expoConfig?.extra?.supabaseAnonKey || process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
+
+    if (!supabaseUrl || !anonKey) {
+        console.error('Supabase configuration missing');
+        return [];
+    }
 
     try {
         const res = await fetch(`${supabaseUrl}/functions/v1/get-tomorrow-fixtures`, {
@@ -339,10 +336,12 @@ export async function fetchTomorrowFixtures(): Promise<TomorrowFixture[]> {
 // ─── Forçar geração de picks (admin) ─────────────────────────────────────────
 
 export async function triggerGeneratePicks(force = false): Promise<{ success: boolean; message?: string }> {
-    const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL!;
-    const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!;
+    const supabaseUrl = Constants.expoConfig?.extra?.supabaseUrl || process.env.EXPO_PUBLIC_SUPABASE_URL || '';
+    const anonKey = Constants.expoConfig?.extra?.supabaseAnonKey || process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
 
-    try {
+    if (!supabaseUrl || !anonKey) {
+        return { success: false, message: 'Supabase configuration missing' };
+    }    try {
         const url = `${supabaseUrl}/functions/v1/generate-daily-picks${force ? '?force=true' : ''}`;
         const res = await fetch(url, {
             method: 'POST',
