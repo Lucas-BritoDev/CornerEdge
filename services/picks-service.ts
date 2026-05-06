@@ -156,8 +156,9 @@ export function useTodayPicks() {
     queryFn: fetchTodayPicksBase,
     staleTime: 5 * 60 * 1000,        // 5 minutos - dados considerados "frescos"
     gcTime: 30 * 60 * 1000,          // 30 minutos - tempo no cache
-    refetchOnWindowFocus: true,      // Busca dados frescos ao voltar pro app
+    refetchOnWindowFocus: false,     // ✅ CORRIGIDO: Evita loops infinitos
     retry: 2,                        // Tenta 2 vezes se falhar
+    retryDelay: 1000,                // Aguarda 1s entre tentativas
   });
 }
 

@@ -21,6 +21,7 @@ export default function ProfileScreen() {
     const { user, profile, signOut, isPremium } = useAuth();
     const { t, i18n } = useTranslation();
     const [notifications, setNotifications] = React.useState(true);
+    const [isSigningOut, setIsSigningOut] = React.useState(false);
     const { data: stats, isLoading: statsLoading } = useUserStats();
 
     const currentLang = i18n.language || 'pt';
@@ -31,8 +32,18 @@ export default function ProfileScreen() {
     };
 
     const handleSignOut = async () => {
-        await signOut();
-        router.replace('/login');
+        try {
+            setIsSigningOut(true);
+            await signOut();
+            // Aguardar um pouco para garantir que o signOut completou
+            await new Promise(resolve => setTimeout(resolve, 300));
+            // Usar caminho absoluto para a rota de login
+            router.replace('/(auth)/login');
+        } catch (error) {
+            console.error('Erro ao sair:', error);
+            Alert.alert(t('common.error') || 'Erro', t('profile.sign_out_error') || 'Não foi possível sair. Tente novamente.');
+            setIsSigningOut(false);
+        }
     };
 
     if (!user) {
@@ -186,9 +197,16 @@ export default function ProfileScreen() {
                     <TouchableOpacity 
                         style={[styles.signOutButton, { borderColor: colors.statusRed }]} 
                         onPress={handleSignOut}
+                        disabled={isSigningOut}
                     >
-                        <LogOut color={colors.statusRed} size={20} />
-                        <Text style={[styles.signOutText, { color: colors.statusRed }]}>{t('profile.sign_out')}</Text>
+                        {isSigningOut ? (
+                            <ActivityIndicator color={colors.statusRed} size="small" />
+                        ) : (
+                            <LogOut color={colors.statusRed} size={20} />
+                        )}
+                        <Text style={[styles.signOutText, { color: colors.statusRed }]}>
+                            {isSigningOut ? (t('profile.signing_out') || 'Saindo...') : t('profile.sign_out')}
+                        </Text>
                     </TouchableOpacity>
                 </View>
 
