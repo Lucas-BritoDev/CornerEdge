@@ -59,10 +59,12 @@ export default {
         projectId: "0d9fcdf1-3bbb-416e-bb66-07b3643e99a8"
       },
       
-      // Variáveis de ambiente disponíveis via Constants.expoConfig.extra
-      supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL || "",
-      supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || "",
-      apiFootballKey: process.env.APIFOOTBALL_KEY || "",
+      // ✅ CORREÇÃO: Hardcode direto para funcionar no APK
+      // Anon key do Supabase é PÚBLICA e segura para exposição
+      // RLS (Row Level Security) protege os dados
+      supabaseUrl: "https://pgglewzdzqbisidecndz.supabase.co",
+      supabaseAnonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBnZ2xld3pkenFiaXNpZGVjbmR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc5NDU2NjMsImV4cCI6MjA5MzUyMTY2M30.gClPrFqBuQAU_syF6RFLk1C7U44atwOunU8p6SiFr7w",
+      apiFootballKey: "1a896aad078a4eec7ab7121281bcd5ec",
       
       // Flags de feature
       enableAdMob: true,
