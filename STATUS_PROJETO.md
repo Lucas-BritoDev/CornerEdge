@@ -197,20 +197,25 @@ supabase/functions/
 ### Fase 0: CI/CD Pipeline (✅ CONCLUÍDO)
 - [x] Configurar GitHub Actions
 - [x] Pipeline de testes (TypeScript, ESLint, Jest)
-- [x] Build automático de AAB e APK
-- [x] Download automático de artefatos
+- [x] Build LOCAL de AAB e APK (sem EAS)
 - [x] Upload para GitHub Artifacts (30 dias)
+- [x] Download direto na aba Actions
 - [x] Corrigir erro de build (react-native-google-mobile-ads)
-- **Status:** ✅ Implementado e funcionando
-- **Documentação:** `DOCS/PIPELINE_CI_CD_COMPLETO.md`
-- **Correção AdMob:** `DOCS/FIX_ADMOB_COMPATIBILITY.md`
+- **Status:** ✅ Implementado - Build 100% no GitHub
+- **Workflow:** `.github/workflows/android-build-local.yml`
+- **Documentação:** `DOCS/BUILD_LOCAL_GITHUB_ACTIONS.md`
+- **Guia Rápido:** `BUILD_LOCAL_GUIA_RAPIDO.md`
+- **Vantagens:**
+  - ❌ Não precisa de EXPO_TOKEN
+  - 📥 Download direto no GitHub
+  - 💰 2000 min/mês grátis
+  - 🚀 Build paralelo (APK + AAB)
 
-### Fase 1: Configurar Token (5 min) - 🔴 URGENTE
-- [ ] Executar `npx expo login`
-- [ ] Executar `npx eas token:create`
-- [ ] Adicionar EXPO_TOKEN no GitHub Secrets
-- [ ] Fazer commit e push para testar pipeline
-- **Guia:** `CONFIGURAR_TOKEN_AGORA.md`
+### Fase 1: Configurar Token (5 min) - ✅ NÃO NECESSÁRIO
+- [x] ~~Executar `npx expo login`~~
+- [x] ~~Executar `npx eas token:create`~~
+- [x] ~~Adicionar EXPO_TOKEN no GitHub Secrets~~
+- **Status:** ✅ Não é mais necessário com build local!
 
 ### Fase 2: Ajustes Críticos (1 hora) - 🔴 URGENTE
 - [x] Configurar AdMob Application ID real (30 min) ✅
@@ -239,12 +244,13 @@ supabase/functions/
 - [ ] Definir email de suporte
 - [ ] Criar landing page (opcional)
 
-### Fase 6: Build e Upload (Automático via CI/CD)
+### Fase 6: Build e Upload (Automático via GitHub Actions)
 - [ ] Fazer push para branch main
-- [ ] Aguardar conclusão do pipeline (25-35 min)
-- [ ] Baixar AAB do GitHub Artifacts
+- [ ] Aguardar conclusão do pipeline (35-40 min)
+- [ ] Baixar APK e AAB do GitHub Artifacts
+- [ ] Testar APK em dispositivo físico (30 min)
 - [ ] Preencher Play Console (1 hora)
-- [ ] Upload e envio para revisão (20 min)
+- [ ] Upload AAB e envio para revisão (20 min)
 
 ---
 
@@ -345,9 +351,11 @@ rewarded: 'ca-app-pub-3940256099942544/1712485313'
 - ✅ Descrições para Play Store criadas (PT/EN/ES)
 - ✅ **Pipeline CI/CD completo implementado**
   - Testes automáticos (TypeScript, ESLint, Jest)
+  - Build LOCAL no GitHub Actions (sem EAS)
   - Build paralelo de AAB e APK
-  - Download automático de artefatos
   - Upload para GitHub Artifacts (30 dias)
+  - Download direto na aba Actions
+  - Não precisa de EXPO_TOKEN
 - ✅ **Erro de build corrigido**
   - react-native-google-mobile-ads atualizado para v15.4.0
   - Compatibilidade com Expo SDK 54 e React Native 0.81.5
