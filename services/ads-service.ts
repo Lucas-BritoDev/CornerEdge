@@ -8,7 +8,8 @@
 import { Platform } from 'react-native';
 import { 
   RewardedAd, 
-  RewardedAdEventType, 
+  RewardedAdEventType,
+  AdEventType,
   TestIds 
 } from 'react-native-google-mobile-ads';
 import { waitForAdMobInitialization } from '@/lib/admob-init';
@@ -118,7 +119,7 @@ export const adsService = {
 
         // Listener: Anúncio fechado
         const unsubscribeClosed = rewardedAd.addAdEventListener(
-          RewardedAdEventType.CLOSED,
+          AdEventType.CLOSED,
           () => {
             console.log('[AdsService] Anúncio fechado. Recompensado:', isRewarded);
             
@@ -135,7 +136,7 @@ export const adsService = {
 
         // Listener: Erro ao carregar
         const unsubscribeError = rewardedAd.addAdEventListener(
-          RewardedAdEventType.ERROR,
+          AdEventType.ERROR,
           (error) => {
             console.error('[AdsService] Erro ao carregar anúncio:', error);
             
