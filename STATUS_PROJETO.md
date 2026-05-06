@@ -1,6 +1,6 @@
 # 📊 STATUS DO PROJETO GOALEDGE
 
-**Última Atualização:** 05/05/2026  
+**Última Atualização:** 06/05/2026  
 **Versão:** 1.0.0  
 **Status Geral:** 🟡 PRONTO PARA PUBLICAÇÃO (com ajustes)
 
@@ -200,8 +200,10 @@ supabase/functions/
 - [x] Build automático de AAB e APK
 - [x] Download automático de artefatos
 - [x] Upload para GitHub Artifacts (30 dias)
+- [x] Corrigir erro de build (react-native-google-mobile-ads)
 - **Status:** ✅ Implementado e funcionando
 - **Documentação:** `DOCS/PIPELINE_CI_CD_COMPLETO.md`
+- **Correção AdMob:** `DOCS/FIX_ADMOB_COMPATIBILITY.md`
 
 ### Fase 1: Configurar Token (5 min) - 🔴 URGENTE
 - [ ] Executar `npx expo login`
@@ -346,9 +348,9 @@ rewarded: 'ca-app-pub-3940256099942544/1712485313'
   - Build paralelo de AAB e APK
   - Download automático de artefatos
   - Upload para GitHub Artifacts (30 dias)
-- ✅ **Erro de build Gradle corrigido**
-  - Script de patch para Fresco
-  - prebuildCommand configurado
+- ✅ **Erro de build corrigido**
+  - react-native-google-mobile-ads atualizado para v15.4.0
+  - Compatibilidade com Expo SDK 54 e React Native 0.81.5
   - Build deve funcionar agora
 
 ---
@@ -371,5 +373,5 @@ rewarded: 'ca-app-pub-3940256099942544/1712485313'
 **Pontuação:** 8.5/10  
 **Risco de Rejeição:** BAIXO  
 **Tempo até Publicação:** 6-8 horas + 1-7 dias aprovação  
-**Última atualização:** 5 de maio de 2026  
+**Última atualização:** 6 de maio de 2026  
 **Desenvolvido por:** Kiro AI
