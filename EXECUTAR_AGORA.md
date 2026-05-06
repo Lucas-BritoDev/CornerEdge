@@ -9,10 +9,13 @@
 
 Após executar os comandos abaixo:
 
-1. ✅ Código será commitado e enviado para o GitHub
-2. ✅ GitHub Actions iniciará automaticamente
-3. ✅ Em ~35-40 minutos, APK e AAB estarão prontos
-4. ✅ Você baixará os arquivos na aba Actions
+1. ✅ Workflow antigo (EAS Build) será desabilitado
+2. ✅ Código será commitado e enviado para o GitHub
+3. ✅ GitHub Actions iniciará automaticamente (build LOCAL)
+4. ✅ Em ~35-40 minutos, APK e AAB estarão prontos
+5. ✅ Você baixará os arquivos na aba Actions (GitHub Artifacts)
+
+**IMPORTANTE:** Não vai mais para o Expo! Build 100% no GitHub!
 
 ---
 
@@ -44,14 +47,16 @@ npx tsc --noEmit
 git add .
 
 # Commit com mensagem descritiva
-git commit -m "ci: implementar build local no GitHub Actions
+git commit -m "ci: desabilitar workflow EAS e usar build local
 
-✨ Funcionalidades:
-- Build APK e AAB diretamente no GitHub Actions
-- Sem necessidade de EXPO_TOKEN
-- Download direto na aba Artifacts
-- Build paralelo (APK + AAB)
-- Retenção de 30 dias
+⚠️ IMPORTANTE: Não usa mais EAS Build (cota esgotada)
+
+✨ Mudanças:
+- Workflow antigo (android-ci.yml) desabilitado
+- Usar apenas android-build-local.yml
+- Build 100% no GitHub Actions (sem Expo)
+- Não consome cota do Expo
+- Download direto no GitHub Artifacts
 
 🔧 Correções:
 - react-native-google-mobile-ads atualizado para v15.4.0
@@ -60,13 +65,13 @@ git commit -m "ci: implementar build local no GitHub Actions
 📚 Documentação:
 - DOCS/BUILD_LOCAL_GITHUB_ACTIONS.md (guia técnico)
 - BUILD_LOCAL_GUIA_RAPIDO.md (guia rápido)
-- RESUMO_BUILD_LOCAL.md (resumo executivo)
+- WORKFLOW_DESABILITADO.md (explicação da mudança)
 
 🎯 Resultado:
-- APK: Para instalação direta
-- AAB: Para Play Store
+- APK: Para instalação direta (GitHub Artifacts)
+- AAB: Para Play Store (GitHub Artifacts)
 - Tempo: ~35-40 minutos
-- Custo: Gratuito (2000 min/mês)"
+- Custo: Gratuito (2000 min/mês GitHub)"
 
 # Push para o GitHub
 git push origin main
