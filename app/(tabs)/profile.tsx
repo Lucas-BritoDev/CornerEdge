@@ -6,7 +6,7 @@ import { useRouter } from 'expo-router';
 import { User, Globe, Moon, Sun, LogOut, Crown, TrendingUp, Bell, Settings, ChevronRight } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
-import { fetchUserStats } from '../../services/picks-service';
+import { useUserStats } from '../../services/picks-service';
 
 const languages = [
     { code: 'pt', label: 'PT', flag: '🇧🇷' },
@@ -21,12 +21,7 @@ export default function ProfileScreen() {
     const { user, profile, signOut, isPremium } = useAuth();
     const { t, i18n } = useTranslation();
     const [notifications, setNotifications] = React.useState(true);
-    const [stats, setStats] = React.useState({ totalPicks: 0, hitRate7Days: 0, hitRateAllTime: 0, roi: 0 });
-    const [loadingStats, setLoadingStats] = React.useState(true);
-
-    React.useEffect(() => {
-        fetchUserStats().then(s => setStats(s)).finally(() => setLoadingStats(false));
-    }, []);
+    const { data: stats, isLoading: statsLoading } = useUserStats();
 
     const currentLang = i18n.language || 'pt';
 
@@ -81,16 +76,16 @@ export default function ProfileScreen() {
                     <View style={styles.statsGrid}>
                         <View style={[styles.statCard, { backgroundColor: colors.backgroundSecondary }]}>
                             <TrendingUp color={colors.statusGreen} size={24} />
-                            <Text style={[styles.statValue, { color: colors.textPrimary }]}>{loadingStats ? '—' : stats.totalPicks}</Text>
+                            <Text style={[styles.statValue, { color: colors.textPrimary }]}>{statsLoading ? '—' : stats?.totalPicks ?? 0}</Text>
                             <Text style={[styles.statLabel, { color: colors.textMuted }]}>{t('profile.total_picks')}</Text>
                         </View>
                         <View style={[styles.statCard, { backgroundColor: colors.backgroundSecondary }]}>
-                            <Text style={[styles.statValue, { color: colors.statusGreen }]}>{loadingStats ? '—' : `${stats.hitRate7Days}%`}</Text>
+                            <Text style={[styles.statValue, { color: colors.statusGreen }]}>{statsLoading ? '—' : `${stats?.hitRate7Days ?? 0}%`}</Text>
                             <Text style={[styles.statLabel, { color: colors.textMuted }]}>{t('profile.hit_rate_7days')}</Text>
                         </View>
                         <View style={[styles.statCard, { backgroundColor: colors.backgroundSecondary }]}>
-                            <Text style={[styles.statValue, { color: stats.roi >= 0 ? colors.statusGreen : colors.statusRed }]}>
-                                {loadingStats ? '—' : `${stats.roi > 0 ? '+' : ''}${stats.roi}%`}
+                            <Text style={[styles.statValue, { color: (stats?.roi ?? 0) >= 0 ? colors.statusGreen : colors.statusRed }]}>
+                                {statsLoading ? '—' : `${(stats?.roi ?? 0) > 0 ? '+' : ''}${stats?.roi ?? 0}%`}
                             </Text>
                             <Text style={[styles.statLabel, { color: colors.textMuted }]}>{t('profile.roi')}</Text>
                         </View>
