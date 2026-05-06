@@ -130,21 +130,37 @@ jobs:
           chmod +x gradlew
           echo "✅ Gradle configurado!"
 
-      - name: 🔑 Criar Keystore de Debug
+      - name: 🔑 Configurar Keystore
         run: |
-          echo "🔑 Criando keystore de debug..."
-          mkdir -p android/app
-          cd android/app
-          keytool -genkeypair -v -storetype PKCS12 \
-            -keystore debug.keystore \
-            -alias androiddebugkey \
-            -keyalg RSA \
-            -keysize 2048 \
-            -validity 10000 \
-            -storepass android \
-            -keypass android \
-            -dname "CN=Android Debug,O=Android,C=US"
-          echo "✅ Keystore criado!"
+          echo "🔑 Usando keystore existente..."
+          
+          # Verificar se keystore existe
+          if [ -f "@luck1993__goaledge.jks" ]; then
+            echo "✅ Keystore encontrada: @luck1993__goaledge.jks"
+            
+            # Copiar para diretório android/app
+            mkdir -p android/app
+            cp @luck1993__goaledge.jks android/app/
+            
+            echo "✅ Keystore configurada!"
+          else
+            echo "❌ Keystore não encontrada!"
+            echo "⚠️ Criando keystore de debug temporária..."
+            
+            mkdir -p android/app
+            cd android/app
+            keytool -genkeypair -v -storetype PKCS12 \
+              -keystore debug.keystore \
+              -alias androiddebugkey \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -storepass android \
+              -keypass android \
+              -dname "CN=Android Debug,O=Android,C=US"
+            
+            echo "✅ Keystore de debug criada!"
+          fi
 
       - name: 🏗️ Build APK
         run: |

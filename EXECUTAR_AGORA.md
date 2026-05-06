@@ -47,9 +47,12 @@ npx tsc --noEmit
 git add .
 
 # Commit com mensagem descritiva
-git commit -m "fix: corrigir erro de build no GitHub Actions
+git commit -m "ci: usar keystore existente no build
 
-⚠️ IMPORTANTE: Não usa mais EAS Build (cota esgotada)
+✅ Configurações:
+- Usar @luck1993__goaledge.jks (keystore existente)
+- Workflow verifica e copia keystore automaticamente
+- Fallback para debug keystore se não encontrar
 
 🔧 Correções:
 - Usar expo prebuild com --no-install
@@ -59,15 +62,15 @@ git commit -m "fix: corrigir erro de build no GitHub Actions
 - react-native-google-mobile-ads v15.4.0
 
 📚 Documentação:
+- USAR_KEYSTORE_EXISTENTE.md (configuração da keystore)
 - CORRECAO_ERRO_BUILD.md (explicação do erro)
-- DOCS/BUILD_LOCAL_GITHUB_ACTIONS.md (guia técnico)
-- BUILD_LOCAL_GUIA_RAPIDO.md (guia rápido)
+- android-signing.gradle (configuração Gradle)
 
 🎯 Resultado:
-- APK: Para instalação direta (GitHub Artifacts)
-- AAB: Para Play Store (GitHub Artifacts)
-- Tempo: ~40-50 minutos
-- Custo: Gratuito (2000 min/mês GitHub)"
+- APK: Assinado com keystore de produção
+- AAB: Assinado com keystore de produção
+- Pronto para Play Store
+- Tempo: ~40-50 minutos"
 
 # Push para o GitHub
 git push origin main
