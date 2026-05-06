@@ -72,8 +72,6 @@ env:
   NODE_VERSION: '20'
   JAVA_VERSION: '17'
   EXPO_VERSION: '~54.0.0'
-  ANDROID_HOME: ${{ format('{0}/android-sdk', env.ANDROID_SDK_ROOT) }}
-  ANDROID_SDK_ROOT: ${{ format('/opt/android-sdk') }}
   GRADLE_OPTS: '-Dorg.gradle.daemon=false -Dorg.gradle.parallel=true'
 
 # -----------------------------------------------------------------------------
