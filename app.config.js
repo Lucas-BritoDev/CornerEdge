@@ -31,9 +31,9 @@ export default {
         foregroundImage: "./assets/images/adaptive-icon.png",
         backgroundColor: "#1A1A1A"
       },
-      package: "com.goaledge.app",
-      // Usar JavaScriptCore em vez de Hermes (mais estável)
-      jsEngine: "jsc"
+      package: "com.goaledge.app"
+      // Usar Hermes (padrão e recomendado)
+      // jsEngine: "hermes"
     },
     
     web: {
