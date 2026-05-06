@@ -134,6 +134,10 @@ jobs:
     name: Configurar Ambiente
     needs: detect-project
     runs-on: ubuntu-latest
+    outputs:
+      has_eas: ${{ needs.detect-project.outputs.has_eas }}
+      build_system: ${{ needs.detect-project.outputs.build_system }}
+      project_type: ${{ needs.detect-project.outputs.project_type }}
     steps:
       # Checkout
       - name: Checkout código
@@ -237,11 +241,17 @@ jobs:
   # ==========================================================================
   build:
     name: Build Android
-    needs: [setup, validate]
+    needs: [detect-project, setup, validate]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout código
         uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
 
       # Restore cache
       - name: Cache de dependências
@@ -250,142 +260,73 @@ jobs:
           path: node_modules
           key: ${{ runner.os }}-npm-${{ hashFiles('package-lock.json') }}
 
+      - name: Instalar dependências
+        run: npm ci --legacy-peer-deps
+
       # ==========================================
       # MODO EXPO/EAS BUILD
       # ==========================================
+      - name: Setup Expo
+        if: needs.detect-project.outputs.has_eas == 'true'
+        run: npm install -g eas-cli
+
       - name: Login no Expo
-        if: needs.setup.outputs.has_eas == 'true'
+        if: needs.detect-project.outputs.has_eas == 'true'
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
           if [ -n "$EXPO_TOKEN" ]; then
-            npx expo login --token $EXPO_TOKEN
+            eas login --token $EXPO_TOKEN
           else
-            echo "::warning::EXPO_TOKEN não configurado"
+            echo "::error::EXPO_TOKEN não configurado. Configure em Settings > Secrets > Actions"
+            exit 1
           fi
 
-      # Build EAS Development
-      - name: Build EAS Development
-        if: needs.setup.outputs.has_eas == 'true' && github.event.inputs.build_type == 'development'
+      # Build EAS Production (APK + AAB)
+      - name: Build EAS Production
+        if: needs.detect-project.outputs.has_eas == 'true'
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
-          npx eas build -p android --profile development --non-interactive
+          echo "🚀 Iniciando build de produção..."
+          eas build --platform android --profile production --non-interactive --no-wait
+          
+          echo "⏳ Aguardando conclusão do build..."
+          sleep 30
+          
+          # Aguardar build finalizar
+          BUILD_ID=$(eas build:list --platform android --limit 1 --json | jq -r '.[0].id')
+          echo "Build ID: $BUILD_ID"
+          
+          # Aguardar até 30 minutos
+          for i in {1..60}; do
+            STATUS=$(eas build:view $BUILD_ID --json | jq -r '.status')
+            echo "Status do build ($i/60): $STATUS"
+            
+            if [ "$STATUS" = "FINISHED" ]; then
+              echo "✅ Build concluído com sucesso!"
+              break
+            elif [ "$STATUS" = "ERRORED" ] || [ "$STATUS" = "CANCELED" ]; then
+              echo "❌ Build falhou com status: $STATUS"
+              exit 1
+            fi
+            
+            sleep 30
+          done
+          
+          # Download do artefato
+          echo "📦 Baixando artefatos..."
+          eas build:download --platform android --latest --output ./build-output
 
-      # Build EAS Preview
-      - name: Build EAS Preview
-        if: needs.setup.outputs.has_eas == 'true' && github.event.inputs.build_type == 'preview'
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        run: |
-          npx eas build -p android --profile preview --non-interactive
-
-      # Build EAS Release (APK + AAB)
-      - name: Build EAS Release
-        if: needs.setup.outputs.has_eas == 'true' && (github.event.inputs.build_type == 'release' || github.event_name == 'push')
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        run: |
-          # Build APK
-          npx eas build -p android --profile release --non-interactive
-          # Download artefato
-          npx eas build:list --platform android --limit 1 --status FINISHED
-
-      # ==========================================
-      # MODO REACT NATIVE CLI (GRADLE)
-      # ==========================================
-      # Setup Java JDK
-      - name: Setup Java JDK
-        if: needs.setup.outputs.build_system == 'gradle'
-        uses: actions/setup-java@v5
-        with:
-          distribution: 'temurin'
-          java-version: ${{ env.JAVA_VERSION }}
-
-      # Setup Android SDK
-      - name: Setup Android SDK
-        if: needs.setup.outputs.build_system == 'gradle'
-        uses: android-actions/setup-android-sdk@v2
-
-      # Gradle Wrapper Permission
-      - name: Permissão Gradle Wrapper
-        if: needs.setup.outputs.build_system == 'gradle'
-        run: |
-          chmod +x android/gradlew
-          chmod +x android/gradle/wrapper/gradle-wrapper.jar
-
-      # Build Debug APK
-      - name: Build Debug APK
-        if: needs.setup.outputs.build_system == 'gradle'
-        working-directory: android
-        run: |
-          ./gradlew assembleDebug --no-daemon --warning-mode=all
-
-      # Build Release APK
-      - name: Build Release APK
-        if: needs.setup.outputs.build_system == 'gradle'
-        working-directory: android
-        run: |
-          ./gradlew assembleRelease --no-daemon --warning-mode=all
-        env:
-          SIGNING_KEY: ${{ secrets.ANDROID_SIGNING_KEY }}
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-
-      # Build AAB
-      - name: Build AAB
-        if: needs.setup.outputs.build_system == 'gradle'
-        working-directory: android
-        run: |
-          ./gradlew bundleRelease --no-daemon --warning-mode=all
-        env:
-          SIGNING_KEY: ${{ secrets.ANDROID_SIGNING_KEY }}
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-
-      # ==========================================
-      # Upload de Artefatos
-      # ==========================================
-      # Upload APK (EAS)
-      - name: Upload APK (EAS)
-        if: needs.setup.outputs.has_eas == 'true'
+      # Upload APK/AAB
+      - name: Upload Build Artifacts
+        if: needs.detect-project.outputs.has_eas == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: goaledge-apk-eas
+          name: goaledge-android-builds
           path: |
-            *.apk
-          retention-days: 30
-
-      # Upload APK (CLI)
-      - name: Upload Debug APK (CLI)
-        if: needs.setup.outputs.build_system == 'gradle'
-        uses: actions/upload-artifact@v4
-        with:
-          name: goaledge-debug-apk
-          path: |
-            android/app/build/outputs/apk/debug/*.apk
-          retention-days: 30
-
-      # Upload Release APK
-      - name: Upload Release APK
-        if: needs.setup.outputs.build_system == 'gradle'
-        uses: actions/upload-artifact@v4
-        with:
-          name: goaledge-release-apk
-          path: |
-            android/app/build/outputs/apk/release/*.apk
-          retention-days: 30
-
-      # Upload AAB
-      - name: Upload AAB
-        if: needs.setup.outputs.build_system == 'gradle'
-        uses: actions/upload-artifact@v4
-        with:
-          name: goaledge-aab
-          path: |
-            android/app/build/outputs/bundle/release/*.aab
+            build-output/**/*.apk
+            build-output/**/*.aab
           retention-days: 30
 
   # ==========================================================================
