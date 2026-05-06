@@ -53,15 +53,15 @@ export default function PremiumScreen() {
 
             <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}>
                 <View style={[styles.heroSection, { backgroundColor: colors.backgroundTertiary }]}>
-                    <Crown color={colors.accentGold} size={64} style={{ marginBottom: 16 }} />
+                    <Crown color={colors.accentOrange} size={64} style={{ marginBottom: 16 }} />
                     <Text style={styles.heroTitle}>Desbloqueie seu Potencial</Text>
                     <Text style={styles.heroSubtitle}>Tenha acesso a todos os palpites e análises avançadas do nosso algoritmo.</Text>
                 </View>
 
                 <View style={styles.pricingSection}>
-                    <View style={[styles.priceCard, { borderColor: colors.accentGold, backgroundColor: colors.backgroundSecondary }]}>
+                    <View style={[styles.priceCard, { borderColor: colors.accentOrange, backgroundColor: colors.backgroundSecondary }]}>
                         <Text style={[styles.priceName, { color: colors.textPrimary }]}>Mensal</Text>
-                        <Text style={[styles.priceValue, { color: colors.textPrimary }]}>$3,00<Text style={styles.pricePeriod}>/mês</Text></Text>
+                        <Text style={[styles.priceValue, { color: colors.textPrimary }]}>$5,00<Text style={styles.pricePeriod}>/mês</Text></Text>
                         <Text style={[styles.priceDesc, { color: colors.textMuted }]}>Cancele quando quiser.</Text>
                     </View>
                 </View>
@@ -81,25 +81,25 @@ export default function PremiumScreen() {
                             <View style={styles.featureIcons}>
                                 {feat.free ? <Check color={colors.statusGreen} size={20} /> : <X color={colors.statusRed} size={20} />}
                                 <View style={styles.iconSeparator} />
-                                {feat.pro ? <Check color={colors.accentGold} size={20} /> : <X color={colors.statusRed} size={20} />}
+                                {feat.pro ? <Check color={colors.accentOrange} size={20} /> : <X color={colors.statusRed} size={20} />}
                             </View>
                         </View>
                     ))}
                     <View style={styles.featureLegend}>
                         <Text style={[styles.legendText, { color: colors.textMuted }]}>Free</Text>
-                        <Text style={[styles.legendText, { color: colors.accentGold }]}>Premium</Text>
+                        <Text style={[styles.legendText, { color: colors.accentOrange }]}>Premium</Text>
                     </View>
                 </View>
 
                 <View style={styles.actionSection}>
                     {isPremium ? (
-                        <View style={[styles.premiumActiveBadge, { backgroundColor: colors.backgroundSecondary, borderColor: colors.accentGold }]}>
-                            <ShieldCheck color={colors.accentGold} size={24} />
+                        <View style={[styles.premiumActiveBadge, { backgroundColor: colors.backgroundSecondary, borderColor: colors.accentOrange }]}>
+                            <ShieldCheck color={colors.accentOrange} size={24} />
                             <Text style={[styles.premiumActiveText, { color: colors.textPrimary }]}>Você já é Premium!</Text>
                         </View>
                     ) : (
                         <TouchableOpacity 
-                            style={[styles.subscribeBtn, { backgroundColor: colors.accentGold }]}
+                            style={[styles.subscribeBtn, { backgroundColor: colors.accentOrange }]}
                             onPress={handleSubscribe}
                             disabled={loading}
                         >

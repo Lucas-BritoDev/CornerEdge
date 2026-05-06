@@ -54,7 +54,9 @@ export interface PickSelection {
     daily_pick_id: string;
     fixture_id: number | null;
     home_team_name: string;
+    home_team_logo: string | null;
     away_team_name: string;
+    away_team_logo: string | null;
     league_name: string;
     league_logo: string | null;
     market: string;

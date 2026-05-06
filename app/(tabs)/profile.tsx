@@ -40,6 +40,14 @@ export default function ProfileScreen() {
         router.replace('/login');
     };
 
+    if (!user) {
+        return (
+            <View style={[styles.container, { backgroundColor: colors.backgroundPrimary }]}>
+                <ActivityIndicator size="large" color={colors.accentOrange} />
+            </View>
+        );
+    }
+
     const cycleTheme = () => {
         const newTheme = resolvedTheme === 'dark' ? 'light' : 'dark';
         setTheme(newTheme);
@@ -58,11 +66,11 @@ export default function ProfileScreen() {
 
             <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}>
                 <View style={[styles.profileCard, { backgroundColor: colors.backgroundSecondary }]}>
-                    <View style={[styles.avatar, { backgroundColor: colors.accentGold }]}>
+                    <View style={[styles.avatar, { backgroundColor: colors.accentOrange }]}>
                         <User color="#FFFFFF" size={32} />
                     </View>
                     <Text style={[styles.userName, { color: colors.textPrimary }]}>{profile?.full_name || t('profile.user')}</Text>
-                    <View style={[styles.planBadge, { backgroundColor: isPremium ? colors.accentGold : colors.statusGreen }]}>
+                    <View style={[styles.planBadge, { backgroundColor: isPremium ? colors.accentOrange : colors.statusGreen }]}>
                         <Crown color="#FFFFFF" size={12} />
                         <Text style={styles.planText}>{isPremium ? t('common.premium').toUpperCase() : t('common.free').toUpperCase()}</Text>
                     </View>
@@ -107,7 +115,7 @@ export default function ProfileScreen() {
                                 key={lang.code}
                                 style={[
                                     styles.langButton,
-                                    { backgroundColor: currentLang === lang.code ? colors.accentGold : colors.background }
+                                    { backgroundColor: currentLang === lang.code ? colors.accentOrange : colors.background }
                                 ]}
                                 onPress={() => changeLang(lang.code)}
                             >
@@ -134,7 +142,7 @@ export default function ProfileScreen() {
                                 {resolvedTheme === 'dark' ? t('profile.dark_mode') : t('profile.light_mode')}
                             </Text>
                         </View>
-                        <TouchableOpacity onPress={cycleTheme} style={[styles.themeToggle, { backgroundColor: colors.accentGold }]}>
+                        <TouchableOpacity onPress={cycleTheme} style={[styles.themeToggle, { backgroundColor: colors.accentOrange }]}>
                             <Text style={styles.themeToggleText}>
                                 {resolvedTheme === 'dark' ? '🌙' : '☀️'}
                             </Text>
@@ -170,7 +178,7 @@ export default function ProfileScreen() {
                         </TouchableOpacity>
                     ) : (
                         <TouchableOpacity 
-                            style={[styles.upgradeButton, { backgroundColor: colors.accentGold }]}
+                            style={[styles.upgradeButton, { backgroundColor: colors.accentOrange }]}
                             onPress={() => Alert.alert(t('premium.title'), '')}
                         >
                             <Crown color="#FFFFFF" size={20} />

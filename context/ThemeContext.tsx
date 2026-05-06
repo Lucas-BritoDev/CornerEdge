@@ -8,21 +8,22 @@ interface ThemeColors {
     backgroundPrimary: string;
     backgroundSecondary: string;
     backgroundTertiary: string;
+    background: string;
     textPrimary: string;
     textSecondary: string;
     textMuted: string;
     cardBorder: string;
-    accentGold: string;
+    accentOrange: string;
     statusGreen: string;
     statusRed: string;
     statusPending: string;
     tabBarBackground: string;
     tabBarActive: string;
     white: string;
+    black: string;
     primary: string;
-    primaryLight: string;
-    background: string;
-    border: string;
+    statusBar: string;
+    statusBarText: string;
 }
 
 interface ThemeContextType {
@@ -34,45 +35,47 @@ interface ThemeContextType {
 }
 
 const lightColors: ThemeColors = {
-    backgroundPrimary: '#F0F4FF',
+    backgroundPrimary: '#F5F5F5',
     backgroundSecondary: '#FFFFFF',
-    backgroundTertiary: '#1A1A2E',
-    textPrimary: '#1A1A2E',
-    textSecondary: '#4A5568',
-    textMuted: '#718096',
-    cardBorder: '#D1D9E0',
-    accentGold: '#B8922A',
-    statusGreen: '#00A86B',
-    statusRed: '#C0392B',
-    statusPending: '#F39C12',
+    backgroundTertiary: '#1A1A1A',
+    background: '#E8E8E8',
+    textPrimary: '#1A1A1A',
+    textSecondary: '#4A4A4A',
+    textMuted: '#808080',
+    cardBorder: '#E0E0E0',
+    accentOrange: '#FF6B00',
+    statusGreen: '#00C853',
+    statusRed: '#D32F2F',
+    statusPending: '#FF9800',
     tabBarBackground: '#FFFFFF',
-    tabBarActive: '#C9A84C',
+    tabBarActive: '#FF6B00',
     white: '#FFFFFF',
-    primary: '#4F46E5',
-    primaryLight: '#EEF2FF',
-    background: '#F5F7FA',
-    border: '#E5E7EB',
+    black: '#1A1A1A',
+    primary: '#FF6B00',
+    statusBar: '#FFFFFF',
+    statusBarText: '#FFFFFF',
 };
 
 const darkColors: ThemeColors = {
-    backgroundPrimary: '#1A1A2E',
-    backgroundSecondary: '#16213E',
-    backgroundTertiary: '#0F3460',
+    backgroundPrimary: '#0D0D0D',
+    backgroundSecondary: '#1A1A1A',
+    backgroundTertiary: '#2A2A2A',
+    background: '#151515',
     textPrimary: '#FFFFFF',
-    textSecondary: '#A0AEC0',
-    textMuted: '#718096',
-    cardBorder: '#2D3A5C',
-    accentGold: '#C9A84C',
-    statusGreen: '#00C48C',
-    statusRed: '#E74C3C',
-    statusPending: '#F39C12',
-    tabBarBackground: '#0F3460',
-    tabBarActive: '#C9A84C',
+    textSecondary: '#CCCCCC',
+    textMuted: '#999999',
+    cardBorder: '#333333',
+    accentOrange: '#FF7A1A',
+    statusGreen: '#00E676',
+    statusRed: '#FF5252',
+    statusPending: '#FFB74D',
+    tabBarBackground: '#1A1A1A',
+    tabBarActive: '#FF7A1A',
     white: '#FFFFFF',
-    primary: '#818CF8',
-    primaryLight: '#312E81',
-    background: '#0F172A',
-    border: '#334155',
+    black: '#0D0D0D',
+    primary: '#FF7A1A',
+    statusBar: '#0D0D0D',
+    statusBarText: '#FFFFFF',
 };
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);

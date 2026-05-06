@@ -53,7 +53,7 @@ export default function SignupScreen() {
         return (
             <View style={[styles.container, { backgroundColor: colors.backgroundPrimary }]}>
                 <View style={[styles.successCard, { backgroundColor: colors.backgroundSecondary, paddingTop: insets.top + 40 }]}>
-                    <CheckCircle color={colors.accentGold} size={64} />
+                    <CheckCircle color={colors.accentOrange} size={64} />
                     <Text style={[styles.successTitle, { color: colors.textPrimary }]}>
                         {t('auth.verify_email_title')}
                     </Text>
@@ -83,7 +83,7 @@ export default function SignupScreen() {
                     keyboardShouldPersistTaps="handled"
                 >
                     <View style={[styles.card, { backgroundColor: colors.backgroundSecondary }]}>
-                        <Text style={[styles.logo, { color: colors.accentGold }]}>GoalEdge</Text>
+                        <Text style={[styles.logo, { color: colors.accentOrange }]}>GoalEdge</Text>
                         <Text style={[styles.subtitle, { color: colors.textMuted }]}>{t('auth.signup')}</Text>
 
                         <View style={styles.form}>

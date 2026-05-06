@@ -36,7 +36,7 @@ export default function PremiumScreen() {
             // Simular compra - em produção, chamar Google Play Billing ou Stripe
             Alert.alert(
                 'Subscribe',
-                `This would open Google Play Billing in production.\n\nPrice: $ 3,00/${t('premium.month')}`,
+                `This would open Google Play Billing in production.\n\nPrice: $ 5,00/${t('premium.month')}`,
                 [
                     { text: 'Cancel', style: 'cancel' },
                     { 
@@ -84,7 +84,7 @@ export default function PremiumScreen() {
 
                 <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}>
                     <View style={[styles.activeCard, { backgroundColor: colors.backgroundSecondary }]}>
-                        <Crown color={colors.accentGold} size={48} />
+                        <Crown color={colors.accentOrange} size={48} />
                         <Text style={[styles.activeTitle, { color: colors.textPrimary }]}>{t('premium.active_plan')}</Text>
                         <Text style={[styles.activeSubtitle, { color: colors.textMuted }]}>
                             {mockSubscription.expiresAt 
@@ -131,13 +131,13 @@ export default function PremiumScreen() {
 
             <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}>
                 <View style={[styles.heroCard, { backgroundColor: colors.backgroundSecondary }]}>
-                    <Crown color={colors.accentGold} size={48} />
+                    <Crown color={colors.accentOrange} size={48} />
                     <Text style={[styles.heroTitle, { color: colors.textPrimary }]}>{t('premium.unlock_access')}</Text>
                     <Text style={[styles.heroSubtitle, { color: colors.textMuted }]}>
                         {t('premium.get_picks')}
                     </Text>
                     <View style={styles.priceRow}>
-                        <Text style={[styles.price, { color: colors.accentGold }]}>{t('premium.price')}</Text>
+                        <Text style={[styles.price, { color: colors.accentOrange }]}>{t('premium.price')}</Text>
                         <Text style={[styles.pricePeriod, { color: colors.textMuted }]}>/{t('premium.month')}</Text>
                     </View>
                 </View>
@@ -149,7 +149,7 @@ export default function PremiumScreen() {
                         <View style={[styles.tableHeader, { borderBottomColor: colors.cardBorder }]}>
                             <Text style={[styles.tableHeaderText, { color: colors.textMuted }]}>{t('premium.feature')}</Text>
                             <Text style={[styles.tableHeaderText, { color: colors.textMuted, textAlign: 'center' }]}>{t('premium.free')}</Text>
-                            <Text style={[styles.tableHeaderTextPremium, { color: colors.accentGold }]}>{t('common.premium')}</Text>
+                            <Text style={[styles.tableHeaderTextPremium, { color: colors.accentOrange }]}>{t('common.premium')}</Text>
                         </View>
                         {features.map((feature, index) => (
                             <View key={index} style={[styles.tableRow, { borderBottomColor: colors.cardBorder }]}>
@@ -165,7 +165,7 @@ export default function PremiumScreen() {
 
                 <View style={styles.ctaSection}>
                     <TouchableOpacity 
-                        style={[styles.ctaButton, { backgroundColor: colors.accentGold }]} 
+                        style={[styles.ctaButton, { backgroundColor: colors.accentOrange }]} 
                         onPress={handleSubscribe}
                         disabled={loading}
                     >

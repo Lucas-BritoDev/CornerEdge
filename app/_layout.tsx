@@ -4,10 +4,26 @@ import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useEffect } from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from '../context/AuthContext';
 import { ThemeProvider, useTheme } from '../context/ThemeContext';
 import { LanguageProvider } from '../context/LanguageContext';
 import '../i18n';
+
+// ============================================================================
+// REACT QUERY CLIENT - Cache global para o app
+// ============================================================================
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000,        // 5 minutos - dados considerados "frescos"
+      gcTime: 30 * 60 * 1000,          // 30 minutos - tempo no cache (antes era cacheTime)
+      refetchOnWindowFocus: false,     // Não refaz query ao voltar pro app
+      refetchOnReconnect: true,        // Refaz query ao reconectar internet
+      retry: 2,                        // Tenta 2 vezes se falhar
+    },
+  },
+});
 
 // ─── Proteção de rotas baseada em sessão ──────────────────────────────
 function AuthGate() {
@@ -54,16 +70,18 @@ function AppContent() {
 
 export default function RootLayout() {
     return (
-        <ThemeProvider>
-            <LanguageProvider>
-                <AuthProvider>
-                    <SafeAreaProvider>
-                        <GestureHandlerRootView style={{ flex: 1 }}>
-                            <AppContent />
-                        </GestureHandlerRootView>
-                    </SafeAreaProvider>
-                </AuthProvider>
-            </LanguageProvider>
-        </ThemeProvider>
+        <QueryClientProvider client={queryClient}>
+            <ThemeProvider>
+                <LanguageProvider>
+                    <AuthProvider>
+                        <SafeAreaProvider>
+                            <GestureHandlerRootView style={{ flex: 1 }}>
+                                <AppContent />
+                            </GestureHandlerRootView>
+                        </SafeAreaProvider>
+                    </AuthProvider>
+                </LanguageProvider>
+            </ThemeProvider>
+        </QueryClientProvider>
     );
 }

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Clock, Lock, Crown, Info } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
@@ -44,7 +44,7 @@ export default function TomorrowScreen() {
             </View>
 
             <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}>
-                <View style={[styles.disclaimer, { backgroundColor: colors.accentGold }]}>
+                <View style={[styles.disclaimer, { backgroundColor: colors.accentOrange }]}>
                     <Clock color="#FFFFFF" size={16} />
                     <Text style={styles.disclaimerText}>{t('tomorrow.disclaimer')}</Text>
                 </View>
@@ -55,7 +55,7 @@ export default function TomorrowScreen() {
                     </Text>
 
                     {loading ? (
-                        <ActivityIndicator size="large" color={colors.accentGold} style={{ marginTop: 40 }} />
+                        <ActivityIndicator size="large" color={colors.accentOrange} style={{ marginTop: 40 }} />
                     ) : fixtures.length === 0 ? (
                         <View style={[styles.emptyState, { backgroundColor: colors.backgroundSecondary }]}>
                             <Info color={colors.textMuted} size={32} />
@@ -76,7 +76,7 @@ export default function TomorrowScreen() {
                                     <View style={styles.matchHeader}>
                                         <Text style={[styles.matchLeague, { color: colors.textMuted }]}>{fixture.league}</Text>
                                         {isHighValue && isPremium && (
-                                            <View style={[styles.premiumBadge, { backgroundColor: colors.accentGold }]}>
+                                            <View style={[styles.premiumBadge, { backgroundColor: colors.accentOrange }]}>
                                                 <Text style={styles.premiumBadgeText}>PREMIUM</Text>
                                             </View>
                                         )}
@@ -84,10 +84,16 @@ export default function TomorrowScreen() {
 
                                     <View style={styles.matchRow}>
                                         <View style={styles.teamContainer}>
+                                            {fixture.homeLogo && (
+                                                <Image source={{ uri: fixture.homeLogo }} style={styles.teamLogo} />
+                                            )}
                                             <Text style={[styles.teamName, { color: colors.textPrimary }]}>{fixture.homeTeam}</Text>
                                         </View>
                                         <Text style={[styles.vsText, { color: colors.textMuted }]}>vs</Text>
                                         <View style={styles.teamContainer}>
+                                            {fixture.awayLogo && (
+                                                <Image source={{ uri: fixture.awayLogo }} style={styles.teamLogo} />
+                                            )}
                                             <Text style={[styles.teamName, { color: colors.textPrimary }]}>{fixture.awayTeam}</Text>
                                         </View>
                                     </View>
@@ -102,8 +108,8 @@ export default function TomorrowScreen() {
 
                                     {isLocked && (
                                         <View style={styles.lockedOverlay}>
-                                            <Lock color={colors.accentGold} size={24} />
-                                            <Text style={[styles.lockedText, { color: colors.accentGold }]}>{t('common.premium')}</Text>
+                                            <Lock color={colors.accentOrange} size={24} />
+                                            <Text style={[styles.lockedText, { color: colors.accentOrange }]}>{t('common.premium')}</Text>
                                         </View>
                                     )}
                                 </View>
@@ -146,7 +152,8 @@ const styles = StyleSheet.create({
     premiumBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 },
     premiumBadgeText: { color: '#FFFFFF', fontSize: 9, fontWeight: 'bold' },
     matchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
-    teamContainer: { flex: 1, alignItems: 'center' },
+    teamContainer: { flex: 1, alignItems: 'center', gap: 8 },
+    teamLogo: { width: 32, height: 32, borderRadius: 16 },
     teamName: { fontSize: 16, fontWeight: '600', textAlign: 'center' },
     vsText: { fontSize: 14, marginHorizontal: 12 },
     matchFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, borderTopColor: '#E5E7EB', paddingTop: 12 },

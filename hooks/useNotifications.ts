@@ -3,6 +3,7 @@ import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
+import { type EventSubscription } from 'expo-modules-core';
 import { supabase } from '../lib/supabase';
 
 Notifications.setNotificationHandler({
@@ -10,14 +11,16 @@ Notifications.setNotificationHandler({
     shouldShowAlert: true,
     shouldPlaySound: true,
     shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
   }),
 });
 
 export function useNotifications(userId?: string) {
   const [expoPushToken, setExpoPushToken] = useState<string>('');
   const [notification, setNotification] = useState<Notifications.Notification | undefined>(undefined);
-  const notificationListener = useRef<Notifications.Subscription>();
-  const responseListener = useRef<Notifications.Subscription>();
+  const notificationListener = useRef<EventSubscription>(null);
+  const responseListener = useRef<EventSubscription>(null);
 
   useEffect(() => {
     if (!userId) return;
@@ -39,8 +42,8 @@ export function useNotifications(userId?: string) {
     });
 
     return () => {
-      if (notificationListener.current) Notifications.removeNotificationSubscription(notificationListener.current);
-      if (responseListener.current) Notifications.removeNotificationSubscription(responseListener.current);
+      notificationListener.current?.remove();
+      responseListener.current?.remove();
     };
   }, [userId]);
 

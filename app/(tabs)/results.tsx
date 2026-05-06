@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { Calendar, ChevronLeft, ChevronRight, CheckCircle, XCircle, Clock, TrendingUp, TrendingDown } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { DailyPick } from '../../lib/supabase';
-import { fetchPicksByDate, fetchAvailableDates } from '../../services/picks-service';
+import { usePicksByDate, useAvailableDates } from '../../services/picks-service';
 import { AdBanner } from '../../components/AdBanner';
 import { useAuth } from '../../context/AuthContext';
 
@@ -15,30 +15,26 @@ export default function ResultsScreen() {
     const { t, i18n } = useTranslation();
     const { isPremium } = useAuth();
 
-    const [availableDates, setAvailableDates] = useState<string[]>([]);
     const [selectedDate, setSelectedDate] = useState('');
-    const [picks, setPicks] = useState<DailyPick[]>([]);
-    const [loading, setLoading] = useState(true);
     const [expandedPick, setExpandedPick] = useState<string | null>(null);
 
+    // ✅ Usando hooks com cache
+    const { data: availableDates = [], isLoading: datesLoading } = useAvailableDates();
+    const { data: allPicks = [], isLoading: picksLoading } = usePicksByDate(selectedDate);
+
+    // Filtrar picks baseado no plano do usuário
+    const picks = isPremium ? allPicks : allPicks.filter(p => p.tier === 'free');
+    const loading = picksLoading || datesLoading;
+
+    // Definir data inicial quando as datas estiverem disponíveis
     useEffect(() => {
-        fetchAvailableDates().then(dates => {
+        if (availableDates.length > 0 && !selectedDate) {
             // Default: ontem ou primeira data disponível
             const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-            const initial = dates.find(d => d <= yesterday) ?? dates[0] ?? yesterday;
-            setAvailableDates(dates);
+            const initial = availableDates.find(d => d <= yesterday) ?? availableDates[0] ?? yesterday;
             setSelectedDate(initial);
-        });
-    }, []);
-
-    useEffect(() => {
-        if (!selectedDate) return;
-        setLoading(true);
-        fetchPicksByDate(selectedDate).then(data => {
-            const filtered = isPremium ? data : data.filter(p => p.tier === 'free');
-            setPicks(filtered);
-        }).finally(() => setLoading(false));
-    }, [selectedDate, isPremium]);
+        }
+    }, [availableDates, selectedDate]);
 
     const totalWon = picks.filter(p => p.status === 'won').length;
     const totalLost = picks.filter(p => p.status === 'lost').length;
@@ -49,6 +45,15 @@ export default function ResultsScreen() {
         const date = new Date(dateStr + 'T12:00:00');
         const locale = i18n.language === 'en' ? 'en-US' : i18n.language === 'es' ? 'es-ES' : 'pt-BR';
         return date.toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long' });
+    };
+
+    const formatKickoffTime = (kickoffAt: string | null) => {
+        if (!kickoffAt) return '';
+        const date = new Date(kickoffAt);
+        return date.toLocaleTimeString(i18n.language === 'en' ? 'en-US' : i18n.language === 'es' ? 'es-ES' : 'pt-BR', {
+            hour: '2-digit',
+            minute: '2-digit',
+        });
     };
 
     const getStatusColor = (status: string) => {
@@ -82,11 +87,11 @@ export default function ResultsScreen() {
                         disabled={currentIdx >= availableDates.length - 1}
                         style={{ opacity: currentIdx >= availableDates.length - 1 ? 0.3 : 1 }}
                     >
-                        <ChevronLeft color={colors.accentGold} size={24} />
+                        <ChevronLeft color={colors.accentOrange} size={24} />
                     </TouchableOpacity>
 
                     <View style={styles.dateButton}>
-                        <Calendar color={colors.accentGold} size={20} />
+                        <Calendar color={colors.accentOrange} size={20} />
                         <Text style={[styles.dateText, { color: colors.textPrimary }]}>
                             {selectedDate ? formatDate(selectedDate) : '—'}
                         </Text>
@@ -97,7 +102,7 @@ export default function ResultsScreen() {
                         disabled={currentIdx <= 0}
                         style={{ opacity: currentIdx <= 0 ? 0.3 : 1 }}
                     >
-                        <ChevronRight color={colors.accentGold} size={24} />
+                        <ChevronRight color={colors.accentOrange} size={24} />
                     </TouchableOpacity>
                 </View>
 
@@ -133,7 +138,7 @@ export default function ResultsScreen() {
                         <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>{t('results.picks')}</Text>
 
                         {loading ? (
-                            <ActivityIndicator size="large" color={colors.accentGold} style={{ marginTop: 40 }} />
+                            <ActivityIndicator size="large" color={colors.accentOrange} style={{ marginTop: 40 }} />
                         ) : picks.length === 0 ? (
                             <View style={[styles.emptyState, { backgroundColor: colors.backgroundSecondary }]}>
                                 <Text style={[styles.emptyText, { color: colors.textMuted }]}>{t('results.no_results')}</Text>
@@ -143,7 +148,18 @@ export default function ResultsScreen() {
                                 const isExpanded = expandedPick === pick.id;
                                 const statusColor = getStatusColor(pick.status);
                                 const selections: any[] = (pick as any).pick_selections ?? [];
-                                const statusLabel = pick.status === 'won' ? 'GREEN' : pick.status === 'lost' ? 'RED' : pick.status.toUpperCase();
+                                
+                                // Traduzir status
+                                let statusLabel = '';
+                                if (pick.status === 'won') {
+                                    statusLabel = t('common.green');
+                                } else if (pick.status === 'lost') {
+                                    statusLabel = t('common.red');
+                                } else if (pick.status === 'void') {
+                                    statusLabel = 'VOID';
+                                } else {
+                                    statusLabel = t('common.pending');
+                                }
 
                                 return (
                                     <TouchableOpacity
@@ -174,13 +190,28 @@ export default function ResultsScreen() {
                                                             <Clock size={16} color={colors.statusPending} />
                                                         )}
                                                         <View style={styles.selectionInfo}>
-                                                            <Text style={[styles.selectionTeams, { color: colors.textPrimary }]}>
-                                                                {sel.home_team_name} vs {sel.away_team_name}
-                                                            </Text>
-                                                            <Text style={[styles.selectionMarket, { color: colors.textSecondary }]}>
-                                                                {sel.market}
-                                                                {sel.score_home != null ? ` • ${sel.score_home}-${sel.score_away}` : ''}
-                                                            </Text>
+                                                            <View style={styles.teamsWithLogos}>
+                                                                {sel.home_team_logo && (
+                                                                    <Image source={{ uri: sel.home_team_logo }} style={styles.teamLogoSmall} />
+                                                                )}
+                                                                <Text style={[styles.selectionTeams, { color: colors.textPrimary }]}>
+                                                                    {sel.home_team_name} vs {sel.away_team_name}
+                                                                </Text>
+                                                                {sel.away_team_logo && (
+                                                                    <Image source={{ uri: sel.away_team_logo }} style={styles.teamLogoSmall} />
+                                                                )}
+                                                            </View>
+                                                            <View style={styles.marketKickoffRow}>
+                                                                <Text style={[styles.selectionMarket, { color: colors.textSecondary }]}>
+                                                                    {sel.market}
+                                                                    {sel.score_home != null ? ` • ${sel.score_home}-${sel.score_away}` : ''}
+                                                                </Text>
+                                                                {sel.kickoff_at && (
+                                                                    <Text style={[styles.kickoffTime, { color: colors.textMuted }]}>
+                                                                        {formatKickoffTime(sel.kickoff_at)}
+                                                                    </Text>
+                                                                )}
+                                                            </View>
                                                         </View>
                                                         <Text style={[styles.selectionOdd, { color: colors.textPrimary }]}>@{Number(sel.odds).toFixed(2)}</Text>
                                                     </View>
@@ -231,8 +262,12 @@ const styles = StyleSheet.create({
     selectionsExpanded: { borderTopWidth: 1, paddingTop: 12, marginTop: 12 },
     selectionRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
     selectionInfo: { flex: 1, marginLeft: 8 },
-    selectionTeams: { fontSize: 13, fontWeight: '500' },
+    teamsWithLogos: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 },
+    teamLogoSmall: { width: 16, height: 16, borderRadius: 8 },
+    selectionTeams: { fontSize: 13, fontWeight: '500', flex: 1 },
+    marketKickoffRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     selectionMarket: { fontSize: 12 },
+    kickoffTime: { fontSize: 11, fontWeight: '500' },
     selectionOdd: { fontSize: 13 },
     expandIcon: { position: 'absolute', right: 16, bottom: 16 },
     emptyState: { padding: 32, borderRadius: 12, alignItems: 'center' },

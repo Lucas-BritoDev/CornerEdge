@@ -8,9 +8,9 @@
     "scheme": "goaledge",
     "userInterfaceStyle": "automatic",
     "splash": {
-      "image": "./assets/images/splash.png",
+      "image": "./assets/images/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#1A1A2E"
+      "backgroundColor": "#1A1A1A"
     },
     "ios": {
       "supportsTablet": true,
@@ -19,7 +19,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#1A1A2E"
+        "backgroundColor": "#1A1A1A"
       },
       "package": "com.goaledge.app"
     },
@@ -34,6 +34,12 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "0d9fcdf1-3bbb-416e-bb66-07b3643e99a8"
+      }
     }
   }
 }

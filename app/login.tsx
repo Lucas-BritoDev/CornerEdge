@@ -6,6 +6,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import { StatusBar } from 'expo-status-bar';
 import { Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react-native';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -14,7 +15,7 @@ export default function LoginScreen() {
     const insets = useSafeAreaInsets();
     const router = useRouter();
     const { login } = useAuth();
-    const { colors } = useTheme();
+    const { colors, resolvedTheme } = useTheme();
     const { t } = useTranslation();
 
     const [email, setEmail] = useState('');
@@ -37,11 +38,11 @@ export default function LoginScreen() {
                 : result.error ?? t('auth.login_error_invalid');
             Alert.alert(t('common.error'), msg);
         }
-        // Redirecionamento feito pelo AuthGate no _layout.tsx
     };
 
     return (
         <View style={[styles.container, { backgroundColor: colors.backgroundPrimary }]}>
+            <StatusBar style={resolvedTheme === 'dark' ? 'light' : 'light'} />
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : undefined}
                 style={styles.container}
@@ -55,13 +56,12 @@ export default function LoginScreen() {
                     keyboardShouldPersistTaps="handled"
                 >
                     <View style={[styles.card, { backgroundColor: colors.backgroundSecondary }]}>
-                        <Text style={[styles.logo, { color: colors.accentGold }]}>GoalEdge</Text>
+                        <Text style={[styles.logo, { color: colors.accentOrange }]}>GoalEdge</Text>
                         <Text style={[styles.subtitle, { color: colors.textMuted }]}>
                             {t('app.tagline')}
                         </Text>
 
                         <View style={styles.form}>
-                            {/* Email */}
                             <Text style={[styles.label, { color: colors.textPrimary }]}>
                                 {t('auth.email')}
                             </Text>
@@ -80,7 +80,6 @@ export default function LoginScreen() {
                                 />
                             </View>
 
-                            {/* Senha */}
                             <Text style={[styles.label, { color: colors.textPrimary }]}>
                                 {t('auth.password')}
                             </Text>
@@ -102,14 +101,12 @@ export default function LoginScreen() {
                                 </TouchableOpacity>
                             </View>
 
-                            {/* Esqueci a senha */}
                             <TouchableOpacity onPress={() => router.push('/forgot-password')}>
                                 <Text style={[styles.forgotText, { color: colors.primary }]}>
                                     {t('auth.forgot_password')}
                                 </Text>
                             </TouchableOpacity>
 
-                            {/* Botão Entrar */}
                             <TouchableOpacity
                                 style={[styles.button, { backgroundColor: colors.primary }, loading && styles.buttonDisabled]}
                                 onPress={handleLogin}
@@ -128,7 +125,6 @@ export default function LoginScreen() {
                         </View>
                     </View>
 
-                    {/* Rodapé */}
                     <View style={styles.footer}>
                         <Text style={[styles.footerText, { color: colors.textPrimary }]}>
                             {t('auth.no_account')}

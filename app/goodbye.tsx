@@ -61,7 +61,7 @@ export default function GoodbyeScreen() {
                     style={styles.button}
                     onPress={() => router.replace('/login')}
                 >
-                    <Home color={colors.white} size={20} />
+                    <Home color="#FFFFFF" size={20} />
                     <Text style={styles.buttonText}>Voltar ao Início</Text>
                 </TouchableOpacity>
             </Animated.View>
@@ -113,7 +113,7 @@ const styles = StyleSheet.create({
         marginBottom: spacing.lg,
     },
     button: {
-        backgroundColor: colors.primary,
+        backgroundColor: '#FF6B00',
         paddingVertical: spacing.md,
         paddingHorizontal: spacing.xl,
         borderRadius: borderRadius.full,
@@ -123,7 +123,7 @@ const styles = StyleSheet.create({
         ...shadows.md,
     },
     buttonText: {
-        color: colors.white,
+        color: '#FFFFFF',
         fontWeight: 'bold',
         fontSize: fontSize.md,
     },

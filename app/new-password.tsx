@@ -54,7 +54,7 @@ export default function NewPasswordScreen() {
             <View style={[styles.container, { backgroundColor: colors.backgroundPrimary }]}>
                 <View style={[styles.center, { paddingTop: insets.top + 40 }]}>
                     <View style={[styles.card, { backgroundColor: colors.backgroundSecondary }]}>
-                        <CheckCircle color={colors.accentGold} size={64} />
+                        <CheckCircle color={colors.accentOrange} size={64} />
                         <Text style={[styles.successTitle, { color: colors.textPrimary }]}>
                             {t('auth.new_password_success_title')}
                         </Text>
@@ -85,7 +85,7 @@ export default function NewPasswordScreen() {
                     keyboardShouldPersistTaps="handled"
                 >
                     <View style={[styles.card, { backgroundColor: colors.backgroundSecondary }]}>
-                        <Text style={[styles.logo, { color: colors.accentGold }]}>GoalEdge</Text>
+                        <Text style={[styles.logo, { color: colors.accentOrange }]}>GoalEdge</Text>
                         <Text style={[styles.title, { color: colors.textPrimary }]}>
                             {t('auth.new_password_title')}
                         </Text>

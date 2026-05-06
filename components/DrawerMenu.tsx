@@ -2,10 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, useWindowDimensions, Switch, ScrollView, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import {
-    X, Home, Moon, Sun
-} from 'lucide-react-native';
-import { colors, darkColors, spacing, borderRadius, fontSize, shadows } from '../constants/theme';
+import { X, Home, Moon, Sun } from 'lucide-react-native';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 
@@ -27,41 +24,13 @@ export function DrawerMenu({ visible, onClose }: DrawerMenuProps) {
     const insets = useSafeAreaInsets();
     const router = useRouter();
     const { user } = useAuth();
-    const { theme, toggleTheme } = useTheme();
+    const { theme, toggleTheme, colors } = useTheme();
     const isDark = theme === 'dark';
     const { width: screenWidth } = useWindowDimensions();
     const drawerWidth = Math.min(screenWidth * 0.85, 320);
 
-    // WCAG 2.1 AA Compliant Colors
-    const themeColors = {
-        // Backgrounds
-        drawerBg: isDark ? darkColors.background : colors.white,
-        menuItemBg: isDark ? darkColors.menuItemBg : '#F3F4F6',
-        menuItemHover: isDark ? darkColors.menuItemHover : '#E5E7EB',
-
-        // Text with guaranteed 4.5:1+ contrast
-        textPrimary: isDark ? darkColors.textPrimary : colors.textPrimary,    // #F1F5F9 on dark
-        textSecondary: isDark ? darkColors.textSecondary : colors.textSecondary, // #CBD5E1 on dark
-        textMuted: isDark ? darkColors.textMuted : colors.textMuted,          // #94A3B8 on dark
-
-        // Borders
-        border: isDark ? darkColors.border : colors.border,
-
-        // Icons
-        iconDefault: isDark ? darkColors.textSecondary : colors.textSecondary,
-
-        // Avatar
-        avatarBg: isDark ? darkColors.primary : colors.primary,
-        avatarText: colors.white,
-    };
-
-    // Icon colors with good visibility on dark backgrounds
-    const getIconColor = (itemId: string) => {
-        return themeColors.iconDefault;
-    };
-
     const menuItems: MenuItem[] = [
-        { id: 'home', label: 'Início', icon: <Home color={themeColors.iconDefault} size={22} />, route: '/' },
+        { id: 'home', label: 'Início', icon: <Home color={colors.textSecondary} size={22} />, route: '/' },
     ];
 
     const handleNavigation = (route: string) => {
@@ -78,31 +47,31 @@ export function DrawerMenu({ visible, onClose }: DrawerMenuProps) {
                 <View style={[
                     styles.drawer,
                     {
-                        backgroundColor: themeColors.drawerBg,
-                        paddingTop: insets.top + spacing.md,
-                        paddingBottom: insets.bottom + spacing.md,
+                        backgroundColor: colors.backgroundPrimary,
+                        paddingTop: insets.top + 16,
+                        paddingBottom: insets.bottom + 16,
                         width: drawerWidth
                     }
                 ]}>
                     {/* Header - User Profile */}
-                    <View style={[styles.drawerHeader, { borderBottomColor: themeColors.border }]}>
+                    <View style={[styles.drawerHeader, { borderBottomColor: colors.cardBorder }]}>
                         <View style={styles.userInfo}>
-                            <View style={[styles.avatar, { backgroundColor: themeColors.avatarBg }]}>
-                                <Text style={[styles.avatarText, { color: themeColors.avatarText }]}>
-                                    {user?.name?.charAt(0).toUpperCase() || 'U'}
+                            <View style={[styles.avatar, { backgroundColor: colors.accentOrange }]}>
+                                <Text style={[styles.avatarText, { color: colors.white }]}>
+                                    {user?.email?.charAt(0).toUpperCase() || 'U'}
                                 </Text>
                             </View>
                             <View style={styles.userTextContainer}>
-                                <Text style={[styles.userName, { color: themeColors.textPrimary }]} numberOfLines={1}>
-                                    {user?.name || 'Usuário'}
+                                <Text style={[styles.userName, { color: colors.textPrimary }]} numberOfLines={1}>
+                                    Usuário
                                 </Text>
-                                <Text style={[styles.userEmail, { color: themeColors.textMuted }]} numberOfLines={1}>
+                                <Text style={[styles.userEmail, { color: colors.textMuted }]} numberOfLines={1}>
                                     {user?.email || 'seu@email.com'}
                                 </Text>
                             </View>
                         </View>
                         <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                            <X color={themeColors.textMuted} size={24} />
+                            <X color={colors.textMuted} size={24} />
                         </TouchableOpacity>
                     </View>
 
@@ -118,14 +87,14 @@ export function DrawerMenu({ visible, onClose }: DrawerMenuProps) {
                                 style={({ pressed }) => [
                                     styles.menuItem,
                                     {
-                                        backgroundColor: pressed ? themeColors.menuItemHover : themeColors.menuItemBg,
-                                        borderColor: themeColors.border
+                                        backgroundColor: pressed ? colors.background : colors.backgroundSecondary,
+                                        borderColor: colors.cardBorder
                                     }
                                 ]}
                                 onPress={() => handleNavigation(item.route)}
                             >
                                 <View style={styles.menuItemIcon}>{item.icon}</View>
-                                <Text style={[styles.menuItemLabel, { color: themeColors.textPrimary }]} numberOfLines={1}>
+                                <Text style={[styles.menuItemLabel, { color: colors.textPrimary }]} numberOfLines={1}>
                                     {item.label}
                                 </Text>
                                 {item.badge && (
@@ -138,14 +107,14 @@ export function DrawerMenu({ visible, onClose }: DrawerMenuProps) {
                     </ScrollView>
 
                     {/* Theme Toggle */}
-                    <View style={[styles.themeToggle, { backgroundColor: themeColors.menuItemBg, borderColor: themeColors.border }]}>
+                    <View style={[styles.themeToggle, { backgroundColor: colors.backgroundSecondary, borderColor: colors.cardBorder }]}>
                         <View style={styles.themeInfo}>
                             {isDark ? (
-                                <Moon color={isDark ? darkColors.primary : colors.primary} size={20} />
+                                <Moon color={colors.accentOrange} size={20} />
                             ) : (
-                                <Sun color={colors.warning} size={20} />
+                                <Sun color={colors.accentOrange} size={20} />
                             )}
-                            <Text style={[styles.themeLabel, { color: themeColors.textPrimary }]}>
+                            <Text style={[styles.themeLabel, { color: colors.textPrimary }]}>
                                 {isDark ? 'Modo Escuro' : 'Modo Claro'}
                             </Text>
                         </View>
@@ -154,15 +123,15 @@ export function DrawerMenu({ visible, onClose }: DrawerMenuProps) {
                             onValueChange={toggleTheme}
                             trackColor={{
                                 false: '#D1D5DB',
-                                true: isDark ? darkColors.primaryLight : colors.primaryLight
+                                true: colors.accentOrange
                             }}
-                            thumbColor={isDark ? darkColors.primary : '#FFFFFF'}
+                            thumbColor={colors.white}
                         />
                     </View>
 
                     {/* Version */}
-                    <Text style={[styles.version, { color: themeColors.textMuted }]}>
-                        Template Base v1.0.0
+                    <Text style={[styles.version, { color: colors.textMuted }]}>
+                        GoalEdge v1.0.0
                     </Text>
                 </View>
 
@@ -183,22 +152,26 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     drawer: {
-        paddingHorizontal: spacing.lg,
-        ...shadows.lg,
+        paddingHorizontal: 24,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.2,
+        shadowRadius: 16,
+        elevation: 8,
     },
     drawerHeader: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        marginBottom: spacing.lg,
-        paddingBottom: spacing.lg,
+        marginBottom: 24,
+        paddingBottom: 24,
         borderBottomWidth: 1,
     },
     userInfo: {
         flexDirection: 'row',
         alignItems: 'center',
         flex: 1,
-        marginRight: spacing.sm,
+        marginRight: 8,
     },
     avatar: {
         width: 48,
@@ -206,58 +179,58 @@ const styles = StyleSheet.create({
         borderRadius: 24,
         alignItems: 'center',
         justifyContent: 'center',
-        marginRight: spacing.md,
+        marginRight: 16,
     },
     avatarText: {
-        fontSize: fontSize.xl,
+        fontSize: 18,
         fontWeight: 'bold',
     },
     userTextContainer: {
         flex: 1,
     },
     userName: {
-        fontSize: fontSize.lg,
+        fontSize: 16,
         fontWeight: '600',
     },
     userEmail: {
-        fontSize: fontSize.sm,
+        fontSize: 12,
         marginTop: 2,
     },
     closeButton: {
-        padding: spacing.sm,
+        padding: 8,
     },
     menuScrollView: {
         flex: 1,
     },
     menuSection: {
-        gap: spacing.sm,
-        paddingBottom: spacing.md,
+        gap: 8,
+        paddingBottom: 16,
     },
     menuItem: {
         flexDirection: 'row',
         alignItems: 'center',
-        padding: spacing.md,
-        borderRadius: borderRadius.lg,
+        padding: 16,
+        borderRadius: 16,
         borderWidth: 1,
     },
     menuItemIcon: {
-        marginRight: spacing.md,
+        marginRight: 16,
         width: 24,
         alignItems: 'center',
     },
     menuItemLabel: {
-        fontSize: fontSize.md,
+        fontSize: 14,
         fontWeight: '500',
         flex: 1,
     },
     badge: {
-        paddingHorizontal: spacing.sm,
+        paddingHorizontal: 8,
         paddingVertical: 2,
-        borderRadius: borderRadius.full,
-        marginLeft: spacing.xs,
+        borderRadius: 9999,
+        marginLeft: 4,
     },
     badgeText: {
-        color: colors.white,
+        color: '#FFFFFF',
         fontSize: 10,
         fontWeight: 'bold',
     },
@@ -265,23 +238,23 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: spacing.md,
-        borderRadius: borderRadius.lg,
+        padding: 16,
+        borderRadius: 16,
         borderWidth: 1,
-        marginTop: spacing.sm,
+        marginTop: 8,
     },
     themeInfo: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: spacing.sm,
+        gap: 8,
     },
     themeLabel: {
-        fontSize: fontSize.md,
+        fontSize: 14,
         fontWeight: '500',
     },
     version: {
         textAlign: 'center',
-        fontSize: fontSize.xs,
-        marginTop: spacing.lg,
+        fontSize: 10,
+        marginTop: 24,
     },
 });

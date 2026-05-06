@@ -4,47 +4,56 @@
  * Statistical Football Betting Analysis App
  * Version 1.0 - May 2026
  *
- * WCAG 2.1 AA Compliance
+ * Paleta de cores baseada na logomarca GoalEdge
+ * Cores principais: Laranja (#FF6B00), Preto (#1A1A1A), Branco (#FFFFFF)
  */
 
 export const colors = {
-    backgroundPrimary: '#F0F4FF',
+    backgroundPrimary: '#F5F5F5',
     backgroundSecondary: '#FFFFFF',
-    backgroundTertiary: '#1A1A2E',
+    backgroundTertiary: '#1A1A1A',
+    background: '#E8E8E8',
     
-    textPrimary: '#1A1A2E',
-    textSecondary: '#4A5568',
-    textMuted: '#718096',
+    textPrimary: '#1A1A1A',
+    textSecondary: '#4A4A4A',
+    textMuted: '#808080',
     
-    cardBorder: '#D1D9E0',
-    accentGold: '#B8922A',
+    cardBorder: '#E0E0E0',
+    accentOrange: '#FF6B00',
     
-    statusGreen: '#00A86B',
-    statusRed: '#C0392B',
-    statusPending: '#F39C12',
+    statusGreen: '#00C853',
+    statusRed: '#D32F2F',
+    statusPending: '#FF9800',
     
     tabBarBackground: '#FFFFFF',
-    tabBarActive: '#C9A84C',
+    tabBarActive: '#FF6B00',
+    
+    white: '#FFFFFF',
+    black: '#1A1A1A',
 };
 
 export const darkColors = {
-    backgroundPrimary: '#1A1A2E',
-    backgroundSecondary: '#16213E',
-    backgroundTertiary: '#0F3460',
+    backgroundPrimary: '#0D0D0D',
+    backgroundSecondary: '#1A1A1A',
+    backgroundTertiary: '#2A2A2A',
+    background: '#151515',
     
     textPrimary: '#FFFFFF',
-    textSecondary: '#A0AEC0',
-    textMuted: '#718096',
+    textSecondary: '#CCCCCC',
+    textMuted: '#999999',
     
-    cardBorder: '#2D3A5C',
-    accentGold: '#C9A84C',
+    cardBorder: '#333333',
+    accentOrange: '#FF7A1A',
     
-    statusGreen: '#00C48C',
-    statusRed: '#E74C3C',
-    statusPending: '#F39C12',
+    statusGreen: '#00E676',
+    statusRed: '#FF5252',
+    statusPending: '#FFB74D',
     
-    tabBarBackground: '#0F3460',
-    tabBarActive: '#C9A84C',
+    tabBarBackground: '#1A1A1A',
+    tabBarActive: '#FF7A1A',
+    
+    white: '#FFFFFF',
+    black: '#0D0D0D',
 };
 
 export const spacing = {
@@ -109,13 +118,14 @@ export const getThemeColors = (isDark: boolean) => ({
     backgroundPrimary: isDark ? darkColors.backgroundPrimary : colors.backgroundPrimary,
     backgroundSecondary: isDark ? darkColors.backgroundSecondary : colors.backgroundSecondary,
     backgroundTertiary: isDark ? darkColors.backgroundTertiary : colors.backgroundTertiary,
+    background: isDark ? darkColors.background : colors.background,
     
     textPrimary: isDark ? darkColors.textPrimary : colors.textPrimary,
     textSecondary: isDark ? darkColors.textSecondary : colors.textSecondary,
     textMuted: isDark ? darkColors.textMuted : colors.textMuted,
     
     cardBorder: isDark ? darkColors.cardBorder : colors.cardBorder,
-    accentGold: isDark ? darkColors.accentGold : colors.accentGold,
+    accentOrange: isDark ? darkColors.accentOrange : colors.accentOrange,
     
     statusGreen: isDark ? darkColors.statusGreen : colors.statusGreen,
     statusRed: isDark ? darkColors.statusRed : colors.statusRed,
@@ -123,4 +133,7 @@ export const getThemeColors = (isDark: boolean) => ({
     
     tabBarBackground: isDark ? darkColors.tabBarBackground : colors.tabBarBackground,
     tabBarActive: isDark ? darkColors.tabBarActive : colors.tabBarActive,
+    
+    white: isDark ? darkColors.white : colors.white,
+    black: isDark ? darkColors.black : colors.black,
 });

@@ -43,7 +43,7 @@ export default function ForgotPasswordScreen() {
             <View style={[styles.container, { backgroundColor: colors.backgroundPrimary }]}>
                 <View style={[styles.center, { paddingTop: insets.top + 40 }]}>
                     <View style={[styles.card, { backgroundColor: colors.backgroundSecondary }]}>
-                        <CheckCircle color={colors.accentGold} size={64} />
+                        <CheckCircle color={colors.accentOrange} size={64} />
                         <Text style={[styles.successTitle, { color: colors.textPrimary }]}>
                             {t('auth.forgot_sent_title')}
                         </Text>
@@ -80,7 +80,7 @@ export default function ForgotPasswordScreen() {
 
                     <View style={[styles.card, { backgroundColor: colors.backgroundSecondary }]}>
                         <View style={[styles.iconCircle, { backgroundColor: colors.backgroundTertiary }]}>
-                            <KeyRound color={colors.accentGold} size={36} />
+                            <KeyRound color={colors.accentOrange} size={36} />
                         </View>
                         <Text style={[styles.title, { color: colors.textPrimary }]}>
                             {t('auth.forgot_title')}
