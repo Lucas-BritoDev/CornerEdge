@@ -47,30 +47,26 @@ npx tsc --noEmit
 git add .
 
 # Commit com mensagem descritiva
-git commit -m "ci: desabilitar workflow EAS e usar build local
+git commit -m "fix: corrigir erro de build no GitHub Actions
 
 ⚠️ IMPORTANTE: Não usa mais EAS Build (cota esgotada)
 
-✨ Mudanças:
-- Workflow antigo (android-ci.yml) desabilitado
-- Usar apenas android-build-local.yml
-- Build 100% no GitHub Actions (sem Expo)
-- Não consome cota do Expo
-- Download direto no GitHub Artifacts
-
 🔧 Correções:
-- react-native-google-mobile-ads atualizado para v15.4.0
-- Compatibilidade com Expo SDK 54 e React Native 0.81.5
+- Usar expo prebuild com --no-install
+- Unificar build de APK e AAB em um job
+- Adicionar logs detalhados (--info --stacktrace)
+- Verificar artefatos antes de upload
+- react-native-google-mobile-ads v15.4.0
 
 📚 Documentação:
+- CORRECAO_ERRO_BUILD.md (explicação do erro)
 - DOCS/BUILD_LOCAL_GITHUB_ACTIONS.md (guia técnico)
 - BUILD_LOCAL_GUIA_RAPIDO.md (guia rápido)
-- WORKFLOW_DESABILITADO.md (explicação da mudança)
 
 🎯 Resultado:
 - APK: Para instalação direta (GitHub Artifacts)
 - AAB: Para Play Store (GitHub Artifacts)
-- Tempo: ~35-40 minutos
+- Tempo: ~40-50 minutos
 - Custo: Gratuito (2000 min/mês GitHub)"
 
 # Push para o GitHub
@@ -85,10 +81,9 @@ git push origin main
 Agora          → Executar comandos (8 min)
 +2 min         → Push concluído
 +10 min        → Testes concluídos
-+35 min        → APK pronto
-+35 min        → AAB pronto (paralelo)
++40 min        → APK e AAB prontos
 ─────────────────────────────────────────
-Total: ~43 minutos
+Total: ~50 minutos
 ```
 
 ---

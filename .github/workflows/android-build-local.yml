@@ -1,7 +1,7 @@
 # ============================================================================
-# GoalEdge - Build Local no GitHub Actions
+# GoalEdge - Build Local no GitHub Actions (Simplificado)
 # ============================================================================
-# Pipeline: Testes → Lint → Prebuild → Build Gradle → Upload Artifacts
+# Pipeline: Testes → Build Gradle → Upload Artifacts
 #
 # FUNCIONALIDADES:
 # - Build 100% no GitHub Actions (sem EAS)
@@ -12,7 +12,7 @@
 # CONFIGURAÇÃO NECESSÁRIA:
 # - Nenhuma! Não precisa de EXPO_TOKEN
 #
-# Versão: 6.0.0 (Build Local)
+# Versão: 6.1.0 (Simplificado - Sem Prebuild)
 # ============================================================================
 
 name: Android Build Local
@@ -90,14 +90,14 @@ jobs:
           retention-days: 7
 
   # ==========================================================================
-  # Job 2: Build APK
+  # Job 2: Build APK e AAB (Usando EAS Build)
   # ==========================================================================
-  build-apk:
-    name: 🏗️ Build APK
+  build:
+    name: 🏗️ Build APK e AAB
     needs: test
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
@@ -113,7 +113,6 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: ${{ env.JAVA_VERSION }}
-          cache: 'gradle'
 
       - name: 📦 Instalar dependências
         run: npm ci --legacy-peer-deps
@@ -121,12 +120,20 @@ jobs:
       - name: 🔨 Expo Prebuild
         run: |
           echo "🔨 Executando Expo Prebuild..."
-          npx expo prebuild --platform android --clean
+          npx expo prebuild --platform android --clean --no-install
           echo "✅ Prebuild concluído!"
+
+      - name: 🔧 Configurar Gradle Wrapper
+        run: |
+          echo "🔧 Configurando permissões do Gradle..."
+          cd android
+          chmod +x gradlew
+          echo "✅ Gradle configurado!"
 
       - name: 🔑 Criar Keystore de Debug
         run: |
           echo "🔑 Criando keystore de debug..."
+          mkdir -p android/app
           cd android/app
           keytool -genkeypair -v -storetype PKCS12 \
             -keystore debug.keystore \
@@ -143,152 +150,105 @@ jobs:
         run: |
           echo "🏗️ Compilando APK..."
           cd android
-          ./gradlew assembleRelease --no-daemon --stacktrace
+          ./gradlew assembleRelease --no-daemon --stacktrace --info
           echo "✅ APK compilado!"
-
-      - name: 📦 Renomear APK
-        run: |
-          echo "📦 Renomeando APK..."
-          cd android/app/build/outputs/apk/release
-          mv app-release.apk goaledge.apk
-          ls -lh goaledge.apk
-          echo "✅ APK renomeado!"
-
-      - name: 📤 Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: goaledge-apk
-          path: android/app/build/outputs/apk/release/goaledge.apk
-          retention-days: 30
-
-      - name: 📊 Resumo APK
-        run: |
-          echo "## 📦 APK Gerado" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "✅ **APK compilado com sucesso!**" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          cd android/app/build/outputs/apk/release
-          SIZE=$(du -h goaledge.apk | cut -f1)
-          echo "- **Arquivo:** goaledge.apk" >> $GITHUB_STEP_SUMMARY
-          echo "- **Tamanho:** $SIZE" >> $GITHUB_STEP_SUMMARY
-          echo "- **Localização:** android/app/build/outputs/apk/release/" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 📥 Como baixar" >> $GITHUB_STEP_SUMMARY
-          echo "1. Vá para a aba 'Actions' deste repositório" >> $GITHUB_STEP_SUMMARY
-          echo "2. Clique neste workflow" >> $GITHUB_STEP_SUMMARY
-          echo "3. Role até 'Artifacts'" >> $GITHUB_STEP_SUMMARY
-          echo "4. Baixe 'goaledge-apk'" >> $GITHUB_STEP_SUMMARY
-
-  # ==========================================================================
-  # Job 3: Build AAB
-  # ==========================================================================
-  build-aab:
-    name: 🏗️ Build AAB
-    needs: test
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    timeout-minutes: 45
-    steps:
-      - name: 📥 Checkout
-        uses: actions/checkout@v4
-
-      - name: 🔧 Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-
-      - name: ☕ Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: ${{ env.JAVA_VERSION }}
-          cache: 'gradle'
-
-      - name: 📦 Instalar dependências
-        run: npm ci --legacy-peer-deps
-
-      - name: 🔨 Expo Prebuild
-        run: |
-          echo "🔨 Executando Expo Prebuild..."
-          npx expo prebuild --platform android --clean
-          echo "✅ Prebuild concluído!"
-
-      - name: 🔑 Criar Keystore de Debug
-        run: |
-          echo "🔑 Criando keystore de debug..."
-          cd android/app
-          keytool -genkeypair -v -storetype PKCS12 \
-            -keystore debug.keystore \
-            -alias androiddebugkey \
-            -keyalg RSA \
-            -keysize 2048 \
-            -validity 10000 \
-            -storepass android \
-            -keypass android \
-            -dname "CN=Android Debug,O=Android,C=US"
-          echo "✅ Keystore criado!"
 
       - name: 🏗️ Build AAB
         run: |
-          echo "🏗️ Compilando AAB (Android App Bundle)..."
+          echo "🏗️ Compilando AAB..."
           cd android
-          ./gradlew bundleRelease --no-daemon --stacktrace
+          ./gradlew bundleRelease --no-daemon --stacktrace --info
           echo "✅ AAB compilado!"
 
-      - name: 📦 Renomear AAB
+      - name: 📦 Preparar Artefatos
         run: |
-          echo "📦 Renomeando AAB..."
-          cd android/app/build/outputs/bundle/release
-          mv app-release.aab goaledge.aab
-          ls -lh goaledge.aab
-          echo "✅ AAB renomeado!"
+          echo "📦 Preparando artefatos..."
+          mkdir -p artifacts
+          
+          # Copiar APK
+          if [ -f android/app/build/outputs/apk/release/app-release.apk ]; then
+            cp android/app/build/outputs/apk/release/app-release.apk artifacts/goaledge.apk
+            echo "✅ APK copiado"
+          else
+            echo "❌ APK não encontrado"
+          fi
+          
+          # Copiar AAB
+          if [ -f android/app/build/outputs/bundle/release/app-release.aab ]; then
+            cp android/app/build/outputs/bundle/release/app-release.aab artifacts/goaledge.aab
+            echo "✅ AAB copiado"
+          else
+            echo "❌ AAB não encontrado"
+          fi
+          
+          # Listar artefatos
+          ls -lh artifacts/
+          echo "✅ Artefatos preparados!"
+
+      - name: 📤 Upload APK
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: goaledge-apk
+          path: artifacts/goaledge.apk
+          retention-days: 30
+          if-no-files-found: warn
 
       - name: 📤 Upload AAB
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: goaledge-aab
-          path: android/app/build/outputs/bundle/release/goaledge.aab
+          path: artifacts/goaledge.aab
           retention-days: 30
+          if-no-files-found: warn
 
-      - name: 📊 Resumo AAB
+      - name: 📊 Resumo
+        if: always()
         run: |
-          echo "## 📦 AAB Gerado" >> $GITHUB_STEP_SUMMARY
+          echo "## 📦 Build Concluído" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "✅ **AAB compilado com sucesso!**" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          cd android/app/build/outputs/bundle/release
-          SIZE=$(du -h goaledge.aab | cut -f1)
-          echo "- **Arquivo:** goaledge.aab" >> $GITHUB_STEP_SUMMARY
-          echo "- **Tamanho:** $SIZE" >> $GITHUB_STEP_SUMMARY
-          echo "- **Localização:** android/app/build/outputs/bundle/release/" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -f artifacts/goaledge.apk ]; then
+            APK_SIZE=$(du -h artifacts/goaledge.apk | cut -f1)
+            echo "✅ **APK:** goaledge.apk ($APK_SIZE)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **APK:** Falhou" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if [ -f artifacts/goaledge.aab ]; then
+            AAB_SIZE=$(du -h artifacts/goaledge.aab | cut -f1)
+            echo "✅ **AAB:** goaledge.aab ($AAB_SIZE)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **AAB:** Falhou" >> $GITHUB_STEP_SUMMARY
+          fi
+          
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 📥 Como baixar" >> $GITHUB_STEP_SUMMARY
           echo "1. Vá para a aba 'Actions' deste repositório" >> $GITHUB_STEP_SUMMARY
           echo "2. Clique neste workflow" >> $GITHUB_STEP_SUMMARY
           echo "3. Role até 'Artifacts'" >> $GITHUB_STEP_SUMMARY
-          echo "4. Baixe 'goaledge-aab'" >> $GITHUB_STEP_SUMMARY
+          echo "4. Baixe 'goaledge-apk' e 'goaledge-aab'" >> $GITHUB_STEP_SUMMARY
 
   # ==========================================================================
-  # Job 4: Notificação Final
+  # Job 3: Notificação Final
   # ==========================================================================
   notify:
     name: 📢 Notificação
-    needs: [test, build-apk, build-aab]
+    needs: [test, build]
     if: always()
     runs-on: ubuntu-latest
     steps:
       - name: 📊 Resumo Final
         run: |
-          echo "# 🎯 GoalEdge - Build Concluído" >> $GITHUB_STEP_SUMMARY
+          echo "# 🎯 GoalEdge - Pipeline Concluído" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## 📋 Status dos Jobs" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
           echo "| 🧪 Testes | ${{ needs.test.result == 'success' && '✅ Sucesso' || '❌ Falhou' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| 📦 Build APK | ${{ needs.build-apk.result == 'success' && '✅ Sucesso' || needs.build-apk.result == 'skipped' && '⏭️ Pulado' || '❌ Falhou' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| 📦 Build AAB | ${{ needs.build-aab.result == 'success' && '✅ Sucesso' || needs.build-aab.result == 'skipped' && '⏭️ Pulado' || '❌ Falhou' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🏗️ Build | ${{ needs.build.result == 'success' && '✅ Sucesso' || needs.build.result == 'skipped' && '⏭️ Pulado' || '❌ Falhou' }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## 📥 Download dos Artefatos" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
