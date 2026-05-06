@@ -346,6 +346,10 @@ rewarded: 'ca-app-pub-3940256099942544/1712485313'
   - Build paralelo de AAB e APK
   - Download automático de artefatos
   - Upload para GitHub Artifacts (30 dias)
+- ✅ **Erro de build Gradle corrigido**
+  - Script de patch para Fresco
+  - prebuildCommand configurado
+  - Build deve funcionar agora
 
 ---
 
