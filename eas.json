@@ -15,7 +15,8 @@
       "autoIncrement": true,
       "android": {
         "buildType": "app-bundle"
-      }
+      },
+      "prebuildCommand": "bash scripts/patch-android-build.sh"
     },
     "production-apk": {
       "extends": "production",
