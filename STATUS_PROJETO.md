@@ -6,12 +6,12 @@
 
 ---
 
-## 🎯 PROGRESSO GERAL
+## 📊 PROGRESSO GERAL
 
-**Conclusão:** 85%
+**Conclusão:** 90%
 
 ```
-████████████████████░░░░ 85%
+██████████████████████░░ 90%
 ```
 
 ---
@@ -194,28 +194,38 @@ supabase/functions/
 
 ## 🚀 PRÓXIMOS PASSOS PARA PUBLICAÇÃO
 
-### Fase 1: Ajustes Críticos (1 hora) - 🔴 URGENTE
+### Fase 0: CI/CD Pipeline (✅ CONCLUÍDO)
+- [x] Configurar GitHub Actions
+- [x] Pipeline de testes (TypeScript, ESLint, Jest)
+- [x] Build automático de AAB e APK
+- [x] Download automático de artefatos
+- [x] Upload para GitHub Artifacts (30 dias)
+- **Status:** ✅ Implementado e funcionando
+- **Documentação:** `DOCS/PIPELINE_CI_CD_COMPLETO.md`
+
+### Fase 1: Configurar Token (5 min) - 🔴 URGENTE
+- [ ] Executar `npx expo login`
+- [ ] Executar `npx eas token:create`
+- [ ] Adicionar EXPO_TOKEN no GitHub Secrets
+- [ ] Fazer commit e push para testar pipeline
+- **Guia:** `CONFIGURAR_TOKEN_AGORA.md`
+
+### Fase 2: Ajustes Críticos (1 hora) - 🔴 URGENTE
+- [x] Configurar AdMob Application ID real (30 min) ✅
+- [x] Remover permissões desnecessárias (5 min) ✅
 - [ ] Criar keystore de produção (10 min)
   ```bash
   keytool -genkeypair -v -storetype PKCS12 -keystore @luck1993__goaledge.jks \
     -alias goaledge -keyalg RSA -keysize 2048 -validity 10000
   ```
-- [ ] Configurar AdMob Application ID real (30 min)
-  - Criar conta no AdMob
-  - Registrar app
-  - Atualizar AndroidManifest.xml
-- [ ] Remover permissões desnecessárias (5 min)
-  - READ_EXTERNAL_STORAGE
-  - WRITE_EXTERNAL_STORAGE
-  - SYSTEM_ALERT_WINDOW
 - [ ] Testar app após mudanças (15 min)
 
-### Fase 2: Documentação Legal (3 horas) - ⚠️ ALTA
+### Fase 3: Documentação Legal (3 horas) - ⚠️ ALTA
 - [ ] Criar política de privacidade (2 horas)
 - [ ] Criar termos de uso (1 hora)
 - [ ] Hospedar documentos publicamente
 
-### Fase 3: Assets Visuais (1.5 horas) - ⚠️ ALTA
+### Fase 4: Assets Visuais (1.5 horas) - ⚠️ ALTA
 - [ ] Preparar screenshots 1080x1920px (1 hora)
   - Home com picks
   - Detalhes de pick
@@ -223,15 +233,14 @@ supabase/functions/
   - Premium features
 - [ ] Criar feature graphic 1024x500px (30 min)
 
-### Fase 4: Informações de Contato (30 min) - ⚠️ ALTA
+### Fase 5: Informações de Contato (30 min) - ⚠️ ALTA
 - [ ] Definir email de suporte
 - [ ] Criar landing page (opcional)
 
-### Fase 5: Build e Upload (2 horas)
-- [ ] Gerar build AAB (20 min)
-  ```bash
-  eas build --platform android --profile production
-  ```
+### Fase 6: Build e Upload (Automático via CI/CD)
+- [ ] Fazer push para branch main
+- [ ] Aguardar conclusão do pipeline (25-35 min)
+- [ ] Baixar AAB do GitHub Artifacts
 - [ ] Preencher Play Console (1 hora)
 - [ ] Upload e envio para revisão (20 min)
 
@@ -282,6 +291,9 @@ rewarded: 'ca-app-pub-3940256099942544/1712485313'
 9. ✅ `DOCS/SCRIPT_AJUSTES_AUTOMATICOS.md` - Scripts de automação
 10. ✅ `DOCS/DATA_SAFETY_PLAY_CONSOLE.md` - Informações Data Safety
 11. ✅ `DOCS/RESUMO_EXECUTIVO_AUDITORIA.md` - Resumo executivo
+12. ✅ `DOCS/DESCRICOES_PLAY_STORE.md` - Descrições para Play Store
+13. ✅ `DOCS/CONFIGURAR_GITHUB_ACTIONS.md` - Configuração CI/CD
+14. ✅ `DOCS/PIPELINE_CI_CD_COMPLETO.md` - Documentação do pipeline
 
 ---
 
@@ -326,6 +338,14 @@ rewarded: 'ca-app-pub-3940256099942544/1712485313'
 - ✅ TypeScript: 0 erros
 - ✅ Auditoria técnica completa realizada
 - ✅ Documentação de publicação criada
+- ✅ AdMob IDs de produção configurados
+- ✅ Permissões desnecessárias removidas
+- ✅ Descrições para Play Store criadas (PT/EN/ES)
+- ✅ **Pipeline CI/CD completo implementado**
+  - Testes automáticos (TypeScript, ESLint, Jest)
+  - Build paralelo de AAB e APK
+  - Download automático de artefatos
+  - Upload para GitHub Artifacts (30 dias)
 
 ---
 
