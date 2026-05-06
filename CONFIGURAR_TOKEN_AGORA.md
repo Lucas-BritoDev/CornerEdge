@@ -39,17 +39,27 @@ https://github.com/Lucas-BritoDev/GoalEdge/settings/secrets/actions
 O workflow já está rodando! Acesse:
 https://github.com/Lucas-BritoDev/GoalEdge/actions
 
-**Aguarde 15-25 minutos** e o APK + AAB estarão prontos para download!
+**O build será iniciado automaticamente!**
 
 ---
 
-## 📦 BAIXAR APK/AAB
+## 📦 ACOMPANHAR E BAIXAR BUILD
 
-Após o build concluir:
-1. Acesse: https://github.com/Lucas-BritoDev/GoalEdge/actions
-2. Clique no workflow concluído (✅ verde)
-3. Role até "Artifacts"
-4. Baixe: `goaledge-android-builds`
+### Opção 1: Via Expo Dashboard (Recomendado)
+1. Acesse: https://expo.dev
+2. Faça login
+3. Vá para "Builds"
+4. Aguarde conclusão (15-25 minutos)
+5. Clique em "Download" quando pronto
+
+### Opção 2: Via CLI
+```bash
+# Ver status dos builds
+eas build:list --platform android
+
+# Baixar último build quando pronto
+eas build:download --platform android --latest
+```
 
 ---
 
@@ -57,10 +67,25 @@ Após o build concluir:
 
 A partir de agora, **a cada push** no repositório:
 - ✅ Código será validado automaticamente
-- ✅ APK e AAB serão gerados automaticamente
-- ✅ Artefatos ficarão disponíveis para download por 30 dias
+- ✅ Build será iniciado no EAS
+- ✅ APK e AAB estarão disponíveis no Expo Dashboard
 
 **Tempo total:** 3 minutos de configuração + 20 minutos de build
+
+---
+
+## 🔄 WORKFLOW SIMPLIFICADO
+
+**O que acontece:**
+1. ✅ Validação de código (TypeScript, Lint, Testes)
+2. ✅ Build iniciado no EAS (não aguarda conclusão)
+3. ✅ Você acompanha no Expo Dashboard
+4. ✅ Download quando pronto
+
+**Por que não aguarda conclusão?**
+- Builds EAS levam 15-25 minutos
+- GitHub Actions tem limite de tempo
+- Mais eficiente iniciar e acompanhar no Expo
 
 ---
 

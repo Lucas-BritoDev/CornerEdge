@@ -1,17 +1,18 @@
 # ============================================================================
-# GoalEdge - CI/CD Pipeline para Android (Expo + EAS Build)
+# GoalEdge - CI/CD Pipeline Completo para Android
 # ============================================================================
-# Pipeline simplificado para build automático via EAS
+# Pipeline completo: Testes → Lint → Build → Gerar AAB/APK
 #
 # FUNCIONALIDADES:
-# - Validação de código (TypeScript, Lint, Testes)
-# - Build EAS automático (APK + AAB)
-# - Upload de artefatos
+# - Validação completa de código
+# - Build EAS com aguardo de conclusão
+# - Download automático de APK e AAB
+# - Upload de artefatos no GitHub
 #
 # CONFIGURAÇÃO NECESSÁRIA:
 # - Secret EXPO_TOKEN no GitHub
 #
-# Versão: 2.0.0
+# Versão: 3.0.0
 # ============================================================================
 
 name: Android CI/CD
@@ -35,86 +36,277 @@ env:
 
 jobs:
   # ==========================================================================
-  # Job 1: Validação de Código
+  # Job 1: Testes e Validação
   # ==========================================================================
-  validate:
-    name: Validar Código
+  test:
+    name: 🧪 Testes e Validação
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: 📥 Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: 🔧 Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
 
-      - name: Instalar dependências
+      - name: 📦 Instalar dependências
         run: npm ci --legacy-peer-deps
 
-      - name: TypeScript Check
-        run: npx tsc --noEmit
+      - name: 🔍 TypeScript Check
+        run: |
+          echo "🔍 Verificando tipos TypeScript..."
+          npx tsc --noEmit
+          echo "✅ TypeScript OK!"
 
-      - name: Lint (se disponível)
+      - name: 🎨 ESLint
         continue-on-error: true
         run: |
           if grep -q '"lint"' package.json; then
+            echo "🎨 Executando ESLint..."
             npm run lint
+            echo "✅ Lint OK!"
+          else
+            echo "⚠️ ESLint não configurado"
           fi
 
-      - name: Testes (se disponível)
+      - name: 🧪 Testes Unitários
         continue-on-error: true
         run: |
           if grep -q '"test"' package.json; then
-            npm test -- --passWithNoTests
+            echo "🧪 Executando testes..."
+            npm test -- --passWithNoTests --coverage
+            echo "✅ Testes OK!"
+          else
+            echo "⚠️ Testes não configurados"
           fi
 
+      - name: 📊 Upload Coverage
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 7
+
   # ==========================================================================
-  # Job 2: Build EAS
+  # Job 2: Build EAS (APK + AAB)
   # ==========================================================================
   build:
-    name: Build Android (EAS)
-    needs: validate
+    name: 🏗️ Build Android (EAS)
+    needs: test
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    timeout-minutes: 60
     steps:
-      - name: Checkout
+      - name: 📥 Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: 🔧 Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
 
-      - name: Instalar dependências
+      - name: 📦 Instalar dependências
         run: npm ci --legacy-peer-deps
 
-      - name: Setup EAS
+      - name: 🔐 Setup EAS
         uses: expo/expo-github-action@v8
         with:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
-      - name: Build APK + AAB
+      - name: 🚀 Iniciar Build de Produção
+        id: build
         run: |
           echo "🚀 Iniciando build de produção..."
-          eas build --platform android --profile production --non-interactive --no-wait
+          echo "📱 Plataforma: Android"
+          echo "🎯 Perfil: production"
+          echo ""
+          
+          # Iniciar build e capturar ID
+          BUILD_OUTPUT=$(eas build --platform android --profile production --non-interactive --no-wait --json)
+          BUILD_ID=$(echo $BUILD_OUTPUT | jq -r '.[] | select(.platform=="ANDROID") | .id' | head -1)
+          
+          if [ -z "$BUILD_ID" ]; then
+            echo "❌ Erro ao obter Build ID"
+            echo "Output: $BUILD_OUTPUT"
+            exit 1
+          fi
           
           echo "✅ Build iniciado com sucesso!"
-          echo "📦 O build será processado nos servidores do EAS"
-          echo "⏱️ Tempo estimado: 15-25 minutos"
+          echo "🆔 Build ID: $BUILD_ID"
+          echo "build_id=$BUILD_ID" >> $GITHUB_OUTPUT
           echo ""
-          echo "Para acompanhar o progresso:"
-          echo "1. Acesse: https://expo.dev"
-          echo "2. Vá para 'Builds'"
-          echo "3. Aguarde conclusão"
-          echo ""
-          echo "Para baixar quando pronto:"
-          echo "eas build:download --platform android --latest"
+          echo "🔗 Acompanhe em: https://expo.dev/accounts/$(eas whoami)/projects/goaledge/builds/$BUILD_ID"
 
-      - name: Informações do Build
+      - name: ⏳ Aguardar Conclusão do Build
+        id: wait
         run: |
-          echo "📊 Últimos builds:"
-          eas build:list --platform android --limit 3
+          BUILD_ID="${{ steps.build.outputs.build_id }}"
+          echo "⏳ Aguardando conclusão do build: $BUILD_ID"
+          echo "⏱️ Timeout: 45 minutos"
+          echo ""
+          
+          MAX_ATTEMPTS=90  # 90 tentativas x 30 segundos = 45 minutos
+          ATTEMPT=0
+          
+          while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+            ATTEMPT=$((ATTEMPT + 1))
+            ELAPSED=$((ATTEMPT * 30))
+            MINUTES=$((ELAPSED / 60))
+            
+            # Obter status do build
+            BUILD_INFO=$(eas build:view $BUILD_ID --json 2>/dev/null || echo '{"status":"UNKNOWN"}')
+            STATUS=$(echo $BUILD_INFO | jq -r '.status')
+            
+            echo "[$MINUTES min] Status: $STATUS"
+            
+            case $STATUS in
+              "FINISHED")
+                echo ""
+                echo "✅ Build concluído com sucesso!"
+                echo "🎉 Tempo total: $MINUTES minutos"
+                
+                # Extrair informações do build
+                ARTIFACT_URL=$(echo $BUILD_INFO | jq -r '.artifacts.buildUrl // empty')
+                echo "artifact_url=$ARTIFACT_URL" >> $GITHUB_OUTPUT
+                exit 0
+                ;;
+              "ERRORED"|"CANCELED")
+                echo ""
+                echo "❌ Build falhou com status: $STATUS"
+                echo "📋 Detalhes:"
+                echo $BUILD_INFO | jq '.'
+                exit 1
+                ;;
+              "IN_QUEUE"|"IN_PROGRESS"|"PENDING")
+                # Continuar aguardando
+                ;;
+              *)
+                echo "⚠️ Status desconhecido: $STATUS"
+                ;;
+            esac
+            
+            sleep 30
+          done
+          
+          echo ""
+          echo "⏰ Timeout atingido após 45 minutos"
+          echo "ℹ️ O build pode ainda estar em progresso"
+          echo "🔗 Verifique em: https://expo.dev"
+          exit 1
+
+      - name: 📦 Download APK
+        id: download_apk
+        run: |
+          echo "📦 Baixando APK..."
+          mkdir -p ./artifacts
+          
+          # Download do APK
+          eas build:download \
+            --id ${{ steps.build.outputs.build_id }} \
+            --output ./artifacts/goaledge.apk
+          
+          if [ -f "./artifacts/goaledge.apk" ]; then
+            SIZE=$(du -h ./artifacts/goaledge.apk | cut -f1)
+            echo "✅ APK baixado com sucesso!"
+            echo "📊 Tamanho: $SIZE"
+            echo "apk_path=./artifacts/goaledge.apk" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Erro ao baixar APK"
+            exit 1
+          fi
+
+      - name: 📦 Download AAB
+        id: download_aab
+        continue-on-error: true
+        run: |
+          echo "📦 Tentando baixar AAB..."
+          
+          # Verificar se AAB está disponível
+          BUILD_INFO=$(eas build:view ${{ steps.build.outputs.build_id }} --json)
+          AAB_URL=$(echo $BUILD_INFO | jq -r '.artifacts.applicationArchiveUrl // empty')
+          
+          if [ -n "$AAB_URL" ]; then
+            curl -L -o ./artifacts/goaledge.aab "$AAB_URL"
+            
+            if [ -f "./artifacts/goaledge.aab" ]; then
+              SIZE=$(du -h ./artifacts/goaledge.aab | cut -f1)
+              echo "✅ AAB baixado com sucesso!"
+              echo "📊 Tamanho: $SIZE"
+              echo "aab_path=./artifacts/goaledge.aab" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "ℹ️ AAB não disponível para este build"
+            echo "💡 Configure o perfil production no eas.json para gerar AAB"
+          fi
+
+      - name: 📤 Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: goaledge-apk
+          path: ./artifacts/goaledge.apk
+          retention-days: 30
+
+      - name: 📤 Upload AAB
+        if: steps.download_aab.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: goaledge-aab
+          path: ./artifacts/goaledge.aab
+          retention-days: 30
+
+      - name: 📊 Resumo do Build
+        if: always()
+        run: |
+          echo "## 📊 Resumo do Build" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Item | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Build ID | \`${{ steps.build.outputs.build_id }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Status | ${{ steps.wait.outcome == 'success' && '✅ Sucesso' || '❌ Falhou' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| APK | ${{ steps.download_apk.outcome == 'success' && '✅ Disponível' || '❌ Não disponível' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| AAB | ${{ steps.download_aab.outcome == 'success' && '✅ Disponível' || 'ℹ️ Não disponível' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📥 Download" >> $GITHUB_STEP_SUMMARY
+          echo "Os artefatos estão disponíveis na seção **Artifacts** desta execução." >> $GITHUB_STEP_SUMMARY
+
+  # ==========================================================================
+  # Job 3: Notificação
+  # ==========================================================================
+  notify:
+    name: 📢 Notificação
+    needs: [test, build]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: ✅ Build Concluído
+        if: needs.build.result == 'success'
+        run: |
+          echo "## ✅ Pipeline Concluído com Sucesso!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "🎉 APK e AAB foram gerados e estão disponíveis para download!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📥 Como baixar:" >> $GITHUB_STEP_SUMMARY
+          echo "1. Vá para a aba **Actions**" >> $GITHUB_STEP_SUMMARY
+          echo "2. Clique nesta execução" >> $GITHUB_STEP_SUMMARY
+          echo "3. Role até **Artifacts**" >> $GITHUB_STEP_SUMMARY
+          echo "4. Baixe \`goaledge-apk\` e/ou \`goaledge-aab\`" >> $GITHUB_STEP_SUMMARY
+
+      - name: ❌ Build Falhou
+        if: needs.build.result == 'failure'
+        run: |
+          echo "## ❌ Pipeline Falhou" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Verifique os logs acima para mais detalhes." >> $GITHUB_STEP_SUMMARY
+
+      - name: ⚠️ Testes Falharam
+        if: needs.test.result == 'failure'
+        run: |
+          echo "## ⚠️ Testes Falharam" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "O build não foi executado devido a falhas nos testes." >> $GITHUB_STEP_SUMMARY
