@@ -45,7 +45,10 @@
     "historical_consistency": "Historical consistency",
     "pressure_conceded": "Pressure conceded",
     "corners_conceded_avg": "Average corners conceded",
-    "away_intensity": "Away intensity"
+    "away_intensity": "Away intensity",
+    "ad_unlocked": "Analysis unlocked successfully!",
+    "ad_error": "Could not load the ad. Please try again.",
+    "actual_corners": "Actual corners"
   },
   "results": {
     "title": "Results",
@@ -53,16 +56,18 @@
     "total": "Total Analyses",
     "correct": "Correct",
     "incorrect": "Incorrect",
+    "pending": "Pending",
     "performance": "Performance",
     "analyses": "Analyses",
     "no_results": "No results for this date",
-    "select_date": "Select date"
+    "select_date": "Select date",
+    "actual_corners": "Actual corners"
   },
   "premium": {
     "title": "Premium",
     "go_premium": "Go Premium",
     "subtitle": "Unlock maximum confidence analyses",
-    "price": "$ 3.00",
+    "price": "$ 5.00",
     "per_month": "/month",
     "feature_comparison": "Feature Comparison",
     "subscribe": "Subscribe Now",
@@ -76,6 +81,7 @@
     "expires": "Expires",
     "unlimited": "Unlimited access",
     "manage": "Manage Subscription",
+    "manage_subscription": "Manage Subscription",
     "active_plan": "Your Plan is Active",
     "thank_you": "You have full access to all analyses and premium features.",
     "unlock_access": "Unlock Full Access",
@@ -102,10 +108,23 @@
     "basic_stats": "Basic stats",
     "full_stats": "Full stats",
     "use_responsibly": "Please use responsibly",
+    "gamble_responsibly": "Use responsibly. Statistical analysis does not guarantee results",
+    "skill_analysis": "Analysis based on historical data",
     "statistical_analysis": "Statistical analysis",
     "agree_terms": "By subscribing, you agree to our",
     "unlimited_access": "Unlimited access",
-    "your_stats": "Your Stats"
+    "your_stats": "Your Stats",
+    "subscribe_title": "Subscribe to CornerEdge Premium",
+    "subscribe_message": "Full access to all daily analyses.\n\nPrice: $ 5.00/month",
+    "subscribe_confirm": "Confirm Subscription",
+    "subscribe_cancel": "Cancel",
+    "subscribe_success_title": "Premium Activated!",
+    "subscribe_success_message": "Welcome to CornerEdge Premium! You now have access to all analyses.",
+    "restore_title": "Restore Purchases",
+    "restore_message": "Checking for previous purchases...",
+    "restore_not_found": "No purchases found to restore.",
+    "manage_title": "Manage Subscription",
+    "manage_message": "Opening subscription management..."
   },
   "profile": {
     "title": "Profile",
@@ -122,10 +141,14 @@
     "light_mode": "Light Mode",
     "notifications": "Notifications",
     "daily_alerts": "Daily alerts",
-    "upgrade": "Upgrade to Premium",
+    "upgrade": "Subscribe to Premium",
+    "upgrade_title": "CornerEdge Premium",
+    "upgrade_message": "Access all daily analyses with high statistical confidence.",
     "manage_subscription": "Manage Subscription",
     "sign_out": "Sign Out",
-    "signing_out": "Signing out..."
+    "signing_out": "Signing out...",
+    "sign_out_error": "Could not sign out. Please try again.",
+    "no_data": "No data"
   },
   "onboarding": {
     "slide1_subtitle": "STATISTICS",
@@ -201,6 +224,10 @@
     "premium": "Premium",
     "analyses": "analyses",
     "day": "day",
-    "and": "and"
+    "and": "and",
+    "pending": "Pending",
+    "correct": "Correct",
+    "incorrect": "Incorrect",
+    "generic_error": "An unexpected error occurred. Please try again."
   }
 }

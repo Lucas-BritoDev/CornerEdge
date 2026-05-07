@@ -1,18 +1,19 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Linking, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Linking, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Crown, Check, CreditCard, RefreshCw, AlertTriangle } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
+import { supabase } from '../../lib/supabase';
 
 export default function PremiumScreen() {
     const insets = useSafeAreaInsets();
     const router = useRouter();
     const { colors } = useTheme();
     const { t, i18n } = useTranslation();
-    const { isPremium, profile } = useAuth();
+    const { isPremium, profile, user, refreshProfile } = useAuth();
     const [loading, setLoading] = useState(false);
 
     const formatDate = () => {
@@ -21,56 +22,73 @@ export default function PremiumScreen() {
     };
 
     const features = [
-        { free: `2 ${t('common.analyses')}/${t('common.day')}`, premium: `${t('premium.all_analyses')}` },
-        { free: t('premium.limited_preview'), premium: t('premium.full_access') },
-        { free: t('premium.no_notifications'), premium: t('premium.push_notifications') },
-        { free: t('premium.basic_stats'), premium: t('premium.full_stats') },
+        {
+            label: t('premium.all_analyses'),
+            free: `2 ${t('common.analyses')}/${t('common.day')}`,
+            hasPremium: true,
+        },
+        {
+            label: t('premium.full_access'),
+            free: t('premium.limited_preview'),
+            hasPremium: true,
+        },
+        {
+            label: t('premium.push_notifications'),
+            free: t('premium.no_notifications'),
+            hasPremium: true,
+        },
+        {
+            label: t('premium.full_stats'),
+            free: t('premium.basic_stats'),
+            hasPremium: true,
+        },
     ];
 
+    // Simula ativação premium — atualiza subscription_tier no banco
     const handleSubscribe = async () => {
-        setLoading(true);
-        try {
-            // Simular compra - em produção, chamar Google Play Billing ou Stripe
-            Alert.alert(
-                'Subscribe',
-                `This would open Google Play Billing in production.\n\nPrice: $ 3,00/${t('premium.month')}`,
-                [
-                    { text: 'Cancel', style: 'cancel' },
-                    { 
-                        text: 'Confirm Purchase', 
-                        onPress: () => {
-                            Alert.alert('Success', 'Premium activated! (demo only)');
+        Alert.alert(
+            t('premium.subscribe_title'),
+            t('premium.subscribe_message'),
+            [
+                { text: t('premium.subscribe_cancel'), style: 'cancel' },
+                {
+                    text: t('premium.subscribe_confirm'),
+                    onPress: async () => {
+                        if (!user) return;
+                        setLoading(true);
+                        try {
+                            const { error } = await supabase
+                                .from('profiles')
+                                .update({ subscription_tier: 'premium' })
+                                .eq('id', user.id);
+
+                            if (error) throw error;
+
+                            await refreshProfile();
+
+                            Alert.alert(
+                                t('premium.subscribe_success_title'),
+                                t('premium.subscribe_success_message')
+                            );
+                        } catch (e: any) {
+                            Alert.alert(t('common.error'), e.message || t('common.generic_error'));
+                        } finally {
+                            setLoading(false);
                         }
-                    }
-                ]
-            );
-        } catch (error) {
-            Alert.alert('Error', 'Failed to process purchase');
-        } finally {
-            setLoading(false);
-        }
+                    },
+                },
+            ]
+        );
     };
 
     const handleRestore = async () => {
-        setLoading(true);
-        try {
-            // Em produção, verificar purchases existentes
-            Alert.alert('Restore', 'Checking for existing purchases...');
-        } catch (error) {
-            Alert.alert('Error', 'Failed to restore purchases');
-        } finally {
-            setLoading(false);
-        }
+        Alert.alert(t('premium.restore_title'), t('premium.restore_not_found'));
     };
 
-    const openPrivacy = () => {
-        Linking.openURL('https://corneredge.app/privacy');
-    };
+    const openPrivacy = () => Linking.openURL('https://corneredge.app/privacy');
+    const openTerms = () => Linking.openURL('https://corneredge.app/terms');
 
-    const openTerms = () => {
-        Linking.openURL('https://corneredge.app/terms');
-    };
-
+    // ── Tela para usuário já premium ──────────────────────────────────────────
     if (isPremium) {
         return (
             <View style={[styles.container, { backgroundColor: colors.backgroundPrimary }]}>
@@ -96,19 +114,15 @@ export default function PremiumScreen() {
                         <View style={styles.statsRow}>
                             <View style={styles.statItem}>
                                 <Text style={[styles.statValue, { color: colors.statusGreen }]}>72%</Text>
-                                <Text style={[styles.statLabel, { color: colors.textMuted }]}>7-Day Hit Rate</Text>
-                            </View>
-                            <View style={styles.statItem}>
-                                <Text style={[styles.statValue, { color: colors.textPrimary }]}>+24%</Text>
-                                <Text style={[styles.statLabel, { color: colors.textMuted }]}>ROI</Text>
+                                <Text style={[styles.statLabel, { color: colors.textMuted }]}>{t('premium.hit_rate_7days')}</Text>
                             </View>
                         </View>
                     </View>
 
                     <View style={styles.section}>
-                        <TouchableOpacity 
+                        <TouchableOpacity
                             style={[styles.manageButton, { borderColor: colors.cardBorder }]}
-                            onPress={() => Alert.alert('Manage', 'Open subscription management')}
+                            onPress={() => Alert.alert(t('premium.manage_title'), t('premium.manage_message'))}
                         >
                             <CreditCard color={colors.textPrimary} size={20} />
                             <Text style={[styles.manageButtonText, { color: colors.textPrimary }]}>{t('premium.manage_subscription')}</Text>
@@ -119,6 +133,7 @@ export default function PremiumScreen() {
         );
     }
 
+    // ── Tela para usuário free ────────────────────────────────────────────────
     return (
         <View style={[styles.container, { backgroundColor: colors.backgroundPrimary }]}>
             <View style={[styles.header, { paddingTop: insets.top + 16, backgroundColor: colors.backgroundTertiary }]}>
@@ -127,11 +142,12 @@ export default function PremiumScreen() {
             </View>
 
             <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}>
+                {/* Hero */}
                 <View style={[styles.heroCard, { backgroundColor: colors.backgroundSecondary }]}>
                     <Crown color={colors.accentOrange} size={48} />
                     <Text style={[styles.heroTitle, { color: colors.textPrimary }]}>{t('premium.unlock_access')}</Text>
                     <Text style={[styles.heroSubtitle, { color: colors.textMuted }]}>
-                        {t('premium.get_picks')}
+                        {t('premium.get_analyses')}
                     </Text>
                     <View style={styles.priceRow}>
                         <Text style={[styles.price, { color: colors.accentOrange }]}>{t('premium.price')}</Text>
@@ -139,9 +155,10 @@ export default function PremiumScreen() {
                     </View>
                 </View>
 
+                {/* Feature table */}
                 <View style={styles.section}>
                     <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>{t('premium.subscription_benefits')}</Text>
-                    
+
                     <View style={[styles.featureTable, { backgroundColor: colors.backgroundSecondary, borderColor: colors.cardBorder }]}>
                         <View style={[styles.tableHeader, { borderBottomColor: colors.cardBorder }]}>
                             <Text style={[styles.tableHeaderText, { color: colors.textMuted }]}>{t('premium.feature')}</Text>
@@ -150,8 +167,8 @@ export default function PremiumScreen() {
                         </View>
                         {features.map((feature, index) => (
                             <View key={index} style={[styles.tableRow, { borderBottomColor: colors.cardBorder }]}>
-                                <Text style={[styles.tableCell, { color: colors.textSecondary }]}>{feature.premium.split(' (')[0].split(' ').slice(2).join(' ') || feature.premium.split(' (')[0]}</Text>
-                                <Text style={[styles.tableCell, { color: colors.textMuted, textAlign: 'center' }]}>{feature.free.includes('No') || feature.free.includes('Limited') || feature.free.includes('2') ? feature.free.split(' ')[0] : '✓'}</Text>
+                                <Text style={[styles.tableCell, { color: colors.textSecondary }]}>{feature.label}</Text>
+                                <Text style={[styles.tableCell, { color: colors.textMuted, textAlign: 'center', fontSize: 11 }]}>{feature.free}</Text>
                                 <View style={{ flex: 1, alignItems: 'flex-end' }}>
                                     <Check color={colors.statusGreen} size={20} />
                                 </View>
@@ -160,35 +177,31 @@ export default function PremiumScreen() {
                     </View>
                 </View>
 
+                {/* CTA */}
                 <View style={styles.ctaSection}>
-                    <TouchableOpacity 
-                        style={[styles.ctaButton, { backgroundColor: colors.accentOrange }]} 
+                    <TouchableOpacity
+                        style={[styles.ctaButton, { backgroundColor: colors.accentOrange }]}
                         onPress={handleSubscribe}
                         disabled={loading}
                     >
                         {loading ? (
-                            <RefreshCw color="#FFFFFF" size={20} />
+                            <ActivityIndicator color="#FFFFFF" />
                         ) : (
-                        <Text style={styles.ctaButtonText}>{t('premium.subscribe_now')}</Text>
+                            <Text style={styles.ctaButtonText}>{t('premium.subscribe_now')}</Text>
                         )}
                     </TouchableOpacity>
-                    
+
                     <TouchableOpacity onPress={handleRestore} style={styles.restoreButton}>
                         <Text style={[styles.restoreText, { color: colors.textMuted }]}>{t('premium.restore_purchases')}</Text>
                     </TouchableOpacity>
                 </View>
 
-                <View style={[styles.statsCard, { backgroundColor: colors.backgroundSecondary }]}>
-                    <Text style={[styles.statsLabel, { color: colors.textMuted }]}>7-Day Hit Rate</Text>
-                    <Text style={[styles.statsValue, { color: colors.statusGreen }]}>72%</Text>
-                </View>
-
+                {/* Disclaimer */}
                 <View style={styles.disclaimerSection}>
                     <AlertTriangle color={colors.textMuted} size={16} />
                     <Text style={[styles.disclaimer, { color: colors.textMuted }]}>
                         {t('premium.gamble_responsibly')}.{'\n'}
-                        18+ only. {t('premium.skill_analysis')}.{'\n'}
-                        {'\n'}
+                        18+. {t('premium.skill_analysis')}.{'\n\n'}
                         {t('premium.agree_terms')}{' '}
                         <Text style={{ textDecorationLine: 'underline' }} onPress={openTerms}>{t('premium.terms')}</Text>
                         {' '}{t('common.and')}{' '}
@@ -207,8 +220,8 @@ const styles = StyleSheet.create({
     headerDate: { color: '#FFFFFF', fontSize: 14, opacity: 0.8, marginTop: 4, textTransform: 'capitalize' },
     content: { flex: 1, marginTop: -12 },
     heroCard: { margin: 16, padding: 32, borderRadius: 16, alignItems: 'center' },
-    heroTitle: { fontSize: 24, fontWeight: 'bold', marginTop: 16 },
-    heroSubtitle: { fontSize: 14, marginTop: 8 },
+    heroTitle: { fontSize: 24, fontWeight: 'bold', marginTop: 16, textAlign: 'center' },
+    heroSubtitle: { fontSize: 14, marginTop: 8, textAlign: 'center', lineHeight: 20 },
     priceRow: { flexDirection: 'row', alignItems: 'baseline', marginTop: 16 },
     price: { fontSize: 48, fontWeight: 'bold' },
     pricePeriod: { fontSize: 18, marginLeft: 4 },
@@ -220,20 +233,18 @@ const styles = StyleSheet.create({
     tableHeaderTextPremium: { flex: 1, fontSize: 12, fontWeight: 'bold', textAlign: 'right' },
     tableRow: { flexDirection: 'row', padding: 12, borderBottomWidth: 1, alignItems: 'center' },
     tableCell: { flex: 1, fontSize: 13 },
-    tableCellCross: { flex: 1, fontSize: 13 },
     ctaSection: { padding: 16 },
-    ctaButton: { padding: 16, borderRadius: 12, alignItems: 'center', flexDirection: 'row', justifyContent: 'center' },
+    ctaButton: { padding: 16, borderRadius: 12, alignItems: 'center', justifyContent: 'center', minHeight: 52 },
     ctaButtonText: { color: '#FFFFFF', fontSize: 16, fontWeight: 'bold' },
     restoreButton: { padding: 12, alignItems: 'center' },
     restoreText: { fontSize: 13 },
-    statsCard: { margin: 16, padding: 16, borderRadius: 12, alignItems: 'center' },
-    statsLabel: { fontSize: 12 },
-    statsValue: { fontSize: 32, fontWeight: 'bold', marginTop: 4 },
     disclaimerSection: { flexDirection: 'row', padding: 16, marginHorizontal: 16, gap: 8 },
     disclaimer: { flex: 1, fontSize: 11, lineHeight: 18 },
+    // Premium ativo
     activeCard: { margin: 16, padding: 32, borderRadius: 16, alignItems: 'center' },
     activeTitle: { fontSize: 24, fontWeight: 'bold', marginTop: 16 },
-    activeSubtitle: { fontSize: 14, marginTop: 8 },
+    activeSubtitle: { fontSize: 14, marginTop: 8, textAlign: 'center' },
+    statsCard: { margin: 16, padding: 16, borderRadius: 12, alignItems: 'center' },
     statsTitle: { fontSize: 16, fontWeight: '600', marginBottom: 16 },
     statsRow: { flexDirection: 'row', gap: 32 },
     statItem: { alignItems: 'center' },

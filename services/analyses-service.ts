@@ -181,7 +181,7 @@ export function calculateHitRate(analyses: CornerAnalysis[]): {
         correct,
         incorrect,
         pending,
-        hitRate: Math.round(hitRate)
+        hitRate: (correct + incorrect) > 0 ? Math.round(hitRate) : 0,
     };
 }
 

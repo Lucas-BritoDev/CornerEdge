@@ -89,7 +89,9 @@ export default function ProfileScreen() {
                             <Text style={[styles.statLabel, { color: colors.textMuted }]}>{t('profile.total_analyses')}</Text>
                         </View>
                         <View style={[styles.statCard, { backgroundColor: colors.backgroundSecondary }]}>
-                            <Text style={[styles.statValue, { color: colors.statusGreen }]}>{statsLoading ? '—' : `${stats?.hitRate7Days ?? 0}%`}</Text>
+                            <Text style={[styles.statValue, { color: colors.statusGreen }]}>
+                                {statsLoading ? '—' : stats?.hitRate7Days != null ? `${stats.hitRate7Days}%` : t('profile.no_data')}
+                            </Text>
                             <Text style={[styles.statLabel, { color: colors.textMuted }]}>{t('profile.hit_rate_7days')}</Text>
                         </View>
                         <View style={[styles.statCard, { backgroundColor: colors.backgroundSecondary }]}>
@@ -183,7 +185,7 @@ export default function ProfileScreen() {
                     ) : (
                         <TouchableOpacity 
                             style={[styles.upgradeButton, { backgroundColor: colors.accentOrange }]}
-                            onPress={() => Alert.alert(t('premium.title'), '')}
+                            onPress={() => router.push('/(tabs)/premium')}
                         >
                             <Crown color="#FFFFFF" size={20} />
                             <Text style={styles.upgradeButtonText}>{t('profile.upgrade')}</Text>

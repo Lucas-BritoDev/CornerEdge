@@ -45,7 +45,10 @@
     "historical_consistency": "Consistencia histórica",
     "pressure_conceded": "Presión cedida",
     "corners_conceded_avg": "Promedio de corners concedidos",
-    "away_intensity": "Intensidad fuera"
+    "away_intensity": "Intensidad fuera",
+    "ad_unlocked": "¡Análisis desbloqueado con éxito!",
+    "ad_error": "No se pudo cargar el anuncio. Inténtalo de nuevo.",
+    "actual_corners": "Corners reales"
   },
   "results": {
     "title": "Resultados",
@@ -53,16 +56,18 @@
     "total": "Total de Análisis",
     "correct": "Correctos",
     "incorrect": "Incorrectos",
+    "pending": "Pendiente",
     "performance": "Rendimiento",
     "analyses": "Análisis",
     "no_results": "Sin resultados para esta fecha",
-    "select_date": "Seleccionar fecha"
+    "select_date": "Seleccionar fecha",
+    "actual_corners": "Corners reales"
   },
   "premium": {
     "title": "Premium",
-    "go_premium": "Go Premium",
+    "go_premium": "Hazte Premium",
     "subtitle": "Desbloquea análisis de máxima confianza",
-    "price": "$ 3,00",
+    "price": "$ 5,00",
     "per_month": "/mes",
     "feature_comparison": "Comparación de Funciones",
     "subscribe": "Suscribirse Ahora",
@@ -76,6 +81,7 @@
     "expires": "Expira",
     "unlimited": "Acceso ilimitado",
     "manage": "Gestionar Suscripción",
+    "manage_subscription": "Gestionar Suscripción",
     "active_plan": "Tu plan está activo",
     "thank_you": "Tienes acceso completo a todos los análisis y funciones premium.",
     "unlock_access": "Desbloquear Acceso Total",
@@ -102,10 +108,23 @@
     "basic_stats": "Estadísticas básicas",
     "full_stats": "Estadísticas completas",
     "use_responsibly": "Por favor, usa con responsabilidad",
+    "gamble_responsibly": "Usa con responsabilidad. El análisis estadístico no garantiza resultados",
+    "skill_analysis": "Análisis basado en datos históricos",
     "statistical_analysis": "Análisis estadístico",
     "agree_terms": "Al suscribirte, aceptas nuestros",
     "unlimited_access": "Acceso ilimitado",
-    "your_stats": "Tus Estadísticas"
+    "your_stats": "Tus Estadísticas",
+    "subscribe_title": "Suscribirse a CornerEdge Premium",
+    "subscribe_message": "Acceso completo a todos los análisis diarios.\n\nPrecio: $ 5,00/mes",
+    "subscribe_confirm": "Confirmar Suscripción",
+    "subscribe_cancel": "Cancelar",
+    "subscribe_success_title": "¡Premium Activado!",
+    "subscribe_success_message": "¡Bienvenido a CornerEdge Premium! Ahora tienes acceso a todos los análisis.",
+    "restore_title": "Restaurar Compras",
+    "restore_message": "Buscando compras anteriores...",
+    "restore_not_found": "No se encontraron compras para restaurar.",
+    "manage_title": "Gestionar Suscripción",
+    "manage_message": "Abriendo gestión de suscripción..."
   },
   "profile": {
     "title": "Perfil",
@@ -122,10 +141,14 @@
     "light_mode": "Modo Claro",
     "notifications": "Notificaciones",
     "daily_alerts": "Alertas diarios",
-    "upgrade": "Upgrade to Premium",
+    "upgrade": "Suscribirse a Premium",
+    "upgrade_title": "CornerEdge Premium",
+    "upgrade_message": "Accede a todos los análisis diarios con alta confianza estadística.",
     "manage_subscription": "Gestionar Suscripción",
     "sign_out": "Cerrar Sesión",
-    "signing_out": "Cerrando sesión..."
+    "signing_out": "Cerrando sesión...",
+    "sign_out_error": "No se pudo cerrar sesión. Inténtalo de nuevo.",
+    "no_data": "Sin datos"
   },
   "onboarding": {
     "slide1_subtitle": "ESTADÍSTICAS",
@@ -201,6 +224,10 @@
     "premium": "Premium",
     "analyses": "análisis",
     "day": "día",
-    "and": "y"
+    "and": "y",
+    "pending": "Pendiente",
+    "correct": "Correcto",
+    "incorrect": "Incorrecto",
+    "generic_error": "Ocurrió un error inesperado. Inténtalo de nuevo."
   }
 }

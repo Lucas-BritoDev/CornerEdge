@@ -226,7 +226,7 @@ export default function ResultsScreen() {
                                         {analysis.actual_corners != null && (
                                             <View style={styles.actualRow}>
                                                 <Text style={[styles.actualLabel, { color: colors.textMuted }]}>
-                                                    Escanteios reais:
+                                                    {t('results.actual_corners')}:
                                                 </Text>
                                                 <Text style={[styles.actualValue, { color: colors.textPrimary }]}>
                                                     {analysis.actual_corners}
