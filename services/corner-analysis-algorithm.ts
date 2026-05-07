@@ -86,9 +86,20 @@ async function analyzeTeamCorners(teamId: number, teamName: string, isHome: bool
     const avgCornersAgainst = validMatches > 0 ? totalCornersAgainst / validMatches : 5.0;
     const homeIntensity = homeMatches > 0 ? homeCornersTotal / homeMatches : 10.0;
     const awayIntensity = awayMatches > 0 ? awayCornersTotal / awayMatches : 9.0;
-    
-    // Consistência baseada na variação dos dados
-    const consistency = Math.min(100, Math.max(60, 85 - (Math.random() * 15)));
+
+    // Consistência baseada na quantidade de dados disponíveis (sem Math.random)
+    // Mais jogos válidos = maior consistência. Máximo com 10 jogos = 95%
+    const dataConsistency = validMatches >= 8 ? 90
+        : validMatches >= 5 ? 80
+        : validMatches >= 3 ? 70
+        : 60;
+
+    // Ajuste pela variação entre casa e fora (menor variação = mais consistente)
+    const homeAwayVariance = homeMatches > 0 && awayMatches > 0
+        ? Math.abs(homeIntensity - awayIntensity)
+        : 0;
+    const variancePenalty = Math.min(10, homeAwayVariance);
+    const consistency = Math.min(95, Math.max(60, dataConsistency - variancePenalty));
 
     return {
         teamId,
@@ -233,8 +244,8 @@ export async function generateTodayAnalyses(): Promise<{ success: boolean; count
             return { success: true, count: 0, message: 'No scheduled fixtures found for today' };
         }
 
-        // Select top fixtures (limit to 8 for performance)
-        const selectedFixtures = scheduledFixtures.slice(0, 8);
+        // Select top fixtures (limit to 14 for performance — 10 premium + 4 free)
+        const selectedFixtures = scheduledFixtures.slice(0, 14);
         const predictions: CornerPrediction[] = [];
 
         for (const fixture of selectedFixtures) {
@@ -275,16 +286,20 @@ export async function generateTodayAnalyses(): Promise<{ success: boolean; count
             });
         }
 
-        // Sort by confidence (highest first)
+        // Sort by confidence (highest first) — premium gets top analyses
         predictions.sort((a, b) => b.confidence - a.confidence);
 
-        // Assign tiers (first 2 free, rest premium)
-        const freeCount = 2;
+        // Assign tiers: top 8-10 = premium, last 3-4 = free
+        // Free count: 3 if total <= 11, 4 if total >= 12
+        const freeCount = predictions.length >= 12 ? 4 : 3;
+        const premiumCount = predictions.length - freeCount;
         let insertedCount = 0;
 
         for (let i = 0; i < predictions.length; i++) {
             const pred = predictions[i];
-            const tier = i < freeCount ? 'free' : 'premium';
+            // Premium = highest confidence (indices 0..premiumCount-1)
+            // Free = lowest confidence (indices premiumCount..end)
+            const tier = i < premiumCount ? 'premium' : 'free';
 
             // Insert into database
             const { data: analysis, error: analysisError } = await supabase

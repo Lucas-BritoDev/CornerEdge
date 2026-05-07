@@ -2,10 +2,11 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Linking, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Crown, Check, CreditCard, RefreshCw, AlertTriangle } from 'lucide-react-native';
+import { Crown, Check, CreditCard, AlertTriangle } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
+import { useUserStats } from '../../services/analyses-service';
 import { supabase } from '../../lib/supabase';
 
 export default function PremiumScreen() {
@@ -14,6 +15,7 @@ export default function PremiumScreen() {
     const { colors } = useTheme();
     const { t, i18n } = useTranslation();
     const { isPremium, profile, user, refreshProfile } = useAuth();
+    const { data: stats, isLoading: statsLoading } = useUserStats();
     const [loading, setLoading] = useState(false);
 
     const formatDate = () => {
@@ -113,8 +115,19 @@ export default function PremiumScreen() {
                         <Text style={[styles.statsTitle, { color: colors.textPrimary }]}>{t('premium.your_stats')}</Text>
                         <View style={styles.statsRow}>
                             <View style={styles.statItem}>
-                                <Text style={[styles.statValue, { color: colors.statusGreen }]}>72%</Text>
+                                <Text style={[styles.statValue, { color: colors.statusGreen }]}>
+                                    {statsLoading ? '—' : (stats?.hitRate7Days != null && (stats.correct + stats.incorrect) > 0)
+                                        ? `${stats.hitRate7Days}%`
+                                        : t('profile.no_data')
+                                    }
+                                </Text>
                                 <Text style={[styles.statLabel, { color: colors.textMuted }]}>{t('premium.hit_rate_7days')}</Text>
+                            </View>
+                            <View style={styles.statItem}>
+                                <Text style={[styles.statValue, { color: colors.textPrimary }]}>
+                                    {statsLoading ? '—' : stats?.totalAnalyses ?? 0}
+                                </Text>
+                                <Text style={[styles.statLabel, { color: colors.textMuted }]}>{t('profile.total_analyses')}</Text>
                             </View>
                         </View>
                     </View>

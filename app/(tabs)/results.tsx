@@ -242,7 +242,7 @@ export default function ResultsScreen() {
                                                 {analysis.robust_scenarios.map((scenario) => (
                                                     <View key={scenario.id} style={styles.scenarioRow}>
                                                         <Text style={[styles.scenarioText, { color: colors.textSecondary }]}>
-                                                            {scenario.threshold}+ → {scenario.stability} ({scenario.probability}%)
+                                                            {scenario.threshold}+ → {t(`home.${scenario.stability}`)} ({scenario.probability}%)
                                                         </Text>
                                                     </View>
                                                 ))}
