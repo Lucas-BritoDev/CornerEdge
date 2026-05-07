@@ -9,6 +9,7 @@ export default {
   expo: {
     name: "CornerEdge",
     slug: "corneredge",
+    owner: "luck1993",
     version: "1.0.0",
     orientation: "portrait",
     icon: "./assets/images/icon.png",
@@ -67,7 +68,7 @@ export default {
       router: {},
       
       eas: {
-        projectId: "0d9fcdf1-3bbb-416e-bb66-07b3643e99a8"
+        projectId: "a33a3f9c-daff-442c-9114-0b94c624c645"
       },
       
       // ✅ Credenciais do projeto CornerEdge (Supabase)
