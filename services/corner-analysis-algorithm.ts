@@ -9,8 +9,7 @@ import {
     fetchTeamLastMatches, 
     fetchFixtureStatistics,
     extractCornerStats,
-    filterMajorLeagues,
-    filterScheduledFixtures
+    filterBestAvailableFixtures,
 } from './football-api-service';
 import { supabase } from '../lib/supabase';
 
@@ -234,11 +233,10 @@ export async function generateTodayAnalyses(): Promise<{ success: boolean; count
         const allFixtures = await fetchFixturesByDate(dateStr);
         console.log('[CornerAnalysis] Total fixtures found:', allFixtures.length);
         
-        // Filter for major leagues and scheduled matches
-        const majorLeagueFixtures = filterMajorLeagues(allFixtures);
-        const scheduledFixtures = filterScheduledFixtures(majorLeagueFixtures);
+        // Filtrar usando lógica de fallback: Tier1 → Tier2 se necessário
+        const scheduledFixtures = filterBestAvailableFixtures(allFixtures);
         
-        console.log('[CornerAnalysis] Scheduled major league fixtures:', scheduledFixtures.length);
+        console.log('[CornerAnalysis] Best available fixtures:', scheduledFixtures.length);
         
         if (scheduledFixtures.length === 0) {
             return { success: true, count: 0, message: 'No scheduled fixtures found for today' };

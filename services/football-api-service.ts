@@ -219,31 +219,95 @@ export function extractCornerStats(statistics: FixtureStatistics[]): {
 }
 
 /**
- * Filter fixtures for major leagues
+ * Filter fixtures for major leagues — Tier 1 (top 10 ligas)
+ * Usado como filtro primário
  */
 export function filterMajorLeagues(fixtures: Fixture[]): Fixture[] {
-    const majorLeagueIds = [
-        39,  // Premier League
-        140, // La Liga
-        135, // Serie A
-        78,  // Bundesliga
-        61,  // Ligue 1
-        94,  // Primeira Liga
-        88,  // Eredivisie
-        203, // Süper Lig
-        71,  // Brasileirão
-        128, // Liga MX
+    const tier1LeagueIds = [
+        39,  // Premier League (Inglaterra)
+        140, // La Liga (Espanha)
+        135, // Serie A (Itália)
+        78,  // Bundesliga (Alemanha)
+        61,  // Ligue 1 (França)
+        94,  // Primeira Liga (Portugal)
+        88,  // Eredivisie (Holanda)
+        203, // Süper Lig (Turquia)
+        71,  // Brasileirão Série A
+        128, // Liga MX (México)
     ];
+    return fixtures.filter(f => tier1LeagueIds.includes(f.league.id));
+}
 
-    return fixtures.filter(f => majorLeagueIds.includes(f.league.id));
+/**
+ * Filter fixtures for expanded leagues — Tier 2
+ * Usado como fallback quando não há jogos nas ligas Tier 1
+ */
+export function filterExpandedLeagues(fixtures: Fixture[]): Fixture[] {
+    const tier2LeagueIds = [
+        // Competições UEFA
+        2,   // UEFA Champions League
+        3,   // UEFA Europa League
+        848, // UEFA Europa Conference League
+        // Copa Sul-Americana / Libertadores
+        13,  // CONMEBOL Libertadores
+        11,  // CONMEBOL Sudamericana
+        // Ligas nacionais de qualidade
+        253, // MLS (EUA)
+        307, // Saudi Pro League (Arábia Saudita)
+        169, // Eliteserien (Noruega)
+        113, // Allsvenskan (Suécia)
+        119, // Superliga (Dinamarca)
+        144, // Jupiler Pro League (Bélgica)
+        40,  // Championship (Inglaterra)
+        103, // Ekstraklasa (Polônia)
+        235, // Premier League (Rússia)
+        200, // Botola Pro (Marrocos)
+        233, // Premier League (Egito)
+        188, // Premier League (Arábia Saudita - 2ª)
+        197, // Super League (Grécia)
+        207, // Super League (Suíça)
+        218, // Ligue Professionnelle 1 (Argélia)
+        239, // Premier League (Irlanda)
+        244, // Premier League (Escócia)
+        262, // Liga de Expansión MX
+        271, // Superliga (Sérvia)
+        283, // Premier League (Ucrânia)
+        292, // MLS Next Pro
+        327, // Erovnuli Liga (Geórgia)
+        333, // Premier League (Cazaquistão)
+        345, // Premier League (Azerbaijão)
+    ];
+    return fixtures.filter(f => tier2LeagueIds.includes(f.league.id));
 }
 
 /**
  * Filter fixtures that are scheduled (not started yet)
  */
 export function filterScheduledFixtures(fixtures: Fixture[]): Fixture[] {
-    return fixtures.filter(f => 
+    return fixtures.filter(f =>
         f.fixture.status.short === 'NS' || // Not Started
         f.fixture.status.short === 'TBD'   // To Be Defined
     );
+}
+
+/**
+ * Get best available fixtures for today:
+ * 1. Tenta Tier 1 (ligas principais)
+ * 2. Se < 5 jogos, complementa com Tier 2
+ * 3. Ordena por prioridade de liga
+ */
+export function filterBestAvailableFixtures(fixtures: Fixture[]): Fixture[] {
+    const scheduled = filterScheduledFixtures(fixtures);
+    const tier1 = filterMajorLeagues(scheduled);
+
+    if (tier1.length >= 5) {
+        return tier1;
+    }
+
+    // Complementar com Tier 2
+    const tier2 = filterExpandedLeagues(scheduled);
+    const tier1Ids = new Set(tier1.map(f => f.fixture.id));
+    const tier2Only = tier2.filter(f => !tier1Ids.has(f.fixture.id));
+
+    return [...tier1, ...tier2Only];
 }

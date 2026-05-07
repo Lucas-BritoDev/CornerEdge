@@ -102,14 +102,36 @@ export default function HomeScreen() {
     const renderAnalysisCard = (analysis: AnalysisWithDetails, isLocked: boolean = false) => {
         const isUnlocked = unlockedAnalyses.has(analysis.id);
         const effectiveLocked = isLocked && !isUnlocked;
+        const isPremiumCard = analysis.tier === 'premium';
 
         return (
             <TouchableOpacity
                 key={analysis.id}
-                style={[styles.analysisCard, { backgroundColor: colors.backgroundSecondary, borderColor: colors.cardBorder }]}
+                style={[
+                    styles.analysisCard,
+                    {
+                        backgroundColor: colors.backgroundSecondary,
+                        borderColor: isPremiumCard ? colors.accentOrange : colors.cardBorder,
+                        borderWidth: isPremiumCard ? 1.5 : 1,
+                    }
+                ]}
                 onPress={() => effectiveLocked ? handleLockedPress(analysis) : handleAnalysisPress(analysis)}
                 activeOpacity={0.7}
             >
+                {/* Badge de tier no topo do card */}
+                <View style={[
+                    styles.tierBadge,
+                    { backgroundColor: isPremiumCard ? colors.accentOrange : colors.backgroundTertiary }
+                ]}>
+                    {isPremiumCard && <Crown color="#FFF" size={11} />}
+                    <Text style={[
+                        styles.tierBadgeText,
+                        { color: isPremiumCard ? '#FFF' : colors.textMuted }
+                    ]}>
+                        {isPremiumCard ? t('common.premium').toUpperCase() : t('common.free').toUpperCase()}
+                    </Text>
+                </View>
+
                 {effectiveLocked ? (
                     <View style={styles.lockedContent}>
                         <Lock color={colors.accentOrange} size={32} />
@@ -125,10 +147,10 @@ export default function HomeScreen() {
                             </TouchableOpacity>
                             <TouchableOpacity
                                 style={[styles.premiumBtn, { backgroundColor: colors.accentOrange }]}
-                                onPress={() => router.push('/premium')}
+                                onPress={() => router.push('/(tabs)/premium')}
                             >
                                 <Crown color="#FFF" size={14} />
-                                <Text style={styles.premiumBtnText}>Premium</Text>
+                                <Text style={styles.premiumBtnText}>{t('common.premium')}</Text>
                             </TouchableOpacity>
                         </View>
                     </View>
@@ -145,13 +167,13 @@ export default function HomeScreen() {
                                 </Text>
                             </View>
                             <Text style={[styles.vsText, { color: colors.textMuted }]}>VS</Text>
-                            <View style={styles.teamContainer}>
+                            <View style={[styles.teamContainer, { justifyContent: 'flex-end' }]}>
+                                <Text style={[styles.teamName, { color: colors.textPrimary, textAlign: 'right' }]} numberOfLines={1}>
+                                    {analysis.away_team}
+                                </Text>
                                 {analysis.away_team_logo && (
                                     <Image source={{ uri: analysis.away_team_logo }} style={styles.teamLogo} />
                                 )}
-                                <Text style={[styles.teamName, { color: colors.textPrimary }]} numberOfLines={1}>
-                                    {analysis.away_team}
-                                </Text>
                             </View>
                         </View>
 
@@ -161,6 +183,9 @@ export default function HomeScreen() {
                                 {analysis.league} • {formatKickoffTime(analysis.kickoff_at)}
                             </Text>
                         </View>
+
+                        {/* Divider com cor do tier */}
+                        <View style={[styles.tierDivider, { backgroundColor: isPremiumCard ? colors.accentOrange : colors.cardBorder }]} />
 
                         {/* Statistical Confidence */}
                         <View style={styles.confidenceSection}>
@@ -207,14 +232,22 @@ export default function HomeScreen() {
                         )}
 
                         {/* View Full Analysis Button */}
-                        <TouchableOpacity style={[styles.viewAnalysisBtn, { backgroundColor: colors.accentOrange }]}>
-                            <Text style={styles.viewAnalysisBtnText}>{t('home.view_full_analysis')}</Text>
+                        <TouchableOpacity
+                            style={[
+                                styles.viewAnalysisBtn,
+                                { backgroundColor: isPremiumCard ? colors.accentOrange : colors.backgroundTertiary }
+                            ]}
+                            onPress={() => handleAnalysisPress(analysis)}
+                        >
+                            <Text style={[
+                                styles.viewAnalysisBtnText,
+                                { color: isPremiumCard ? '#FFF' : colors.textMuted }
+                            ]}>
+                                {t('home.view_full_analysis')}
+                            </Text>
                         </TouchableOpacity>
                     </>
                 )}
-                <View style={styles.chevron}>
-                    <ChevronRight color={effectiveLocked ? colors.textMuted : colors.accentOrange} size={20} />
-                </View>
             </TouchableOpacity>
         );
     };
