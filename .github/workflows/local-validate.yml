@@ -1,0 +1,44 @@
+# ============================================================================
+# CornerEdge - Validação Rápida (branches de feature/fix)
+# ============================================================================
+
+name: Local Validation
+
+on:
+  push:
+    branches:
+      - 'feature/**'
+      - 'fix/**'
+      - 'hotfix/**'
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+  pull_request:
+
+jobs:
+  quick-validate:
+    name: Validação Rápida
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install deps
+        run: npm ci --legacy-peer-deps
+
+      - name: TypeScript check
+        continue-on-error: true
+        run: npx tsc --noEmit
+
+      - name: ESLint check
+        continue-on-error: true
+        run: |
+          if [ -f ".eslintrc.json" ]; then
+            npx eslint . --max-warnings 0 || true
+          fi

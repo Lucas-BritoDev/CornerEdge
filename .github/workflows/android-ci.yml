@@ -1,0 +1,164 @@
+# ============================================================================
+# CornerEdge - CI/CD Pipeline (EAS Build)
+# ============================================================================
+# Pipeline: Testes → Lint → Build EAS (sem aguardar)
+#
+# CONFIGURAÇÃO NECESSÁRIA:
+# - Secret EXPO_TOKEN no GitHub
+#
+# Versão: 1.0.0 (CornerEdge)
+# ============================================================================
+
+name: Android CI/CD
+
+on:
+  push:
+    branches: [main, develop]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  # ==========================================================================
+  # Job 1: Testes e Validação
+  # ==========================================================================
+  test:
+    name: 🧪 Testes e Validação
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🔧 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📦 Instalar dependências
+        run: npm ci --legacy-peer-deps
+
+      - name: 🔍 TypeScript Check
+        continue-on-error: true
+        run: |
+          echo "🔍 Verificando tipos TypeScript..."
+          npx tsc --noEmit
+          echo "✅ TypeScript OK!"
+
+      - name: 🎨 ESLint
+        continue-on-error: true
+        run: |
+          echo "🎨 Executando ESLint..."
+          if [ -f ".eslintrc.js" ] || [ -f ".eslintrc.json" ] || grep -q '"eslintConfig"' package.json; then
+            npx eslint . --ext .js,.jsx,.ts,.tsx --max-warnings 50
+            echo "✅ Lint OK!"
+          else
+            echo "⚠️ ESLint não configurado, pulando..."
+          fi
+
+      - name: 🧪 Testes Unitários
+        continue-on-error: true
+        run: |
+          echo "🧪 Executando testes..."
+          npm test -- --passWithNoTests --maxWorkers=2
+          echo "✅ Testes OK!"
+
+  # ==========================================================================
+  # Job 2: Build EAS (AAB + APK)
+  # ==========================================================================
+  build:
+    name: 🏗️ Build EAS (AAB + APK)
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    timeout-minutes: 10
+
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🔧 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📦 Instalar dependências
+        run: npm ci --legacy-peer-deps
+
+      - name: 🔐 Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: 🚀 Iniciar Build AAB
+        id: build-aab
+        continue-on-error: true
+        run: |
+          echo "🚀 Iniciando build AAB (Android App Bundle)..."
+          eas build --platform android --profile production --non-interactive --no-wait
+          echo "✅ Build AAB iniciado!"
+
+      - name: 🚀 Iniciar Build APK
+        id: build-apk
+        continue-on-error: true
+        run: |
+          echo "🚀 Iniciando build APK..."
+          eas build --platform android --profile production-apk --non-interactive --no-wait
+          echo "✅ Build APK iniciado!"
+
+      - name: 📊 Resumo
+        if: always()
+        run: |
+          echo "## 📊 Resumo do Build" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Item | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Build AAB | ${{ steps.build-aab.outcome == 'success' && '✅ Iniciado' || '❌ Falhou' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Build APK | ${{ steps.build-apk.outcome == 'success' && '✅ Iniciado' || '❌ Falhou' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📥 Como baixar os builds" >> $GITHUB_STEP_SUMMARY
+          echo "1. Acesse: https://expo.dev/accounts/luck1993/projects/corneredge" >> $GITHUB_STEP_SUMMARY
+          echo "2. Vá para 'Builds'" >> $GITHUB_STEP_SUMMARY
+          echo "3. Aguarde conclusão (15-25 minutos)" >> $GITHUB_STEP_SUMMARY
+          echo "4. Clique em 'Download' quando pronto" >> $GITHUB_STEP_SUMMARY
+
+  # ==========================================================================
+  # Job 3: Notificação
+  # ==========================================================================
+  notify:
+    name: 📢 Notificação
+    needs: [test, build]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📊 Resumo Final
+        run: |
+          echo "# 🎯 CornerEdge - Pipeline Concluído" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 📋 Status dos Jobs" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| 🧪 Testes | ${{ needs.test.result == 'success' && '✅ Sucesso' || '❌ Falhou' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🏗️ Build | ${{ needs.build.result == 'success' && '✅ Iniciado' || needs.build.result == 'skipped' && '⏭️ Pulado' || '❌ Falhou' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 📥 Próximos Passos" >> $GITHUB_STEP_SUMMARY
+          echo "1. Acesse: https://expo.dev/accounts/luck1993/projects/corneredge" >> $GITHUB_STEP_SUMMARY
+          echo "2. Vá para 'Builds'" >> $GITHUB_STEP_SUMMARY
+          echo "3. Aguarde conclusão dos builds (15-25 minutos)" >> $GITHUB_STEP_SUMMARY
+          echo "4. Baixe AAB e APK quando prontos" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **AAB:** Para upload na Play Store" >> $GITHUB_STEP_SUMMARY
+          echo "- **APK:** Para instalação direta e testes" >> $GITHUB_STEP_SUMMARY

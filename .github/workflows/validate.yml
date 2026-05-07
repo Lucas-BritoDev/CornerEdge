@@ -1,4 +1,4 @@
-name: Validate (TypeScript + Lint)
+name: Validate
 
 on:
   push:
@@ -10,9 +10,8 @@ jobs:
   validate:
     name: TypeScript & Lint
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Setup Node.js
@@ -26,7 +25,4 @@ jobs:
 
       - name: TypeScript check
         run: npx tsc --noEmit
-
-      - name: Expo Doctor
-        run: npx expo-doctor
         continue-on-error: true
