@@ -83,7 +83,7 @@ export default function SignupScreen() {
                     keyboardShouldPersistTaps="handled"
                 >
                     <View style={[styles.card, { backgroundColor: colors.backgroundSecondary }]}>
-                        <Text style={[styles.logo, { color: colors.accentOrange }]}>GoalEdge</Text>
+                        <Text style={[styles.logo, { color: colors.accentOrange }]}>CornerEdge</Text>
                         <Text style={[styles.subtitle, { color: colors.textMuted }]}>{t('auth.signup')}</Text>
 
                         <View style={styles.form}>

@@ -96,7 +96,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
     const loadTheme = async () => {
         try {
-            const stored = await AsyncStorage.getItem('@goaledge_theme');
+            const stored = await AsyncStorage.getItem('@corneredge_theme');
             if (stored === 'dark' || stored === 'light' || stored === 'system') {
                 setThemeState(stored);
             } else {
@@ -110,7 +110,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
     const setTheme = async (newTheme: ThemeMode) => {
         setThemeState(newTheme);
-        await AsyncStorage.setItem('@goaledge_theme', newTheme);
+        await AsyncStorage.setItem('@corneredge_theme', newTheme);
     };
 
     const toggleTheme = () => {

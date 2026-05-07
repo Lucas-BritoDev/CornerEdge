@@ -48,7 +48,7 @@ export default function PremiumScreen() {
                 <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
                     <ArrowLeft color={colors.white} size={24} />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>GoalEdge Premium</Text>
+                <Text style={styles.headerTitle}>CornerEdge Premium</Text>
             </View>
 
             <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}>

@@ -85,7 +85,7 @@ export default function NewPasswordScreen() {
                     keyboardShouldPersistTaps="handled"
                 >
                     <View style={[styles.card, { backgroundColor: colors.backgroundSecondary }]}>
-                        <Text style={[styles.logo, { color: colors.accentOrange }]}>GoalEdge</Text>
+                        <Text style={[styles.logo, { color: colors.accentOrange }]}>CornerEdge</Text>
                         <Text style={[styles.title, { color: colors.textPrimary }]}>
                             {t('auth.new_password_title')}
                         </Text>

@@ -3,16 +3,19 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
 import Constants from 'expo-constants';
 
-// Pegar variáveis de ambiente do app.config.js
-const supabaseUrl = Constants.expoConfig?.extra?.supabaseUrl || process.env.EXPO_PUBLIC_SUPABASE_URL || '';
-const supabaseAnonKey = Constants.expoConfig?.extra?.supabaseAnonKey || process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
+// Pegar variáveis de ambiente — prioriza app.config.js extra (funciona em APK/EAS)
+const supabaseUrl =
+    Constants.expoConfig?.extra?.supabaseUrl ||
+    process.env.EXPO_PUBLIC_SUPABASE_URL ||
+    '';
 
-// Validar configuração
+const supabaseAnonKey =
+    Constants.expoConfig?.extra?.supabaseAnonKey ||
+    process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ||
+    '';
+
 if (!supabaseUrl || !supabaseAnonKey) {
-    console.error('❌ Supabase configuration missing!');
-    console.error('URL:', supabaseUrl ? 'configured' : 'MISSING');
-    console.error('Key:', supabaseAnonKey ? 'configured' : 'MISSING');
-    console.error('Check your .env file and app.config.js');
+    console.error('[Supabase] Configuração ausente! Verifique .env e app.config.js');
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
@@ -24,7 +27,8 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     },
 });
 
-// Tipos gerados do banco
+// ─── Tipos do banco CornerEdge ────────────────────────────────────────────────
+
 export type SubscriptionTier = 'free' | 'premium';
 
 export interface Profile {
@@ -34,64 +38,61 @@ export interface Profile {
     avatar_url: string | null;
     subscription_tier: SubscriptionTier;
     subscription_expires_at: string | null;
-    stripe_customer_id: string | null;
     preferred_language: 'pt' | 'en' | 'es';
     preferred_theme: 'dark' | 'light' | 'system';
     notifications_enabled: boolean;
     timezone: string;
-    total_picks_tracked: number;
-    total_wins: number;
-    total_losses: number;
     created_at: string;
     updated_at: string;
 }
 
-export interface DailyPick {
+export interface CornerAnalysis {
     id: string;
-    pick_date: string;
-    tier: SubscriptionTier;
-    combined_odds: number;
-    confidence: number;
-    status: 'pending' | 'won' | 'lost' | 'void';
-    sort_order: number;
-    generated_at: string;
-    settled_at: string | null;
-    pick_selections?: PickSelection[];
-}
-
-export interface PickSelection {
-    id: string;
-    daily_pick_id: string;
     fixture_id: number | null;
-    home_team_name: string;
+    home_team: string;
+    away_team: string;
     home_team_logo: string | null;
-    away_team_name: string;
     away_team_logo: string | null;
-    league_name: string;
-    league_logo: string | null;
-    market: string;
-    bet_id: number | null;
-    selection: string;
-    odds: number;
+    league: string;
+    kickoff_at: string;
     confidence: number;
-    kickoff_at: string | null;
-    status: 'pending' | 'won' | 'lost' | 'void';
-    score_home: number | null;
-    score_away: number | null;
-    reasons: { pt: string; en: string; es: string } | null;
+    avg_prediction: number;
+    probable_range_min: number;
+    probable_range_max: number;
+    tier: SubscriptionTier;
+    status: 'pending' | 'correct' | 'incorrect';
+    actual_corners: number | null;
+    published_at: string;
+    created_at: string;
+    updated_at: string;
 }
 
-export interface DailyStats {
+export interface RobustScenario {
     id: string;
-    stat_date: string;
-    total_picks: number;
-    free_picks: number;
-    premium_picks: number;
-    total_won: number;
-    total_lost: number;
-    total_void: number;
-    free_hit_rate: number | null;
-    premium_hit_rate: number | null;
-    overall_hit_rate: number | null;
-    avg_odds: number | null;
+    analysis_id: string;
+    threshold: number;
+    stability: 'very_stable' | 'stable' | 'moderate';
+    probability: number;
+    created_at: string;
+}
+
+export interface StatisticalDistribution {
+    id: string;
+    analysis_id: string;
+    threshold: number;
+    probability: number;
+    created_at: string;
+}
+
+export interface TeamStatistics {
+    id: string;
+    analysis_id: string;
+    team_type: 'home' | 'away';
+    offensive_avg: number | null;
+    home_intensity: number | null;
+    away_intensity: number | null;
+    consistency: number | null;
+    pressure_conceded: number | null;
+    corners_conceded_avg: number | null;
+    created_at: string;
 }

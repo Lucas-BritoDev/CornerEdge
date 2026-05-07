@@ -210,7 +210,7 @@ export default function ProfileScreen() {
 
                 <View style={[styles.appInfo, { backgroundColor: colors.backgroundSecondary }]}>
                     <Text style={[styles.appInfoText, { color: colors.textMuted }]}>
-                        GoalEdge v1.0.0{'\n'}{t('app.tagline')}
+                        CornerEdge v1.0.0{'\n'}{t('app.tagline')}
                     </Text>
                 </View>
             </ScrollView>

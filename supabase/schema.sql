@@ -1,278 +1,146 @@
--- GoalEdge Database Schema
+-- ============================================================================
+-- CornerEdge - Database Schema
 -- Supabase / PostgreSQL
--- Version 1.0 - May 2026
+-- ============================================================================
 
--- ===========================================
--- ENUMS
--- ===========================================
-CREATE TYPE subscription_tier AS ENUM ('free', 'premium');
-CREATE TYPE pick_status AS ENUM ('pending', 'green', 'red', 'void');
-
--- ===========================================
--- TABLE: users
--- ===========================================
-CREATE TABLE public.users (
-    id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-    email TEXT UNIQUE NOT NULL,
-    subscription_tier subscription_tier DEFAULT 'free',
-    subscription_expires_at TIMESTAMPTZ,
-    stripe_customer_id TEXT,
-    google_play_token TEXT,
-    push_token TEXT,
-    preferred_language TEXT DEFAULT 'pt' CHECK (preferred_language IN ('pt', 'en', 'es')),
-    preferred_theme TEXT DEFAULT 'dark' CHECK (preferred_theme IN ('dark', 'light', 'system')),
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
+-- ─── PROFILES ────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS profiles (
+    id                      uuid PRIMARY KEY REFERENCES auth.users ON DELETE CASCADE,
+    email                   text,
+    full_name               text,
+    avatar_url              text,
+    subscription_tier       text NOT NULL DEFAULT 'free' CHECK (subscription_tier IN ('free', 'premium')),
+    subscription_expires_at timestamptz,
+    preferred_language      text NOT NULL DEFAULT 'pt' CHECK (preferred_language IN ('pt', 'en', 'es')),
+    preferred_theme         text NOT NULL DEFAULT 'dark' CHECK (preferred_theme IN ('dark', 'light', 'system')),
+    notifications_enabled   boolean NOT NULL DEFAULT true,
+    timezone                text NOT NULL DEFAULT 'America/Sao_Paulo',
+    created_at              timestamptz NOT NULL DEFAULT now(),
+    updated_at              timestamptz NOT NULL DEFAULT now()
 );
 
--- Enable RLS
-ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
-
--- RLS Policies
-CREATE POLICY "Users can read own data" ON public.users
-    FOR SELECT USING (auth.uid() = id);
-
-CREATE POLICY "Users can update own data" ON public.users
-    FOR UPDATE USING (auth.uid() = id);
-
-CREATE POLICY "Users can insert own data" ON public.users
-    FOR INSERT WITH CHECK (auth.uid() = id);
-
--- ===========================================
--- TABLE: daily_picks
--- ===========================================
-CREATE TABLE public.daily_picks (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    date DATE NOT NULL DEFAULT CURRENT_DATE,
-    tier TEXT NOT NULL CHECK (tier IN ('free', 'premium')),
-    combined_odd NUMERIC(5,2) NOT NULL,
-    confidence_avg NUMERIC(5,2) NOT NULL,
-    status pick_status DEFAULT 'pending',
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
+-- ─── CORNER ANALYSES ─────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS corner_analyses (
+    id                  uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    fixture_id          integer,
+    home_team           text NOT NULL,
+    away_team           text NOT NULL,
+    home_team_logo      text,
+    away_team_logo      text,
+    league              text NOT NULL,
+    kickoff_at          timestamptz NOT NULL,
+    confidence          integer NOT NULL CHECK (confidence BETWEEN 0 AND 100),
+    avg_prediction      numeric(4,1) NOT NULL,
+    probable_range_min  integer NOT NULL,
+    probable_range_max  integer NOT NULL,
+    tier                text NOT NULL DEFAULT 'free' CHECK (tier IN ('free', 'premium')),
+    status              text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'correct', 'incorrect')),
+    actual_corners      integer,
+    published_at        timestamptz NOT NULL DEFAULT now(),
+    created_at          timestamptz NOT NULL DEFAULT now(),
+    updated_at          timestamptz NOT NULL DEFAULT now()
 );
 
--- Enable RLS
-ALTER TABLE public.daily_picks ENABLE ROW LEVEL SECURITY;
-
--- RLS Policies
-CREATE POLICY "Authenticated users can read daily_picks" ON public.daily_picks
-    FOR SELECT USING (auth.role() = 'authenticated');
-
-CREATE POLICY "Service role can manage daily_picks" ON public.daily_picks
-    FOR ALL USING (auth.role() = 'service_role');
-
--- Index
-CREATE INDEX idx_daily_picks_date ON daily_picks(date);
-CREATE INDEX idx_daily_picks_tier ON daily_picks(tier);
-
--- ===========================================
--- TABLE: pick_selections
--- ===========================================
-CREATE TABLE public.pick_selections (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    daily_pick_id UUID REFERENCES daily_picks(id) ON DELETE CASCADE,
-    fixture_id INTEGER NOT NULL,
-    home_team TEXT NOT NULL,
-    away_team TEXT NOT NULL,
-    league_name TEXT NOT NULL,
-    league_id INTEGER NOT NULL,
-    market TEXT NOT NULL,
-    market_bet_id INTEGER NOT NULL,
-    odd NUMERIC(5,2) NOT NULL,
-    confidence_score NUMERIC(5,2) NOT NULL,
-    reasons JSONB NOT NULL DEFAULT '{}',
-    status pick_status DEFAULT 'pending',
-    kickoff_at TIMESTAMPTZ NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
+-- ─── ROBUST SCENARIOS ────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS robust_scenarios (
+    id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    analysis_id uuid NOT NULL REFERENCES corner_analyses ON DELETE CASCADE,
+    threshold   integer NOT NULL,
+    stability   text NOT NULL CHECK (stability IN ('very_stable', 'stable', 'moderate')),
+    probability integer NOT NULL CHECK (probability BETWEEN 0 AND 100),
+    created_at  timestamptz NOT NULL DEFAULT now()
 );
 
--- Enable RLS
-ALTER TABLE public.pick_selections ENABLE ROW LEVEL SECURITY;
-
--- RLS Policies
-CREATE POLICY "Authenticated users can read pick_selections" ON public.pick_selections
-    FOR SELECT USING (auth.role() = 'authenticated');
-
-CREATE POLICY "Service role can manage pick_selections" ON public.pick_selections
-    FOR ALL USING (auth.role() = 'service_role');
-
--- Index
-CREATE INDEX idx_pick_selections_daily_pick ON pick_selections(daily_pick_id);
-CREATE INDEX idx_pick_selections_fixture ON pick_selections(fixture_id);
-CREATE INDEX idx_pick_selections_status ON pick_selections(status);
-CREATE INDEX idx_pick_selections_kickoff ON pick_selections(kickoff_at);
-
--- ===========================================
--- TABLE: fixture_cache
--- ===========================================
-CREATE TABLE public.fixture_cache (
-    fixture_id INTEGER PRIMARY KEY,
-    data JSONB,
-    odds_data JSONB,
-    stats_data JSONB,
-    h2h_data JSONB,
-    injuries_data JSONB,
-    fetched_at TIMESTAMPTZ DEFAULT NOW()
+-- ─── STATISTICAL DISTRIBUTION ────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS statistical_distribution (
+    id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    analysis_id uuid NOT NULL REFERENCES corner_analyses ON DELETE CASCADE,
+    threshold   integer NOT NULL,
+    probability integer NOT NULL CHECK (probability BETWEEN 0 AND 100),
+    created_at  timestamptz NOT NULL DEFAULT now()
 );
 
--- Enable RLS
-ALTER TABLE public.fixture_cache ENABLE ROW LEVEL SECURITY;
-
--- RLS Policies
-CREATE POLICY "Authenticated users can read fixture_cache" ON public.fixture_cache
-    FOR SELECT USING (auth.role() = 'authenticated');
-
-CREATE POLICY "Service role can manage fixture_cache" ON public.fixture_cache
-    FOR ALL USING (auth.role() = 'service_role');
-
--- ===========================================
--- TABLE: daily_stats
--- ===========================================
-CREATE TABLE public.daily_stats (
-    date DATE PRIMARY KEY,
-    tier TEXT NOT NULL CHECK (tier IN ('free', 'premium')),
-    total_picks INTEGER DEFAULT 0,
-    green_picks INTEGER DEFAULT 0,
-    red_picks INTEGER DEFAULT 0,
-    hit_rate NUMERIC(5,2),
-    roi NUMERIC(6,2),
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
+-- ─── TEAM STATISTICS ─────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS team_statistics (
+    id                   uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    analysis_id          uuid NOT NULL REFERENCES corner_analyses ON DELETE CASCADE,
+    team_type            text NOT NULL CHECK (team_type IN ('home', 'away')),
+    offensive_avg        numeric(4,1),
+    home_intensity       numeric(4,1),
+    away_intensity       numeric(4,1),
+    consistency          integer,
+    pressure_conceded    numeric(4,1),
+    corners_conceded_avg numeric(4,1),
+    created_at           timestamptz NOT NULL DEFAULT now()
 );
 
--- Enable RLS
-ALTER TABLE public.daily_stats ENABLE ROW LEVEL SECURITY;
+-- ─── INDEXES ─────────────────────────────────────────────────────────────────
+CREATE INDEX IF NOT EXISTS idx_corner_analyses_published_at ON corner_analyses(published_at);
+CREATE INDEX IF NOT EXISTS idx_corner_analyses_kickoff_at   ON corner_analyses(kickoff_at);
+CREATE INDEX IF NOT EXISTS idx_corner_analyses_fixture_id   ON corner_analyses(fixture_id);
+CREATE INDEX IF NOT EXISTS idx_corner_analyses_tier         ON corner_analyses(tier);
+CREATE INDEX IF NOT EXISTS idx_corner_analyses_status       ON corner_analyses(status);
+CREATE INDEX IF NOT EXISTS idx_robust_scenarios_analysis    ON robust_scenarios(analysis_id);
+CREATE INDEX IF NOT EXISTS idx_distribution_analysis        ON statistical_distribution(analysis_id);
+CREATE INDEX IF NOT EXISTS idx_team_stats_analysis          ON team_statistics(analysis_id);
 
--- RLS Policies
-CREATE POLICY "Authenticated users can read daily_stats" ON public.daily_stats
-    FOR SELECT USING (auth.role() = 'authenticated');
+-- ─── ROW LEVEL SECURITY ──────────────────────────────────────────────────────
+ALTER TABLE profiles              ENABLE ROW LEVEL SECURITY;
+ALTER TABLE corner_analyses       ENABLE ROW LEVEL SECURITY;
+ALTER TABLE robust_scenarios      ENABLE ROW LEVEL SECURITY;
+ALTER TABLE statistical_distribution ENABLE ROW LEVEL SECURITY;
+ALTER TABLE team_statistics       ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Service role can manage daily_stats" ON public.daily_stats
-    FOR ALL USING (auth.role() = 'service_role');
+-- Profiles: usuário vê/edita apenas o próprio perfil
+CREATE POLICY "profiles_select_own" ON profiles FOR SELECT USING (auth.uid() = id);
+CREATE POLICY "profiles_update_own" ON profiles FOR UPDATE USING (auth.uid() = id);
 
--- ===========================================
--- TABLE: leagues (cached)
--- ===========================================
-CREATE TABLE public.leagues (
-    id INTEGER PRIMARY KEY,
-    name TEXT NOT NULL,
-    country TEXT,
-    logo TEXT,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
+-- Análises: leitura pública, escrita autenticada
+CREATE POLICY "analyses_public_read"  ON corner_analyses       FOR SELECT USING (true);
+CREATE POLICY "analyses_auth_write"   ON corner_analyses       FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "analyses_auth_update"  ON corner_analyses       FOR UPDATE USING (auth.role() = 'authenticated');
 
--- Enable RLS
-ALTER TABLE public.leagues ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "scenarios_public_read" ON robust_scenarios      FOR SELECT USING (true);
+CREATE POLICY "scenarios_auth_write"  ON robust_scenarios      FOR INSERT WITH CHECK (auth.role() = 'authenticated');
 
--- RLS Policies
-CREATE POLICY "Everyone can read leagues" ON public.leagues
-    FOR SELECT USING (true);
+CREATE POLICY "dist_public_read"      ON statistical_distribution FOR SELECT USING (true);
+CREATE POLICY "dist_auth_write"       ON statistical_distribution FOR INSERT WITH CHECK (auth.role() = 'authenticated');
 
-CREATE POLICY "Service role can manage leagues" ON public.leagues
-    FOR ALL USING (auth.role() = 'service_role');
+CREATE POLICY "stats_public_read"     ON team_statistics       FOR SELECT USING (true);
+CREATE POLICY "stats_auth_write"      ON team_statistics       FOR INSERT WITH CHECK (auth.role() = 'authenticated');
 
--- ===========================================
--- TRIGGERS
--- ===========================================
--- Update updated_at timestamp
-CREATE OR REPLACE FUNCTION update_updated_at_column()
-RETURNS TRIGGER AS $$
+-- ─── TRIGGER: atualiza updated_at automaticamente ────────────────────────────
+CREATE OR REPLACE FUNCTION update_updated_at()
+RETURNS TRIGGER LANGUAGE plpgsql AS $$
 BEGIN
-    NEW.updated_at = NOW();
+    NEW.updated_at = now();
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
-CREATE TRIGGER update_users_updated_at
-    BEFORE UPDATE ON users
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER trg_profiles_updated_at
+    BEFORE UPDATE ON profiles
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
-CREATE TRIGGER update_daily_picks_updated_at
-    BEFORE UPDATE ON daily_picks
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER trg_analyses_updated_at
+    BEFORE UPDATE ON corner_analyses
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
-CREATE TRIGGER update_pick_selections_updated_at
-    BEFORE UPDATE ON pick_selections
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-CREATE TRIGGER update_daily_stats_updated_at
-    BEFORE UPDATE ON daily_stats
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
--- ===========================================
--- SEED LEAGUES (API-Football IDs)
--- ===========================================
-INSERT INTO public.leagues (id, name, country) VALUES
-    (39, 'Premier League', 'England'),
-    (140, 'La Liga', 'Spain'),
-    (135, 'Serie A', 'Italy'),
-    (78, 'Bundesliga', 'Germany'),
-    (61, 'Ligue 1', 'France'),
-    (71, 'Brasileirão Série A', 'Brazil'),
-    (2, 'UEFA Champions League', 'Europe'),
-    (94, 'Primeira Liga', 'Portugal'),
-    (88, 'Eredivisie', 'Netherlands'),
-    (144, 'Belgian Pro League', 'Belgium'),
-    (203, 'Süper Lig', 'Turkey'),
-    (253, 'MLS', 'USA'),
-    (128, 'Liga Profesional', 'Argentina'),
-    (307, 'Saudi Pro League', 'Saudi Arabia'),
-    (179, 'Scottish Premiership', 'Scotland')
-ON CONFLICT (id) DO NOTHING;
-
--- ===========================================
--- FUNCTIONS (Helper)
--- ===========================================
--- Get user's subscription status
-CREATE OR REPLACE FUNCTION get_user_subscription_status(user_id UUID)
-RETURNS TABLE(is_premium BOOLEAN, tier TEXT, expires_at TIMESTAMPTZ) AS $$
+-- ─── TRIGGER: cria perfil automaticamente ao cadastrar ───────────────────────
+CREATE OR REPLACE FUNCTION handle_new_user()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER AS $$
 BEGIN
-    RETURN QUERY
-    SELECT 
-        CASE WHEN u.subscription_tier = 'premium' AND (u.subscription_expires_at IS NULL OR u.subscription_expires_at > NOW())
-        THEN true ELSE false END,
-        u.subscription_tier::TEXT,
-        u.subscription_expires_at
-    FROM users u WHERE u.id = user_id;
+    INSERT INTO profiles (id, email, full_name)
+    VALUES (
+        NEW.id,
+        NEW.email,
+        NEW.raw_user_meta_data->>'full_name'
+    )
+    ON CONFLICT (id) DO NOTHING;
+    RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
--- Calculate daily hit rate
-CREATE OR REPLACE FUNCTION calculate_daily_hit_rate(p_date DATE, p_tier TEXT)
-RETURNS NUMERIC(5,2) AS $$
-DECLARE
-    v_total INTEGER;
-    v_green INTEGER;
-BEGIN
-    SELECT COUNT(*), SUM(CASE WHEN status = 'green' THEN 1 ELSE 0 END)
-    INTO v_total, v_green
-    FROM daily_picks
-    WHERE date = p_date AND tier = p_tier;
-    
-    IF v_total IS NULL OR v_total = 0 THEN
-        RETURN 0;
-    END IF;
-    
-    RETURN ROUND((v_green::NUMERIC / v_total::NUMERIC) * 100, 2);
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- ===========================================
--- REAL-TIME SUBSCRIPTIONS
--- ===========================================
-REPLICA IDENTITY TABLE daily_picks;
-REPLICA IDENTITY TABLE pick_selections;
-
--- Enable realtime
-ALTER PUBLICATION supabase_realtime ADD TABLE daily_picks;
-ALTER PUBLICATION supabase_realtime ADD TABLE pick_selections;
-
--- ===========================================
--- NOTES
--- ===========================================
--- pg_cron extension must be enabled in Supabase dashboard
--- API-Football key must be stored in Supabase Vault
--- Setup Edge Functions for pick generation
--- Set up Stripe and Google Play webhooks
+CREATE TRIGGER on_auth_user_created
+    AFTER INSERT ON auth.users
+    FOR EACH ROW EXECUTE FUNCTION handle_new_user();

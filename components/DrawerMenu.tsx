@@ -131,7 +131,7 @@ export function DrawerMenu({ visible, onClose }: DrawerMenuProps) {
 
                     {/* Version */}
                     <Text style={[styles.version, { color: colors.textMuted }]}>
-                        GoalEdge v1.0.0
+                        CornerEdge v1.0.0
                     </Text>
                 </View>
 

@@ -54,7 +54,7 @@ export default function LoginScreen() {
                     keyboardShouldPersistTaps="handled"
                 >
                     <View style={[styles.card, { backgroundColor: colors.backgroundSecondary }]}>
-                        <Text style={[styles.logo, { color: colors.accentOrange }]}>GoalEdge</Text>
+                        <Text style={[styles.logo, { color: colors.accentOrange }]}>CornerEdge</Text>
                         <Text style={[styles.subtitle, { color: colors.textMuted }]}>
                             {t('app.tagline')}
                         </Text>

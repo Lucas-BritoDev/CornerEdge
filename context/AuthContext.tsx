@@ -3,7 +3,7 @@ import { Session, User } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase, Profile } from '../lib/supabase';
 
-const ONBOARDING_KEY = '@goaledge:onboarded';
+const ONBOARDING_KEY = '@corneredge:onboarded';
 
 interface AuthContextType {
     user: User | null;
@@ -151,7 +151,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const resetPassword = async (email: string) => {
         try {
             const { error } = await supabase.auth.resetPasswordForEmail(email, {
-                redirectTo: 'goaledge://new-password',
+                redirectTo: 'corneredge://new-password',
             });
             if (error) return { success: false, error: error.message };
             return { success: true };

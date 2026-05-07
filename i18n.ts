@@ -6,7 +6,7 @@ import pt from './locales/pt.json';
 import en from './locales/en.json';
 import es from './locales/es.json';
 
-const LANGUAGE_KEY = '@goaledge_language';
+const LANGUAGE_KEY = '@corneredge_language';
 
 const resources = {
     pt: { translation: pt },

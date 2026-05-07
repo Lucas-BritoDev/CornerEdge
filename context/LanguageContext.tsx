@@ -21,7 +21,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 
     const loadLanguage = async () => {
         try {
-            const saved = await AsyncStorage.getItem('@goaledge_language');
+            const saved = await AsyncStorage.getItem('@corneredge_language');
             if (saved && ['pt', 'en', 'es'].includes(saved)) {
                 setLanguageState(saved as Language);
                 i18n.changeLanguage(saved);
@@ -35,7 +35,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
         try {
             setLanguageState(lang);
             await i18n.changeLanguage(lang);
-            await AsyncStorage.setItem('@goaledge_language', lang);
+            await AsyncStorage.setItem('@corneredge_language', lang);
         } catch (error) {
             console.error('Error setting language:', error);
         }
