@@ -3,14 +3,10 @@
 # ============================================================================
 # Pipeline: Testes → Build Gradle → Upload Artifacts
 #
-# FUNCIONALIDADES:
-# - Build 100% no GitHub Actions (sem EAS)
-# - Gera AAB e APK localmente
-# - Upload automático para GitHub Artifacts
-# - Download direto da aba Actions
-#
-# CONFIGURAÇÃO NECESSÁRIA:
-# - Nenhuma! Não precisa de EXPO_TOKEN
+# SECRETS NECESSÁRIOS:
+# - EXPO_PUBLIC_SUPABASE_URL
+# - EXPO_PUBLIC_SUPABASE_ANON_KEY
+# - EXPO_PUBLIC_API
 #
 # Versão: 1.0.0 (CornerEdge)
 # ============================================================================
@@ -118,39 +114,23 @@ jobs:
           npx expo prebuild --platform android --clean --no-install
           echo "✅ Prebuild concluído!"
 
-      - name: 🔧 Configurar Gradle Wrapper
+      - name: 🔧 Configurar Gradle
         run: |
-          echo "🔧 Configurando permissões do Gradle..."
           cd android
           chmod +x gradlew
           echo "✅ Gradle configurado!"
 
-      - name: 🔑 Configurar Keystore
+      - name: 🔑 Criar Debug Keystore
         run: |
-          echo "🔑 Configurando keystore..."
           mkdir -p android/app
-
-          if [ -n "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" ]; then
-            echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > android/app/corneredge.jks
-            echo "✅ Keystore de produção configurada!"
-
-            cat >> android/gradle.properties << EOF
-          MYAPP_UPLOAD_STORE_FILE=corneredge.jks
-          MYAPP_UPLOAD_KEY_ALIAS=${{ secrets.ANDROID_KEY_ALIAS }}
-          MYAPP_UPLOAD_STORE_PASSWORD=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          MYAPP_UPLOAD_KEY_PASSWORD=${{ secrets.ANDROID_KEY_PASSWORD }}
-          EOF
-          else
-            echo "⚠️ Keystore não configurada, usando debug keystore..."
-            cd android/app
-            keytool -genkeypair -v -storetype PKCS12 \
-              -keystore debug.keystore \
-              -alias androiddebugkey \
-              -keyalg RSA -keysize 2048 -validity 10000 \
-              -storepass android -keypass android \
-              -dname "CN=Android Debug,O=Android,C=US"
-            echo "✅ Debug keystore criada!"
-          fi
+          cd android/app
+          keytool -genkeypair -v -storetype PKCS12 \
+            -keystore debug.keystore \
+            -alias androiddebugkey \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -storepass android -keypass android \
+            -dname "CN=Android Debug,O=Android,C=US"
+          echo "✅ Debug keystore criada!"
 
       - name: 🏗️ Cache Gradle
         uses: actions/cache@v4
@@ -187,25 +167,19 @@ jobs:
 
       - name: 📦 Preparar Artefatos
         run: |
-          echo "📦 Preparando artefatos..."
           mkdir -p artifacts
 
           if [ -f android/app/build/outputs/apk/release/app-release.apk ]; then
             cp android/app/build/outputs/apk/release/app-release.apk artifacts/corneredge.apk
             echo "✅ APK copiado"
-          else
-            echo "❌ APK não encontrado"
           fi
 
           if [ -f android/app/build/outputs/bundle/release/app-release.aab ]; then
             cp android/app/build/outputs/bundle/release/app-release.aab artifacts/corneredge.aab
             echo "✅ AAB copiado"
-          else
-            echo "❌ AAB não encontrado"
           fi
 
           ls -lh artifacts/
-          echo "✅ Artefatos preparados!"
 
       - name: 📤 Upload APK
         if: always()
@@ -247,10 +221,10 @@ jobs:
 
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 📥 Como baixar" >> $GITHUB_STEP_SUMMARY
-          echo "1. Vá para a aba 'Actions' deste repositório" >> $GITHUB_STEP_SUMMARY
+          echo "1. Vá para a aba 'Actions'" >> $GITHUB_STEP_SUMMARY
           echo "2. Clique neste workflow" >> $GITHUB_STEP_SUMMARY
           echo "3. Role até 'Artifacts'" >> $GITHUB_STEP_SUMMARY
-          echo "4. Baixe 'corneredge-apk' e 'corneredge-aab'" >> $GITHUB_STEP_SUMMARY
+          echo "4. Baixe **corneredge-apk** e **corneredge-aab**" >> $GITHUB_STEP_SUMMARY
 
   # ==========================================================================
   # Job 3: Notificação Final
@@ -265,21 +239,11 @@ jobs:
         run: |
           echo "# 🎯 CornerEdge - Pipeline Concluído" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "## 📋 Status dos Jobs" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
           echo "| 🧪 Testes | ${{ needs.test.result == 'success' && '✅ Sucesso' || '❌ Falhou' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| 🏗️ Build | ${{ needs.build.result == 'success' && '✅ Sucesso' || needs.build.result == 'skipped' && '⏭️ Pulado' || '❌ Falhou' }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "## 📥 Download dos Artefatos" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "1. Clique neste workflow" >> $GITHUB_STEP_SUMMARY
-          echo "2. Role até a seção 'Artifacts'" >> $GITHUB_STEP_SUMMARY
-          echo "3. Baixe os arquivos:" >> $GITHUB_STEP_SUMMARY
-          echo "   - **corneredge-apk** (para instalação direta)" >> $GITHUB_STEP_SUMMARY
-          echo "   - **corneredge-aab** (para Play Store)" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- **APK:** Para instalação direta em dispositivos Android" >> $GITHUB_STEP_SUMMARY
-          echo "- **AAB:** Para upload na Google Play Store" >> $GITHUB_STEP_SUMMARY
+          echo "- **corneredge-apk** → instalação direta" >> $GITHUB_STEP_SUMMARY
+          echo "- **corneredge-aab** → Play Store" >> $GITHUB_STEP_SUMMARY
           echo "- **Retenção:** 30 dias" >> $GITHUB_STEP_SUMMARY

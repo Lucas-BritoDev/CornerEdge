@@ -1,8 +1,6 @@
 # ============================================================================
 # CornerEdge - Build DEBUG para Troubleshooting
 # ============================================================================
-# Gera APK de debug com logs habilitados para diagnosticar crashes
-# ============================================================================
 
 name: Android Debug Build
 
@@ -42,40 +40,32 @@ jobs:
         run: npm ci --legacy-peer-deps
 
       - name: 🔨 Expo Prebuild
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+          EXPO_PUBLIC_API: ${{ secrets.EXPO_PUBLIC_API }}
         run: |
-          echo "🔨 Executando Expo Prebuild..."
           npx expo prebuild --platform android --clean --no-install
           echo "✅ Prebuild concluído!"
 
       - name: 🔧 Configurar Gradle
         run: |
-          echo "🔧 Configurando Gradle..."
           cd android
           chmod +x gradlew
           echo "android.enableR8=false" >> gradle.properties
           echo "android.enableProguard=false" >> gradle.properties
-          echo "✅ Gradle configurado!"
 
       - name: 🐛 Build APK Debug
         run: |
-          echo "🐛 Compilando APK Debug..."
           cd android
           ./gradlew assembleDebug --no-daemon --stacktrace
           echo "✅ APK Debug compilado!"
 
       - name: 📦 Preparar Artefato
         run: |
-          echo "📦 Preparando artefato..."
           mkdir -p artifacts
-
-          if [ -f android/app/build/outputs/apk/debug/app-debug.apk ]; then
-            cp android/app/build/outputs/apk/debug/app-debug.apk artifacts/corneredge-debug.apk
-            ls -lh artifacts/corneredge-debug.apk
-            echo "✅ APK Debug preparado!"
-          else
-            echo "❌ APK Debug não encontrado!"
-            exit 1
-          fi
+          cp android/app/build/outputs/apk/debug/app-debug.apk artifacts/corneredge-debug.apk
+          ls -lh artifacts/corneredge-debug.apk
 
       - name: 📤 Upload APK Debug
         uses: actions/upload-artifact@v4
@@ -87,21 +77,6 @@ jobs:
       - name: 📊 Resumo
         run: |
           echo "## 🐛 APK Debug Gerado" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "✅ **APK Debug compilado com sucesso!**" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
           SIZE=$(du -h artifacts/corneredge-debug.apk | cut -f1)
-          echo "- **Arquivo:** corneredge-debug.apk" >> $GITHUB_STEP_SUMMARY
-          echo "- **Tamanho:** $SIZE" >> $GITHUB_STEP_SUMMARY
-          echo "- **Tipo:** Debug (com logs)" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 📥 Como usar" >> $GITHUB_STEP_SUMMARY
-          echo "1. Baixe o APK da aba Artifacts" >> $GITHUB_STEP_SUMMARY
-          echo "2. Instale no dispositivo" >> $GITHUB_STEP_SUMMARY
-          echo "3. Conecte via USB: \`adb devices\`" >> $GITHUB_STEP_SUMMARY
-          echo "4. Ver logs: \`adb logcat | grep -i corneredge\`" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 🐛 Debug" >> $GITHUB_STEP_SUMMARY
-          echo "- Minificação: Desabilitada" >> $GITHUB_STEP_SUMMARY
-          echo "- ProGuard: Desabilitado" >> $GITHUB_STEP_SUMMARY
-          echo "- Logs: Habilitados" >> $GITHUB_STEP_SUMMARY
+          echo "- **Arquivo:** corneredge-debug.apk ($SIZE)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Logs:** \`adb logcat | grep -i corneredge\`" >> $GITHUB_STEP_SUMMARY
