@@ -1,5 +1,5 @@
 // ============================================================================
-// GoalEdge - App Configuration
+// CornerEdge - App Configuration
 // ============================================================================
 // Este arquivo substitui app.json e permite usar variáveis de ambiente
 // no build de produção
@@ -7,12 +7,12 @@
 
 export default {
   expo: {
-    name: "GoalEdge",
-    slug: "goaledge",
+    name: "CornerEdge",
+    slug: "corneredge",
     version: "1.0.0",
     orientation: "portrait",
     icon: "./assets/images/icon.png",
-    scheme: "goaledge",
+    scheme: "corneredge",
     userInterfaceStyle: "automatic",
     
     splash: {
@@ -23,7 +23,7 @@ export default {
     
     ios: {
       supportsTablet: true,
-      bundleIdentifier: "com.goaledge.app"
+      bundleIdentifier: "com.corneredge.app"
     },
     
     android: {
@@ -31,7 +31,7 @@ export default {
         foregroundImage: "./assets/images/adaptive-icon.png",
         backgroundColor: "#1A1A1A"
       },
-      package: "com.goaledge.app"
+      package: "com.corneredge.app"
       // Usar Hermes (padrão e recomendado)
       // jsEngine: "hermes"
     },

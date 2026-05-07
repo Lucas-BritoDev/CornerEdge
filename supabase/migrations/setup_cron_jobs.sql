@@ -29,15 +29,15 @@ END $$;
 -- ============================================================================
 -- CRON JOB 1: GERAR PICKS DIÁRIOS
 -- ============================================================================
--- Executa: Todos os dias às 02:00 UTC (23:00 BRT do dia anterior)
--- Função: Gera picks para o dia seguinte
+-- Executa: Todos os dias às 03:00 UTC (00:00 BRT - Horário de Brasília)
+-- Função: Gera picks para o dia atual (que acabou de começar)
 -- Duração: ~2-5 minutos
 -- API Calls: ~120 na primeira execução, ~10-20 nas seguintes (cache)
 -- ============================================================================
 
 SELECT cron.schedule(
   'generate-daily-picks',
-  '0 2 * * *',  -- Cron expression: minuto hora dia mês dia_da_semana
+  '0 3 * * *',  -- Cron expression: 03:00 UTC = 00:00 Brasília (UTC-3)
   $$
   SELECT net.http_post(
     url := 'https://pgglewzdzqbisidecndz.supabase.co/functions/v1/generate-daily-picks',
@@ -77,7 +77,7 @@ SELECT cron.schedule(
 -- ============================================================================
 -- CRON JOB 3: LIMPAR CACHE
 -- ============================================================================
--- Executa: Todos os dias às 03:00 UTC (00:00 BRT)
+-- Executa: Todos os dias às 04:00 UTC (01:00 BRT)
 -- Função: Remove entradas expiradas do cache
 -- Duração: ~10-30 segundos
 -- API Calls: 0
@@ -85,7 +85,7 @@ SELECT cron.schedule(
 
 SELECT cron.schedule(
   'cleanup-cache',
-  '0 3 * * *',  -- Todos os dias às 03:00 UTC
+  '0 4 * * *',  -- Todos os dias às 04:00 UTC (01:00 BRT)
   $$
   SELECT net.http_post(
     url := 'https://pgglewzdzqbisidecndz.supabase.co/functions/v1/cleanup-cache',
@@ -214,11 +214,11 @@ CREATE TRIGGER cron_failure_alert
 -- ============================================================================
 -- 
 -- 1. TIMEZONE: Todos os horários são em UTC
---    - 02:00 UTC = 23:00 BRT (horário de Brasília -3h)
---    - 03:00 UTC = 00:00 BRT
+--    - 03:00 UTC = 00:00 BRT (horário de Brasília -3h) ← GERAR PICKS
+--    - 04:00 UTC = 01:00 BRT ← LIMPAR CACHE
 -- 
 -- 2. CRON EXPRESSIONS:
---    - '0 2 * * *'   = Todos os dias às 02:00
+--    - '0 3 * * *'   = Todos os dias às 03:00 UTC (00:00 Brasília)
 --    - '*/5 * * * *' = A cada 5 minutos
 --    - '0 */2 * * *' = A cada 2 horas
 --    - '0 0 * * 0'   = Todo domingo à meia-noite

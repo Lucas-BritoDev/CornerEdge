@@ -1,43 +1,49 @@
 import { useEffect, useRef, useState } from 'react';
 import { Platform } from 'react-native';
-import * as Notifications from 'expo-notifications';
-import * as Device from 'expo-device';
 import Constants from 'expo-constants';
-import { type EventSubscription } from 'expo-modules-core';
 import { supabase } from '../lib/supabase';
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
+let Notifications: any = null;
+let Device: any = null;
+
+try {
+  Notifications = require('expo-notifications').default;
+  Device = require('expo-device');
+  
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: false,
+      shouldShowBanner: true,
+      shouldShowList: true,
+    }),
+  });
+} catch (e) {
+  console.log('[Notifications] Módulo não disponível em Expo Go');
+}
 
 export function useNotifications(userId?: string) {
   const [expoPushToken, setExpoPushToken] = useState<string>('');
-  const [notification, setNotification] = useState<Notifications.Notification | undefined>(undefined);
-  const notificationListener = useRef<EventSubscription>(null);
-  const responseListener = useRef<EventSubscription>(null);
+  const [notification, setNotification] = useState<any>(undefined);
+  const notificationListener = useRef<any>(null);
+  const responseListener = useRef<any>(null);
 
   useEffect(() => {
-    if (!userId) return;
+    if (!userId || !Notifications || !Device) return;
 
     registerForPushNotificationsAsync().then(token => {
       if (token) {
         setExpoPushToken(token);
-        // Save token to Supabase profiles
         supabase.from('profiles').update({ push_token: token }).eq('id', userId);
       }
     });
 
-    notificationListener.current = Notifications.addNotificationReceivedListener(notification => {
+    notificationListener.current = Notifications.addNotificationReceivedListener((notification: any) => {
       setNotification(notification);
     });
 
-    responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
+    responseListener.current = Notifications.addNotificationResponseReceivedListener((response: any) => {
       console.log('Notification Response:', response);
     });
 
@@ -50,16 +56,25 @@ export function useNotifications(userId?: string) {
   return { expoPushToken, notification };
 }
 
-async function registerForPushNotificationsAsync() {
+async function registerForPushNotificationsAsync(): Promise<string | undefined> {
+  if (!Notifications || !Device) {
+    console.log('[Notifications] Módulo não disponível, pulando registro');
+    return undefined;
+  }
+
   let token;
 
   if (Platform.OS === 'android') {
-    Notifications.setNotificationChannelAsync('default', {
-      name: 'default',
-      importance: Notifications.AndroidImportance.MAX,
-      vibrationPattern: [0, 250, 250, 250],
-      lightColor: '#FF231F7C',
-    });
+    try {
+      await Notifications.setNotificationChannelAsync('default', {
+        name: 'default',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#FF231F7C',
+      });
+    } catch (e) {
+      console.log('[Notifications] Erro ao criar canal:', e);
+    }
   }
 
   if (Device.isDevice) {
@@ -77,7 +92,6 @@ async function registerForPushNotificationsAsync() {
       const projectId =
         Constants?.expoConfig?.extra?.eas?.projectId ?? Constants?.easConfig?.projectId;
       
-      // In Expo Go, getting the push token will throw an error in SDK 53+, so we just return if no projectId
       if (!projectId && Constants.executionEnvironment === 'storeClient') {
         console.log('Skipping push token registration in Expo Go.');
         return;

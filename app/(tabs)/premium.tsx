@@ -22,12 +22,10 @@ export default function PremiumScreen() {
     };
 
     const features = [
-        { free: `2 ${t('common.picks')}/${t('common.day')} (65-74%)`, premium: `Up to 5 ${t('common.picks')}/${t('common.day')} (75%+)` },
-        { free: '1.80-2.20 odds', premium: '1.80-4.00 odds' },
-        { free: t('premium.free_only'), premium: t('premium.all_picks') },
-        { free: t('premium.limited_preview'), premium: t('premium.full_tomorrow') },
+        { free: `2 ${t('common.analyses')}/${t('common.day')}`, premium: `${t('premium.all_analyses')}` },
+        { free: t('premium.limited_preview'), premium: t('premium.full_access') },
         { free: t('premium.no_notifications'), premium: t('premium.push_notifications') },
-        { free: t('premium.no_roi'), premium: t('premium.full_stats') },
+        { free: t('premium.basic_stats'), premium: t('premium.full_stats') },
     ];
 
     const handleSubscribe = async () => {
@@ -36,7 +34,7 @@ export default function PremiumScreen() {
             // Simular compra - em produção, chamar Google Play Billing ou Stripe
             Alert.alert(
                 'Subscribe',
-                `This would open Google Play Billing in production.\n\nPrice: $ 5,00/${t('premium.month')}`,
+                `This would open Google Play Billing in production.\n\nPrice: $ 3,00/${t('premium.month')}`,
                 [
                     { text: 'Cancel', style: 'cancel' },
                     { 
@@ -67,11 +65,11 @@ export default function PremiumScreen() {
     };
 
     const openPrivacy = () => {
-        Linking.openURL('https://goaledge.app/privacy');
+        Linking.openURL('https://corneredge.app/privacy');
     };
 
     const openTerms = () => {
-        Linking.openURL('https://goaledge.app/terms');
+        Linking.openURL('https://corneredge.app/terms');
     };
 
     if (isPremium) {

@@ -1,10 +1,10 @@
 /**
- * GoalEdge Design System
+ * CornerEdge Design System
  *
- * Statistical Football Betting Analysis App
+ * Statistical Corner Analysis App
  * Version 1.0 - May 2026
  *
- * Paleta de cores baseada na logomarca GoalEdge
+ * Paleta de cores baseada na logomarca CornerEdge
  * Cores principais: Laranja (#FF6B00), Preto (#1A1A1A), Branco (#FFFFFF)
  */
 

@@ -5,10 +5,23 @@
 // Docs: https://github.com/invertase/react-native-google-mobile-ads
 // ============================================================================
 
-import mobileAds from 'react-native-google-mobile-ads';
+import { Platform } from 'react-native';
 
 let isInitialized = false;
 let initializationPromise: Promise<void> | null = null;
+
+let mobileAds: any = null;
+
+async function loadMobileAdsModule() {
+  if (mobileAds) return mobileAds;
+  try {
+    mobileAds = require('react-native-google-mobile-ads').default;
+    return mobileAds;
+  } catch (e) {
+    console.log('[AdMob] Módulo nativo não disponível (Expo Go?)');
+    return null;
+  }
+}
 
 /**
  * Inicializa o Google Mobile Ads SDK
@@ -33,30 +46,41 @@ export async function initializeAdMob(): Promise<void> {
     return initializationPromise;
   }
 
-  // Iniciar nova inicialização
+  // Skip in Expo Go - native modules not available
+  if (Platform.OS === 'ios' || Platform.OS === 'android') {
+    const adsModule = await loadMobileAdsModule();
+    if (!adsModule) {
+      console.log('[AdMob] Pulando inicialização em Expo Go');
+      return Promise.resolve();
+    }
+  }
+
   console.log('[AdMob] Iniciando SDK...');
   
-  initializationPromise = mobileAds()
-    .initialize()
-    .then((adapterStatuses) => {
+  const ads = await loadMobileAdsModule();
+  if (!ads) {
+    console.log('[AdMob] SDK não disponível');
+    return Promise.resolve();
+  }
+  
+  initializationPromise = ads.initialize()
+    .then((adapterStatuses: any) => {
       isInitialized = true;
       console.log('[AdMob] SDK inicializado com sucesso!');
       
-      // Log dos adapters inicializados (útil para debug)
       if (__DEV__) {
         console.log('[AdMob] Adapters inicializados:', 
           Object.keys(adapterStatuses).length
         );
       }
     })
-    .catch((error) => {
+    .catch((error: Error) => {
       console.error('[AdMob] Erro ao inicializar SDK:', error);
-      // Resetar para permitir retry
       initializationPromise = null;
       throw error;
     });
 
-  return initializationPromise;
+  return initializationPromise ?? Promise.resolve();
 }
 
 /**
