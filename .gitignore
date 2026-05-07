@@ -17,6 +17,10 @@ ios/
 *.apk
 *.aab
 
+# Keystore — NUNCA commitar chaves privadas
+*.jks
+*.keystore
+
 # OS
 .DS_Store
 Thumbs.db
