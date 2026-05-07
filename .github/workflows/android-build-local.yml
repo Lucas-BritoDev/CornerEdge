@@ -124,13 +124,25 @@ jobs:
         run: |
           mkdir -p android/app
           cd android/app
+          # Remover keystore antiga se existir
+          rm -f debug.keystore
           keytool -genkeypair -v -storetype PKCS12 \
             -keystore debug.keystore \
             -alias androiddebugkey \
             -keyalg RSA -keysize 2048 -validity 10000 \
             -storepass android -keypass android \
-            -dname "CN=Android Debug,O=Android,C=US"
+            -dname "CN=Android Debug,O=Android,C=US" \
+            -noprompt
           echo "✅ Debug keystore criada!"
+          # Configurar gradle.properties para usar a debug keystore
+          cd ..
+          cat >> gradle.properties << EOF
+          MYAPP_UPLOAD_STORE_FILE=debug.keystore
+          MYAPP_UPLOAD_KEY_ALIAS=androiddebugkey
+          MYAPP_UPLOAD_STORE_PASSWORD=android
+          MYAPP_UPLOAD_KEY_PASSWORD=android
+          EOF
+          echo "✅ Gradle configurado com debug keystore!"
 
       - name: 🏗️ Cache Gradle
         uses: actions/cache@v4
