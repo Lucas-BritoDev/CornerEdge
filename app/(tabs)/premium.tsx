@@ -5,16 +5,15 @@ import { useRouter } from 'expo-router';
 import { Crown, Check, CreditCard, RefreshCw, AlertTriangle } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../context/ThemeContext';
-import { mockSubscription, mockUserStats } from '../../data/mockData';
+import { useAuth } from '../../context/AuthContext';
 
 export default function PremiumScreen() {
     const insets = useSafeAreaInsets();
     const router = useRouter();
     const { colors } = useTheme();
     const { t, i18n } = useTranslation();
+    const { isPremium, profile } = useAuth();
     const [loading, setLoading] = useState(false);
-
-    const isPremium = mockSubscription.tier === 'premium';
 
     const formatDate = () => {
         const locale = i18n.language === 'en' ? 'en-US' : i18n.language === 'es' ? 'es-ES' : 'pt-BR';
@@ -85,8 +84,8 @@ export default function PremiumScreen() {
                         <Crown color={colors.accentOrange} size={48} />
                         <Text style={[styles.activeTitle, { color: colors.textPrimary }]}>{t('premium.active_plan')}</Text>
                         <Text style={[styles.activeSubtitle, { color: colors.textMuted }]}>
-                            {mockSubscription.expiresAt 
-                                ? `${t('premium.expires')}: ${new Date(mockSubscription.expiresAt).toLocaleDateString()}`
+                            {profile?.subscription_expires_at
+                                ? `${t('premium.expires')}: ${new Date(profile.subscription_expires_at).toLocaleDateString()}`
                                 : t('premium.unlimited_access')
                             }
                         </Text>
