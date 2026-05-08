@@ -293,10 +293,8 @@ export default function HomeScreen() {
                         {/* Premium Analyses */}
                         {premiumAnalyses.length > 0 && (
                             <View style={styles.section}>
-                                {isPremium ? (
-                                    premiumAnalyses.map((analysis) => renderAnalysisCard(analysis))
-                                ) : (
-                                    renderAnalysisCard(premiumAnalyses[0], true)
+                                {premiumAnalyses.map((analysis) => 
+                                    renderAnalysisCard(analysis, !isPremium)
                                 )}
                             </View>
                         )}

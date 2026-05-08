@@ -8,8 +8,8 @@ const BANNER_AD_UNIT_ID = __DEV__
         ? 'ca-app-pub-3940256099942544/2934735716' // iOS test banner
         : 'ca-app-pub-3940256099942544/6300978111' // Android test banner
     : Platform.OS === 'ios'
-        ? 'ca-app-pub-8609967398609187~5936939727' // iOS produção
-        : 'ca-app-pub-8609967398609187~5936939727'; // Android produção
+        ? 'ca-app-pub-8609967398609187/5936939727' // iOS produção
+        : 'ca-app-pub-8609967398609187/5936939727'; // Android produção
 
 const isExpoGo = Constants.executionEnvironment === 'storeClient';
 

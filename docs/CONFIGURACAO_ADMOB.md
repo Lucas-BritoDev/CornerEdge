@@ -35,7 +35,17 @@ plugins: [
       "androidAppId": "ca-app-pub-8609967398609187~5936939727",
       "iosAppId": "ca-app-pub-8609967398609187~5936939727",
       // Descrição para App Tracking Transparency (iOS)
-      "userTrackingUsageDescription": "Este identificador será usado para fornecer anúncios personalizados para você."
+      "userTrackingUsageDescription": "Este identificador será usado para fornecer anúncios personalizados para você.",
+      // Atrasar inicialização de medição de app para evitar crash prematuro/compliance
+      "delayAppMeasurementInit": true
+    }
+  ],
+  [
+    "expo-build-properties",
+    {
+      "android": {
+        "extraProguardRules": "-keep class com.google.android.gms.internal.consent_sdk.** { *; }"
+      }
     }
   ]
 ]

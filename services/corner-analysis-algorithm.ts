@@ -44,7 +44,7 @@ const W_AWAY_ATK  = 0.35; // Ataque do visitante fora
 const W_DEFENSIVE = 0.25; // Pressão defensiva (escanteios sofridos)
 
 // ─── Filtro mínimo de qualidade ───────────────────────────────────────────────
-const MIN_CONFIDENCE = 70; // Só publica se P(Over) ≥ 70%
+const MIN_CONFIDENCE = 60; // Reduzido para garantir volume
 const MIN_VALID_MATCHES = 3; // Mínimo de jogos para análise confiável
 
 interface TeamCornerStats {
@@ -127,12 +127,10 @@ function standardDeviation(values: number[]): number {
  * Regra: linha = floor(μ / 0.5) × 0.5 - 0.5
  * Garante que a linha está ABAIXO da média (Over com margem)
  */
-function toMarketLine(expectedTotal: number): number {
-    // Arredonda para baixo no múltiplo de 0.5 mais próximo, depois subtrai 0.5
-    const floorHalf = Math.floor(expectedTotal / 0.5) * 0.5;
-    const line = floorHalf - 0.5;
-    // Mínimo de 5.5, máximo de 13.5
-    return Math.max(5.5, Math.min(13.5, line));
+function toMarketLine(mu: number): number {
+    // Ajuste fino da linha de mercado baseado na média esperada
+    const line = Math.floor(mu / 0.5) * 0.5 - 0.5;
+    return Math.max(7.5, Math.min(12.5, line)); // Linhas mais realistas para escanteios totais
 }
 
 // ─── Análise de time ──────────────────────────────────────────────────────────
@@ -190,25 +188,12 @@ function calculatePrediction(
 ): Omit<CornerPrediction, 'fixtureId' | 'homeTeam' | 'awayTeam' | 'homeTeamLogo' | 'awayTeamLogo' | 'league' | 'kickoffAt' | 'homeStats' | 'awayStats'> {
 
     // ── 1. Calcular μ (esperança matemática do total de escanteios) ────────────
-    //
-    // Componente ofensivo do mandante (jogando em casa)
-    const homeAtk = homeStats.avgCornersHome > 0
-        ? homeStats.avgCornersHome
-        : homeStats.avgCornersAway * 1.1; // Ajuste casa/fora se sem dados em casa
-
-    // Componente ofensivo do visitante (jogando fora)
-    const awayAtk = awayStats.avgCornersAway > 0
-        ? awayStats.avgCornersAway
-        : awayStats.avgCornersHome * 0.9;
-
-    // Componente defensivo (pressão que cada time sofre)
-    const defensivePressure = (
-        (homeStats.avgConcededHome > 0 ? homeStats.avgConcededHome : 4.5) +
-        (awayStats.avgConcededAway > 0 ? awayStats.avgConcededAway : 4.5)
-    ) / 2;
-
-    // μ ponderado
-    const mu = (homeAtk * W_HOME_ATK) + (awayAtk * W_AWAY_ATK) + (defensivePressure * W_DEFENSIVE);
+    // NOVO ALGORITMO: Soma das expectativas individuais (Ataque + Defesa adversária)
+    // mu_total = (avgAtkHome + avgConcededAway)/2 + (avgAtkAway + avgConcededHome)/2
+    const expectedHome = (homeStats.avgCornersHome + awayStats.avgConcededAway) / 2;
+    const expectedAway = (awayStats.avgCornersAway + homeStats.avgConcededHome) / 2;
+    
+    const mu = expectedHome + expectedAway;
 
     // Ajuste mínimo: média histórica de escanteios em jogos profissionais ≈ 9.5
     // Se dados insuficientes, usar média de mercado
@@ -251,8 +236,8 @@ function calculatePrediction(
 
     // ── 6. Distribuição estatística (linhas de mercado) ───────────────────────
     const distribution: Array<{ threshold: number; probability: number }> = [];
-    // Linhas de mercado padrão: 5.5, 6.5, 7.5, 8.5, 9.5, 10.5, 11.5, 12.5
-    for (let line = 5.5; line <= 12.5; line += 1) {
+    // Linhas de mercado padrão atualizadas
+    for (let line = 7.5; line <= 12.5; line += 1) {
         const prob = parseFloat(poissonOverProbability(lambdaAdjusted, line).toFixed(1));
         distribution.push({ threshold: line, probability: prob });
     }
@@ -267,9 +252,9 @@ function calculatePrediction(
         return 'moderate';
     };
 
-    // Pegar linhas com P ≥ 65% ordenadas do menor para o maior threshold
+    // Pegar linhas com P ≥ 60% ordenadas do menor para o maior threshold
     const viableLines = distribution
-        .filter(d => d.probability >= 65)
+        .filter(d => d.probability >= 60)
         .sort((a, b) => b.threshold - a.threshold) // Maior threshold primeiro
         .slice(0, 3);
 
@@ -325,7 +310,7 @@ export async function generateTodayAnalyses(): Promise<{ success: boolean; count
             return { success: true, count: 0, message: 'No scheduled fixtures found for today' };
         }
 
-        const selectedFixtures = scheduledFixtures.slice(0, 14);
+        const selectedFixtures = scheduledFixtures.slice(0, 20); // Aumentado para 20
         const predictions: CornerPrediction[] = [];
 
         for (const fixture of selectedFixtures) {
@@ -367,8 +352,8 @@ export async function generateTodayAnalyses(): Promise<{ success: boolean; count
         predictions.sort((a, b) => b.confidence - a.confidence);
 
         // Tier: top = premium, últimos 3-4 = free
-        const freeCount = predictions.length >= 12 ? 4 : 3;
-        const premiumCount = Math.max(0, predictions.length - freeCount);
+        // Tier: top 60% = premium, resto = free
+        const premiumCount = Math.max(0, Math.floor(predictions.length * 0.6));
         let insertedCount = 0;
 
         for (let i = 0; i < predictions.length; i++) {

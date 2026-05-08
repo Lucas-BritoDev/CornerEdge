@@ -26,8 +26,8 @@ export async function fetchTodayAnalyses(): Promise<AnalysisWithDetails[]> {
     const { data: analyses, error: analysesError } = await supabase
         .from('corner_analyses')
         .select('*')
-        .gte('published_at', today.toISOString())
-        .lt('published_at', tomorrow.toISOString())
+        .gte('kickoff_at', today.toISOString())
+        .lt('kickoff_at', tomorrow.toISOString())
         .order('kickoff_at', { ascending: true });
 
     if (analysesError) {
@@ -95,8 +95,8 @@ export async function fetchAnalysesByDate(date: Date): Promise<AnalysisWithDetai
     const { data: analyses, error: analysesError } = await supabase
         .from('corner_analyses')
         .select('*')
-        .gte('published_at', startOfDay.toISOString())
-        .lte('published_at', endOfDay.toISOString())
+        .gte('kickoff_at', startOfDay.toISOString())
+        .lte('kickoff_at', endOfDay.toISOString())
         .order('kickoff_at', { ascending: true });
 
     if (analysesError) {
@@ -198,8 +198,8 @@ export function useUserStats() {
             const { data, error } = await supabase
                 .from('corner_analyses')
                 .select('*')
-                .gte('published_at', sevenDaysAgo.toISOString())
-                .order('published_at', { ascending: false });
+                .gte('kickoff_at', sevenDaysAgo.toISOString())
+                .order('kickoff_at', { ascending: false });
 
             if (error) {
                 console.error('[AnalysesService] Error fetching user stats:', error);
