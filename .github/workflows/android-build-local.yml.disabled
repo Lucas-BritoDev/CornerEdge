@@ -7,8 +7,11 @@
 # - EXPO_PUBLIC_SUPABASE_URL
 # - EXPO_PUBLIC_SUPABASE_ANON_KEY
 # - EXPO_PUBLIC_API
+# - KEYSTORE_PASSWORD
+# - KEY_ALIAS
+# - KEY_PASSWORD
 #
-# Versão: 1.0.0 (CornerEdge)
+# Versão: 1.1.0 (CornerEdge - Signed)
 # ============================================================================
 
 name: Android Build Local
@@ -114,35 +117,48 @@ jobs:
           npx expo prebuild --platform android --clean --no-install
           echo "✅ Prebuild concluído!"
 
-      - name: 🔧 Configurar Gradle
+      - name: 🔧 Configurar Gradle e Assinatura
         run: |
+          echo "🔧 Configurando permissões do Gradle..."
           cd android
           chmod +x gradlew
+          
+          # Aplicar a configuração de assinatura no build.gradle
+          echo "📝 Aplicando android-signing.gradle no build.gradle..."
+          echo "apply from: '../../android-signing.gradle'" >> app/build.gradle
+          
           echo "✅ Gradle configurado!"
 
-      - name: 🔑 Criar Debug Keystore
+      - name: 🔑 Configurar Keystore
         run: |
+          echo "🔑 Configurando keystore..."
           mkdir -p android/app
-          cd android/app
-          # Remover keystore antiga se existir
-          rm -f debug.keystore
-          keytool -genkeypair -v -storetype PKCS12 \
-            -keystore debug.keystore \
-            -alias androiddebugkey \
-            -keyalg RSA -keysize 2048 -validity 10000 \
-            -storepass android -keypass android \
-            -dname "CN=Android Debug,O=Android,C=US" \
-            -noprompt
-          echo "✅ Debug keystore criada!"
-          # Configurar gradle.properties para usar a debug keystore
-          cd ..
-          cat >> gradle.properties << EOF
-          MYAPP_UPLOAD_STORE_FILE=debug.keystore
-          MYAPP_UPLOAD_KEY_ALIAS=androiddebugkey
-          MYAPP_UPLOAD_STORE_PASSWORD=android
-          MYAPP_UPLOAD_KEY_PASSWORD=android
-          EOF
-          echo "✅ Gradle configurado com debug keystore!"
+
+          # Verificar se keystore de produção existe no repositório
+          if [ -f "@luck1993__goaledge.jks" ]; then
+            echo "✅ Keystore de produção encontrada"
+            cp "@luck1993__goaledge.jks" android/app/release.keystore
+          else
+            echo "⚠️ Keystore de produção não encontrada, criando keystore de debug..."
+            
+            # Remover QUALQUER keystore existente
+            rm -f android/app/debug.keystore
+            rm -f android/app/*.keystore
+            rm -f android/app/*.jks
+            
+            keytool -genkeypair -v -storetype PKCS12 \
+              -keystore android/app/debug.keystore \
+              -alias androiddebugkey \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -storepass android \
+              -keypass android \
+              -dname "CN=Android Debug,O=Android,C=US" \
+              -noprompt
+            
+            echo "✅ Keystore de debug criada!"
+          fi
 
       - name: 🏗️ Cache Gradle
         uses: actions/cache@v4
@@ -158,11 +174,14 @@ jobs:
           EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
           EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
           EXPO_PUBLIC_API: ${{ secrets.EXPO_PUBLIC_API }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=512m"
         run: |
           echo "🏗️ Compilando APK..."
           cd android
-          ./gradlew assembleRelease --no-daemon
+          ./gradlew assembleRelease --no-daemon --stacktrace --info
           echo "✅ APK compilado!"
 
       - name: 🏗️ Build AAB
@@ -170,11 +189,14 @@ jobs:
           EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
           EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
           EXPO_PUBLIC_API: ${{ secrets.EXPO_PUBLIC_API }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=512m"
         run: |
           echo "🏗️ Compilando AAB..."
           cd android
-          ./gradlew bundleRelease --no-daemon
+          ./gradlew bundleRelease --no-daemon --stacktrace --info
           echo "✅ AAB compilado!"
 
       - name: 📦 Preparar Artefatos

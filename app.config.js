@@ -7,13 +7,13 @@
 
 export default {
   expo: {
-    name: "CornerEdge",
-    slug: "corneredge",
+    name: "GoalEdge",
+    slug: "goaledge",
     owner: "luck1993",
     version: "1.0.0",
     orientation: "portrait",
     icon: "./assets/images/icon.png",
-    scheme: "corneredge",
+    scheme: "goaledge",
     userInterfaceStyle: "automatic",
     
     splash: {
@@ -24,7 +24,7 @@ export default {
     
     ios: {
       supportsTablet: true,
-      bundleIdentifier: "com.corneredge.app"
+      bundleIdentifier: "com.goaledge.app"
     },
     
     android: {
@@ -32,7 +32,7 @@ export default {
         foregroundImage: "./assets/images/adaptive-icon.png",
         backgroundColor: "#1A1A1A"
       },
-      package: "com.corneredge.app"
+      package: "com.goaledge.app"
       // Usar Hermes (padrão e recomendado)
       // jsEngine: "hermes"
     },

@@ -1,0 +1,41 @@
+// ============================================================================
+// Configuração de Assinatura Android - CornerEdge
+// ============================================================================
+// Este arquivo configura a assinatura do APK/AAB usando a keystore existente
+// ============================================================================
+
+android {
+    signingConfigs {
+        release {
+            // Tentar encontrar a keystore em múltiplos locais
+            def keystoreFile = file('../../@luck1993__goaledge.jks') // No root (local)
+            if (!keystoreFile.exists()) {
+                keystoreFile = file('release.keystore') // No android/app (workflow)
+            }
+            if (!keystoreFile.exists()) {
+                keystoreFile = file('../@luck1993__goaledge.jks') // No android/
+            }
+            
+            if (keystoreFile.exists()) {
+                storeFile keystoreFile
+                // Prioridade: Variáveis de ambiente -> Senha padrão "android"
+                storePassword System.getenv("KEYSTORE_PASSWORD") ?: "android"
+                keyAlias System.getenv("KEY_ALIAS") ?: "goaledge"
+                keyPassword System.getenv("KEY_PASSWORD") ?: "android"
+                
+                println "✅ Usando keystore: ${keystoreFile.absolutePath}"
+            } else {
+                println "⚠️ Keystore não encontrada em nenhum local, usando configurações padrão de debug"
+            }
+        }
+    }
+    
+    buildTypes {
+        release {
+            signingConfig signingConfigs.release
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+}

@@ -1,0 +1,90 @@
+# ============================================================================
+# GoalEdge - Build Android via EAS (Local no GitHub Actions)
+# ============================================================================
+# Este workflow utiliza o EAS CLI para fazer o build localmente no GitHub
+# Isso garante que a assinatura do Expo seja aplicada corretamente.
+#
+# REQUISITOS:
+# 1. EXPO_TOKEN cadastrado nos Secrets do GitHub
+# 2. Configurações de assinatura (Keystore) feitas no Expo (eas credentials)
+# ============================================================================
+
+name: Android Build EAS
+
+on:
+  push:
+    branches: [main, develop]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '20'
+  JAVA_VERSION: '17'
+
+jobs:
+  build:
+    name: 🏗️ Build APK e AAB (EAS Local)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🔧 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: ☕ Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: 📦 Instalar dependências
+        run: npm ci --legacy-peer-deps
+
+      - name: 🔧 Setup EAS CLI
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: 📝 Criar arquivo .env
+        run: |
+          cat << EOF > .env
+          EXPO_PUBLIC_SUPABASE_URL=${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+          EXPO_PUBLIC_API=${{ secrets.EXPO_PUBLIC_API }}
+          EOF
+
+      - name: 📱 Build APK (Preview)
+        run: npx eas build --platform android --profile production-apk --local --non-interactive --output=./goaledge.apk
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+      - name: 🏪 Build AAB (Production)
+        run: npx eas build --platform android --profile production --local --non-interactive --output=./goaledge.aab
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+      - name: 📤 Upload Artefatos
+        uses: actions/upload-artifact@v4
+        with:
+          name: goaledge-builds
+          path: |
+            ./goaledge.apk
+            ./goaledge.aab
+          retention-days: 30
+
+      - name: 📊 Resumo
+        if: always()
+        run: |
+          echo "## 📦 Build EAS Concluído" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          [ -f ./goaledge.apk ] && echo "✅ **APK:** goaledge.apk" >> $GITHUB_STEP_SUMMARY || echo "❌ **APK:** Falhou" >> $GITHUB_STEP_SUMMARY
+          [ -f ./goaledge.aab ] && echo "✅ **AAB:** goaledge.aab" >> $GITHUB_STEP_SUMMARY || echo "❌ **AAB:** Falhou" >> $GITHUB_STEP_SUMMARY
