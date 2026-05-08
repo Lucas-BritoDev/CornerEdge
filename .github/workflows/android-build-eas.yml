@@ -63,12 +63,12 @@ jobs:
           EOF
 
       - name: 📱 Build APK (Preview)
-        run: npx eas build --platform android --profile production-apk --local --non-interactive --output=./goaledge.apk
+        run: eas build --platform android --profile production-apk --local --non-interactive --output=./goaledge.apk
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
       - name: 🏪 Build AAB (Production)
-        run: npx eas build --platform android --profile production --local --non-interactive --output=./goaledge.aab
+        run: eas build --platform android --profile production --local --non-interactive --output=./goaledge.aab
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
