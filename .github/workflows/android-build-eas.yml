@@ -63,22 +63,22 @@ jobs:
           EOF
 
       - name: 📱 Build APK (Preview)
-        run: eas build --platform android --profile production-apk --local --non-interactive --output=./goaledge.apk
+        run: eas build --platform android --profile production-apk --local --non-interactive --output=./corneredge.apk
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
       - name: 🏪 Build AAB (Production)
-        run: eas build --platform android --profile production --local --non-interactive --output=./goaledge.aab
+        run: eas build --platform android --profile production --local --non-interactive --output=./corneredge.aab
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
       - name: 📤 Upload Artefatos
         uses: actions/upload-artifact@v4
         with:
-          name: goaledge-builds
+          name: corneredge-builds
           path: |
-            ./goaledge.apk
-            ./goaledge.aab
+            ./corneredge.apk
+            ./corneredge.aab
           retention-days: 30
 
       - name: 📊 Resumo
@@ -86,5 +86,5 @@ jobs:
         run: |
           echo "## 📦 Build EAS Concluído" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          [ -f ./goaledge.apk ] && echo "✅ **APK:** goaledge.apk" >> $GITHUB_STEP_SUMMARY || echo "❌ **APK:** Falhou" >> $GITHUB_STEP_SUMMARY
-          [ -f ./goaledge.aab ] && echo "✅ **AAB:** goaledge.aab" >> $GITHUB_STEP_SUMMARY || echo "❌ **AAB:** Falhou" >> $GITHUB_STEP_SUMMARY
+          [ -f ./corneredge.apk ] && echo "✅ **APK:** corneredge.apk" >> $GITHUB_STEP_SUMMARY || echo "❌ **APK:** Falhou" >> $GITHUB_STEP_SUMMARY
+          [ -f ./corneredge.aab ] && echo "✅ **AAB:** corneredge.aab" >> $GITHUB_STEP_SUMMARY || echo "❌ **AAB:** Falhou" >> $GITHUB_STEP_SUMMARY
