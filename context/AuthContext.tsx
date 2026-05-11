@@ -54,8 +54,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
             if (value === 'true') setIsOnboarded(true);
         });
 
-        // Recupera sessão inicial
+        // Recupera sessão inicial com timeout de segurança
+        const sessionTimeout = setTimeout(() => {
+            if (isLoading) {
+                console.warn('[CornerEdge] Session fetch timeout - forcing isLoading false');
+                setIsLoading(false);
+            }
+        }, 5000);
+
         supabase.auth.getSession().then(({ data: { session } }) => {
+            clearTimeout(sessionTimeout);
             setSession(session);
             setUser(session?.user ?? null);
             if (session?.user) {
@@ -63,6 +71,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
             } else {
                 setIsLoading(false);
             }
+        }).catch(() => {
+            clearTimeout(sessionTimeout);
+            setIsLoading(false);
         });
 
         // Escuta mudanças de estado de autenticação

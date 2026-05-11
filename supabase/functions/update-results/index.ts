@@ -141,11 +141,18 @@ serve(async (req) => {
           console.warn(`[UpdateResults] Jogo ${analysis.fixture_id} finalizado mas sem estatísticas.`);
         }
 
-        // Determina o resultado
+        // Determina o resultado baseado na estratégia (Over/Under)
         let status = 'incorrect';
-        if (corners.total >= analysis.probable_range_min && corners.total <= analysis.probable_range_max) {
-          status = 'correct';
+        const threshold = analysis.strategy_type === 'under' ? analysis.probable_range_max : analysis.probable_range_min;
+        
+        if (analysis.strategy_type === 'under') {
+          status = corners.total <= threshold ? 'correct' : 'incorrect';
+        } else {
+          // Default é over
+          status = corners.total >= threshold ? 'correct' : 'incorrect';
         }
+        
+        console.log(`[UpdateResults] Jogo ${analysis.fixture_id}: Corners=${corners.total}, Threshold=${threshold}, Strategy=${analysis.strategy_type} -> ${status}`);
 
         const { error: updateError } = await supabaseClient
           .from('corner_analyses')

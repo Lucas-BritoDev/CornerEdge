@@ -38,7 +38,8 @@ export interface CornerAnalysis {
     probable_range_min: number;
     probable_range_max: number;
     tier: 'free' | 'premium';
-    status: 'pending' | 'correct' | 'incorrect';
+    status: 'pending' | 'correct' | 'incorrect' | 'void';
+    strategy_type: 'over' | 'under';
     actual_corners?: number;
     published_at: string;
     created_at: string;

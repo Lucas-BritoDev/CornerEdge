@@ -5,6 +5,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import { AD_UNITS } from '../services/ads-service';
 import { waitForAdMobInitialization } from '../lib/admob-init';
+import { supabase } from '../lib/supabase';
+import { useAuth } from '../context/AuthContext';
 
 // Verifica se está rodando no Expo Go
 const isExpoGo = Constants.executionEnvironment === 'storeClient' || 
@@ -54,6 +56,7 @@ export function useRewardedAd() {
   const [loaded, setLoaded] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const { user } = useAuth();
 
   // Inicializa e carrega o anúncio
   const loadAd = React.useCallback(async () => {
@@ -120,20 +123,32 @@ export function useRewardedAd() {
   // Verifica se o item já foi desbloqueado hoje
   const isUnlockedToday = async (id: string): Promise<boolean> => {
     try {
+      // 1. Verificar no Cache Local (Rápido)
       const timestamp = await AsyncStorage.getItem(`${UNLOCK_STORAGE_PREFIX}${id}`);
-      if (!timestamp) return false;
-
-      const unlockDate = new Date(parseInt(timestamp, 10));
-      const now = new Date();
-      
-      // Expira após 24 horas
-      const diffHours = (now.getTime() - unlockDate.getTime()) / (1000 * 60 * 60);
-      if (diffHours >= 24) {
-        await AsyncStorage.removeItem(`${UNLOCK_STORAGE_PREFIX}${id}`);
-        return false;
+      if (timestamp) {
+        const unlockDate = new Date(parseInt(timestamp, 10));
+        const diffHours = (Date.now() - unlockDate.getTime()) / (1000 * 60 * 60);
+        if (diffHours < 24) return true;
       }
-      
-      return true;
+
+      // 2. Verificar no Supabase (Persistente)
+      if (user) {
+        const { data, error } = await supabase
+          .from('user_unlocked_picks')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('analysis_id', id)
+          .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+          .maybeSingle();
+
+        if (data && !error) {
+          // Atualiza cache local para a próxima vez ser mais rápida
+          await AsyncStorage.setItem(`${UNLOCK_STORAGE_PREFIX}${id}`, Date.now().toString());
+          return true;
+        }
+      }
+
+      return false;
     } catch (e) {
       return false;
     }
@@ -142,9 +157,8 @@ export function useRewardedAd() {
   // Mostra o anúncio e retorna o resultado
   const showAd = async (id: string): Promise<{ success: boolean; error?: string }> => {
     if (!loaded || !rewardedAd) {
-      // Tenta carregar novamente se falhou
       loadAd();
-      return { success: false, error: 'Ad not ready. Please try again in a moment.' };
+      return { success: false, error: 'Ad not ready. Please try again.' };
     }
 
     return new Promise((resolve) => {
@@ -155,8 +169,18 @@ export function useRewardedAd() {
         async (reward: RewardedAdReward) => {
           console.log('User earned reward:', reward);
           earnedReward = true;
+          
           try {
+            // Salva no Cache Local
             await AsyncStorage.setItem(`${UNLOCK_STORAGE_PREFIX}${id}`, Date.now().toString());
+            
+            // Salva no Supabase (Persistência entre dispositivos)
+            if (user) {
+              await supabase.from('user_unlocked_picks').insert({
+                user_id: user.id,
+                analysis_id: id
+              });
+            }
           } catch (e) {
             console.error('Failed to save reward state:', e);
           }
@@ -171,7 +195,7 @@ export function useRewardedAd() {
           
           if (earnedReward) {
             setLoaded(false);
-            loadAd(); // Pre-load next ad
+            loadAd();
             resolve({ success: true });
           } else {
             resolve({ success: false, error: 'Ad closed before completion' });

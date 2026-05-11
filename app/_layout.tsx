@@ -61,30 +61,32 @@ function AppContent() {
     // ✅ Inicialização e Splash Screen: Garantindo que o app entre em no máximo 5s
     useEffect(() => {
         let isMounted = true;
+        let splashHidden = false;
         
-        // Timeout de segurança global: 5 segundos para esconder o splash
-        const fallbackTimeout = setTimeout(async () => {
-            if (isMounted) {
-                console.warn('[CornerEdge] Splash Screen fallback ativado (5s)');
+        const hideSplash = async (reason: string) => {
+            if (!splashHidden && isMounted) {
+                splashHidden = true;
+                console.log(`[CornerEdge] Ocultando Splash Screen. Motivo: ${reason}`);
                 await SplashScreen.hideAsync().catch(() => {});
             }
+        };
+
+        // Timeout de segurança global: 5 segundos para esconder o splash independente de tudo
+        const fallbackTimeout = setTimeout(() => {
+            hideSplash('Timeout de segurança (5s)');
         }, 5000);
 
         const init = async () => {
-            try {
-                // Tenta carregar o AdMob de forma assíncrona
-                const { initializeAdMob } = await import('../lib/admob-init');
-                await initializeAdMob();
-                console.log('[CornerEdge] AdMob pronto');
-            } catch (e) {
-                console.warn('[CornerEdge] AdMob falhou (não fatal):', e);
-            } finally {
-                // Ocultar splash screen somente se o auth já carregou
-                // ou se o componente for desmontado
-                if (isMounted && !authLoading) {
-                    clearTimeout(fallbackTimeout);
-                    await SplashScreen.hideAsync().catch(() => {});
-                }
+            // Inicializa AdMob em segundo plano (sem await no fluxo crítico)
+            import('../lib/admob-init').then(({ initializeAdMob }) => {
+                initializeAdMob()
+                    .then(() => console.log('[CornerEdge] AdMob pronto'))
+                    .catch(e => console.warn('[CornerEdge] AdMob falhou:', e));
+            }).catch(e => console.warn('[CornerEdge] Falha ao importar AdMob:', e));
+
+            // Se o auth já estiver carregado, fecha o splash imediatamente
+            if (!authLoading) {
+                hideSplash('Auth carregado');
             }
         };
 

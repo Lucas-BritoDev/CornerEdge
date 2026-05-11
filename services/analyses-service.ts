@@ -12,23 +12,25 @@ import { CornerAnalysis, AnalysisWithDetails } from '../types';
 // QUERY FUNCTIONS
 // ============================================================================
 
+
 /**
  * Fetch today's corner analyses with all related data
  */
 export async function fetchTodayAnalyses(): Promise<AnalysisWithDetails[]> {
     const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
     today.setHours(0, 0, 0, 0);
     
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    // Fetch analyses
+    // Fetch analyses ordered by sort_order (deterministic from backend)
     const { data: analyses, error: analysesError } = await supabase
         .from('corner_analyses')
         .select('*')
         .gte('kickoff_at', today.toISOString())
         .lt('kickoff_at', tomorrow.toISOString())
-        .order('kickoff_at', { ascending: true });
+        .order('sort_order', { ascending: true });
 
     if (analysesError) {
         console.error('[AnalysesService] Error fetching analyses:', analysesError);
@@ -38,7 +40,7 @@ export async function fetchTodayAnalyses(): Promise<AnalysisWithDetails[]> {
     if (!analyses || analyses.length === 0) {
         return [];
     }
-
+    
     const analysisIds = analyses.map(a => a.id);
 
     // Fetch all related data in parallel
@@ -71,7 +73,7 @@ export async function fetchTodayAnalyses(): Promise<AnalysisWithDetails[]> {
         console.error('[AnalysesService] Error fetching team stats:', teamStatsResult.error);
     }
 
-    // Map related data to analyses
+    // Map related data to analyses maintaining the order from DB
     const analysesWithDetails: AnalysisWithDetails[] = analyses.map(analysis => ({
         ...analysis,
         robust_scenarios: robustScenariosResult.data?.filter(rs => rs.analysis_id === analysis.id) || [],
@@ -97,7 +99,7 @@ export async function fetchAnalysesByDate(date: Date): Promise<AnalysisWithDetai
         .select('*')
         .gte('kickoff_at', startOfDay.toISOString())
         .lte('kickoff_at', endOfDay.toISOString())
-        .order('kickoff_at', { ascending: true });
+        .order('sort_order', { ascending: true });
 
     if (analysesError) {
         console.error('[AnalysesService] Error fetching analyses by date:', analysesError);

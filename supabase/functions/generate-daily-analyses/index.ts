@@ -258,15 +258,35 @@ serve(async (req) => {
 
     predictions.sort((a, b) => b.confidence - a.confidence);
     
-    let inserted = 0;
-    for (let i = 0; i < predictions.length; i++) {
-      const p = predictions[i];
+    function seededShuffle<T>(array: T[], seed: string): T[] {
+      let m = array.length, t, i;
+      let s = 0;
+      for (let j = 0; j < seed.length; j++) s += seed.charCodeAt(j);
       
-      // Nova Lógica de Tier para garantir 6 Premium e 4+ Free:
-      // i=0,1 -> FREE
-      // i=2-7 -> PREMIUM (6 cards)
-      // i>=8  -> FREE
-      const tier = (i >= 2 && i < 8) ? 'premium' : 'free';
+      const newArray = [...array];
+      while (m) {
+        i = Math.floor(Math.abs(Math.sin(s++)) * m--);
+        t = newArray[m];
+        newArray[m] = newArray[i];
+        newArray[i] = t;
+      }
+      return newArray;
+    }
+
+    const tierPredictions = predictions.map((p, i) => ({
+      ...p,
+      tier: (i >= 2 && i < 8) ? 'premium' : 'free'
+    }));
+
+    // Embaralhar as picks do dia usando a data como semente
+    const shuffledPredictions = seededShuffle(tierPredictions, targetDate).map((p, idx) => ({
+      ...p,
+      sortOrder: idx
+    }));
+
+    let inserted = 0;
+    for (let i = 0; i < shuffledPredictions.length; i++) {
+      const p = shuffledPredictions[i];
       
       const { data: analysis, error } = await supabase.from('corner_analyses').insert({
         fixture_id: p.fixtureId, home_team: p.homeTeam, away_team: p.awayTeam,
@@ -274,7 +294,8 @@ serve(async (req) => {
         league: p.league, kickoff_at: p.kickoffAt,
         confidence: p.confidence, avg_prediction: p.marketLine,
         probable_range_min: p.probableRangeMin, probable_range_max: p.probableRangeMax,
-        tier, status: 'pending',
+        tier: p.tier, status: 'pending', sort_order: p.sortOrder,
+        strategy_type: p.marketLine >= 9.5 ? 'over' : 'under'
       }).select().single();
       
       if (error) {

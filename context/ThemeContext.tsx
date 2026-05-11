@@ -24,6 +24,7 @@ interface ThemeColors {
     primary: string;
     statusBar: string;
     statusBarText: string;
+    statusBlue: string;
 }
 
 interface ThemeContextType {
@@ -54,6 +55,7 @@ const lightColors: ThemeColors = {
     primary: '#FF6B00',
     statusBar: '#FFFFFF',
     statusBarText: '#FFFFFF',
+    statusBlue: '#2196F3',
 };
 
 const darkColors: ThemeColors = {
@@ -76,6 +78,7 @@ const darkColors: ThemeColors = {
     primary: '#FF7A1A',
     statusBar: '#0D0D0D',
     statusBarText: '#FFFFFF',
+    statusBlue: '#2196F3',
 };
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);

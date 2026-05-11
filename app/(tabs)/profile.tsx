@@ -3,10 +3,11 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, Alert, Ac
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { useRouter } from 'expo-router';
-import { User, Globe, Moon, Sun, LogOut, Crown, TrendingUp, Bell, Settings, ChevronRight } from 'lucide-react-native';
+import { User, Globe, Moon, Sun, LogOut, Crown, TrendingUp, Bell, Settings, ChevronRight, Target, Activity } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { useUserStats } from '../../services/analyses-service';
+import { Header } from '../../components/Header';
 
 const languages = [
     { code: 'pt', label: 'PT', flag: '🇧🇷' },
@@ -22,7 +23,7 @@ export default function ProfileScreen() {
     const { t, i18n } = useTranslation();
     const [notifications, setNotifications] = React.useState(true);
     const [isSigningOut, setIsSigningOut] = React.useState(false);
-    const { data: stats, isLoading: statsLoading } = useUserStats();
+    const { data: stats, isLoading: isStatsLoading } = useUserStats();
 
     const currentLang = i18n.language || 'pt';
 
@@ -63,42 +64,53 @@ export default function ProfileScreen() {
 
     return (
         <View style={[styles.container, { backgroundColor: colors.backgroundPrimary }]}>
-            <View style={[styles.header, { paddingTop: insets.top + 16, backgroundColor: colors.backgroundTertiary }]}>
-                <Text style={styles.headerTitle}>{t('profile.title')}</Text>
-                <Text style={styles.headerDate}>{formatDate()}</Text>
-            </View>
+            <Header 
+                title={t('profile.title')} 
+                subtitle={formatDate()} 
+            >
+                <View style={styles.headerStatsRow}>
+                    <View style={[styles.headerStatCard, { backgroundColor: 'rgba(255,255,255,0.1)' }]}>
+                        <TrendingUp size={16} color="#FFF" />
+                        <View>
+                            <Text style={[styles.headerStatValue, { color: '#FFF' }]}>
+                                {isStatsLoading ? '—' : stats?.totalAnalyses ?? 0}
+                            </Text>
+                            <Text style={[styles.headerStatLabel, { color: 'rgba(255,255,255,0.7)' }]}>{t('profile.total_analyses')}</Text>
+                        </View>
+                    </View>
+
+                    <View style={[styles.headerStatCard, { backgroundColor: 'rgba(255,255,255,0.1)' }]}>
+                        <Target size={16} color="#4ADE80" />
+                        <View>
+                            <Text style={[styles.headerStatValue, { color: '#4ADE80' }]}>
+                                {isStatsLoading ? '—' : stats?.hitRate7Days != null ? `${stats.hitRate7Days}%` : '—'}
+                            </Text>
+                            <Text style={[styles.headerStatLabel, { color: 'rgba(255,255,255,0.7)' }]}>{t('results.hit_rate')}</Text>
+                        </View>
+                    </View>
+
+                    <View style={[styles.headerStatCard, { backgroundColor: 'rgba(255,255,255,0.1)' }]}>
+                        <Activity size={16} color="#FFF" />
+                        <View>
+                            <Text style={[styles.headerStatValue, { color: '#FFF' }]}>
+                                {isStatsLoading ? '—' : `${stats?.correct ?? 0}/${stats?.incorrect ?? 0}`}
+                            </Text>
+                            <Text style={[styles.headerStatLabel, { color: 'rgba(255,255,255,0.7)' }]}>{t('profile.accuracy')}</Text>
+                        </View>
+                    </View>
+                </View>
+            </Header>
 
             <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}>
                 <View style={[styles.profileCard, { backgroundColor: colors.backgroundSecondary }]}>
                     <View style={[styles.avatar, { backgroundColor: colors.accentOrange }]}>
                         <User color="#FFFFFF" size={32} />
                     </View>
-                    <Text style={[styles.userName, { color: colors.textPrimary }]}>{profile?.full_name || t('profile.user')}</Text>
-                    <View style={[styles.planBadge, { backgroundColor: isPremium ? colors.accentOrange : colors.statusGreen }]}>
-                        <Crown color="#FFFFFF" size={12} />
-                        <Text style={styles.planText}>{isPremium ? t('common.premium').toUpperCase() : t('common.free').toUpperCase()}</Text>
-                    </View>
-                </View>
-
-                <View style={styles.section}>
-                    <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>{t('profile.statistics')}</Text>
-                    <View style={styles.statsGrid}>
-                        <View style={[styles.statCard, { backgroundColor: colors.backgroundSecondary }]}>
-                            <TrendingUp color={colors.statusGreen} size={24} />
-                            <Text style={[styles.statValue, { color: colors.textPrimary }]}>{statsLoading ? '—' : stats?.totalAnalyses ?? 0}</Text>
-                            <Text style={[styles.statLabel, { color: colors.textMuted }]}>{t('profile.total_analyses')}</Text>
-                        </View>
-                        <View style={[styles.statCard, { backgroundColor: colors.backgroundSecondary }]}>
-                            <Text style={[styles.statValue, { color: colors.statusGreen }]}>
-                                {statsLoading ? '—' : stats?.hitRate7Days != null ? `${stats.hitRate7Days}%` : t('profile.no_data')}
-                            </Text>
-                            <Text style={[styles.statLabel, { color: colors.textMuted }]}>{t('profile.hit_rate_7days')}</Text>
-                        </View>
-                        <View style={[styles.statCard, { backgroundColor: colors.backgroundSecondary }]}>
-                            <Text style={[styles.statValue, { color: colors.statusGreen }]}>
-                                {statsLoading ? '—' : `${stats?.correct ?? 0}/${stats?.incorrect ?? 0}`}
-                            </Text>
-                            <Text style={[styles.statLabel, { color: colors.textMuted }]}>{t('profile.accuracy')}</Text>
+                    <View style={styles.profileInfo}>
+                        <Text style={[styles.userName, { color: colors.textPrimary }]}>{profile?.full_name || t('profile.user')}</Text>
+                        <View style={[styles.planBadge, { backgroundColor: isPremium ? colors.accentOrange : colors.statusGreen }]}>
+                            <Crown color="#FFFFFF" size={10} />
+                            <Text style={styles.planText}>{isPremium ? t('common.premium').toUpperCase() : t('common.free').toUpperCase()}</Text>
                         </View>
                     </View>
                 </View>
@@ -226,17 +238,24 @@ const styles = StyleSheet.create({
     headerTitle: { color: '#FFFFFF', fontSize: 28, fontWeight: 'bold' },
     headerDate: { color: '#FFFFFF', fontSize: 14, opacity: 0.8, marginTop: 4, textTransform: 'capitalize' },
     content: { flex: 1, marginTop: -12 },
-    profileCard: { margin: 16, padding: 24, borderRadius: 16, alignItems: 'center' },
-    avatar: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
-    userName: { fontSize: 20, fontWeight: '600', marginBottom: 8 },
-    planBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12, gap: 4 },
-    planText: { color: '#FFFFFF', fontSize: 11, fontWeight: 'bold' },
-    section: { padding: 16, paddingTop: 8 },
-    sectionTitle: { fontSize: 18, fontWeight: '600', marginBottom: 12 },
-    statsGrid: { flexDirection: 'row', gap: 12 },
-    statCard: { flex: 1, padding: 16, borderRadius: 12, alignItems: 'center' },
-    statValue: { fontSize: 24, fontWeight: 'bold', marginTop: 8 },
-    statLabel: { fontSize: 11, marginTop: 4 },
+    headerStatsRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 10, marginTop: 12 },
+    headerStatCard: { 
+        flex: 1, 
+        padding: 10, 
+        borderRadius: 16, 
+        alignItems: 'center',
+        flexDirection: 'row',
+        gap: 8
+    },
+    headerStatValue: { fontSize: 16, fontWeight: '900' },
+    headerStatLabel: { fontSize: 9, fontWeight: '700', textTransform: 'uppercase' },
+
+    profileCard: { margin: 16, padding: 20, borderRadius: 16, flexDirection: 'row', alignItems: 'center', gap: 16 },
+    profileInfo: { flex: 1 },
+    avatar: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center' },
+    userName: { fontSize: 18, fontWeight: '800', marginBottom: 4 },
+    planBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, gap: 4, alignSelf: 'flex-start' },
+    planText: { color: '#FFFFFF', fontSize: 10, fontWeight: 'bold' },
     settingRow: { flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: 12, marginBottom: 8 },
     settingIcon: { width: 32, alignItems: 'center' },
     settingContent: { flex: 1, marginLeft: 8 },

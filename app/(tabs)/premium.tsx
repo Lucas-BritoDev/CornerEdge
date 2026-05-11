@@ -2,12 +2,13 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Linking, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Crown, Check, CreditCard, AlertTriangle } from 'lucide-react-native';
+import { Crown, Check, CreditCard, AlertTriangle, TrendingUp, Target, Activity } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { useUserStats } from '../../services/analyses-service';
 import { supabase } from '../../lib/supabase';
+import { Header } from '../../components/Header';
 
 export default function PremiumScreen() {
     const insets = useSafeAreaInsets();
@@ -15,7 +16,7 @@ export default function PremiumScreen() {
     const { colors } = useTheme();
     const { t, i18n } = useTranslation();
     const { isPremium, profile, user, refreshProfile } = useAuth();
-    const { data: stats, isLoading: statsLoading } = useUserStats();
+    const { data: stats, isLoading: isStatsLoading } = useUserStats();
     const [loading, setLoading] = useState(false);
 
     const formatDate = () => {
@@ -94,10 +95,42 @@ export default function PremiumScreen() {
     if (isPremium) {
         return (
             <View style={[styles.container, { backgroundColor: colors.backgroundPrimary }]}>
-                <View style={[styles.header, { paddingTop: insets.top + 16, backgroundColor: colors.backgroundTertiary }]}>
-                    <Text style={styles.headerTitle}>{t('common.premium')}</Text>
-                    <Text style={styles.headerDate}>{formatDate()}</Text>
-                </View>
+                <Header 
+                    title={t('common.premium')} 
+                    subtitle={formatDate()} 
+                >
+                    <View style={styles.headerStatsRow}>
+                        <View style={[styles.headerStatCard, { backgroundColor: 'rgba(255,255,255,0.1)' }]}>
+                            <TrendingUp size={16} color="#FFF" />
+                            <View>
+                                <Text style={[styles.headerStatValue, { color: '#FFF' }]}>
+                                    {isStatsLoading ? '—' : stats?.totalAnalyses ?? 0}
+                                </Text>
+                                <Text style={[styles.headerStatLabel, { color: 'rgba(255,255,255,0.7)' }]}>{t('profile.total_analyses')}</Text>
+                            </View>
+                        </View>
+
+                        <View style={[styles.headerStatCard, { backgroundColor: 'rgba(255,255,255,0.1)' }]}>
+                            <Target size={16} color="#4ADE80" />
+                            <View>
+                                <Text style={[styles.headerStatValue, { color: '#4ADE80' }]}>
+                                    {isStatsLoading ? '—' : stats?.hitRate7Days != null ? `${stats.hitRate7Days}%` : '—'}
+                                </Text>
+                                <Text style={[styles.headerStatLabel, { color: 'rgba(255,255,255,0.7)' }]}>{t('results.hit_rate')}</Text>
+                            </View>
+                        </View>
+
+                        <View style={[styles.headerStatCard, { backgroundColor: 'rgba(255,255,255,0.1)' }]}>
+                            <Activity size={16} color="#FFF" />
+                            <View>
+                                <Text style={[styles.headerStatValue, { color: '#FFF' }]}>
+                                    {isStatsLoading ? '—' : `${stats?.correct ?? 0}/${stats?.incorrect ?? 0}`}
+                                </Text>
+                                <Text style={[styles.headerStatLabel, { color: 'rgba(255,255,255,0.7)' }]}>{t('profile.accuracy')}</Text>
+                            </View>
+                        </View>
+                    </View>
+                </Header>
 
                 <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}>
                     <View style={[styles.activeCard, { backgroundColor: colors.backgroundSecondary }]}>
@@ -111,26 +144,7 @@ export default function PremiumScreen() {
                         </Text>
                     </View>
 
-                    <View style={[styles.statsCard, { backgroundColor: colors.backgroundSecondary }]}>
-                        <Text style={[styles.statsTitle, { color: colors.textPrimary }]}>{t('premium.your_stats')}</Text>
-                        <View style={styles.statsRow}>
-                            <View style={styles.statItem}>
-                                <Text style={[styles.statValue, { color: colors.statusGreen }]}>
-                                    {statsLoading ? '—' : (stats?.hitRate7Days != null && (stats.correct + stats.incorrect) > 0)
-                                        ? `${stats.hitRate7Days}%`
-                                        : t('profile.no_data')
-                                    }
-                                </Text>
-                                <Text style={[styles.statLabel, { color: colors.textMuted }]}>{t('premium.hit_rate_7days')}</Text>
-                            </View>
-                            <View style={styles.statItem}>
-                                <Text style={[styles.statValue, { color: colors.textPrimary }]}>
-                                    {statsLoading ? '—' : stats?.totalAnalyses ?? 0}
-                                </Text>
-                                <Text style={[styles.statLabel, { color: colors.textMuted }]}>{t('profile.total_analyses')}</Text>
-                            </View>
-                        </View>
-                    </View>
+
 
                     <View style={styles.section}>
                         <TouchableOpacity
@@ -149,10 +163,42 @@ export default function PremiumScreen() {
     // ── Tela para usuário free ────────────────────────────────────────────────
     return (
         <View style={[styles.container, { backgroundColor: colors.backgroundPrimary }]}>
-            <View style={[styles.header, { paddingTop: insets.top + 16, backgroundColor: colors.backgroundTertiary }]}>
-                <Text style={styles.headerTitle}>{t('common.premium')}</Text>
-                <Text style={styles.headerDate}>{formatDate()}</Text>
-            </View>
+            <Header 
+                title={t('common.premium')} 
+                subtitle={formatDate()} 
+            >
+                <View style={styles.headerStatsRow}>
+                    <View style={[styles.headerStatCard, { backgroundColor: 'rgba(255,255,255,0.1)' }]}>
+                        <TrendingUp size={16} color="#FFF" />
+                        <View>
+                            <Text style={[styles.headerStatValue, { color: '#FFF' }]}>
+                                {isStatsLoading ? '—' : stats?.totalAnalyses ?? 0}
+                            </Text>
+                            <Text style={[styles.headerStatLabel, { color: 'rgba(255,255,255,0.7)' }]}>{t('profile.total_analyses')}</Text>
+                        </View>
+                    </View>
+
+                    <View style={[styles.headerStatCard, { backgroundColor: 'rgba(255,255,255,0.1)' }]}>
+                        <Target size={16} color="#4ADE80" />
+                        <View>
+                            <Text style={[styles.headerStatValue, { color: '#4ADE80' }]}>
+                                {isStatsLoading ? '—' : stats?.hitRate7Days != null ? `${stats.hitRate7Days}%` : '—'}
+                            </Text>
+                            <Text style={[styles.headerStatLabel, { color: 'rgba(255,255,255,0.7)' }]}>{t('results.hit_rate')}</Text>
+                        </View>
+                    </View>
+
+                    <View style={[styles.headerStatCard, { backgroundColor: 'rgba(255,255,255,0.1)' }]}>
+                        <Activity size={16} color="#FFF" />
+                        <View>
+                            <Text style={[styles.headerStatValue, { color: '#FFF' }]}>
+                                {isStatsLoading ? '—' : `${stats?.correct ?? 0}/${stats?.incorrect ?? 0}`}
+                            </Text>
+                            <Text style={[styles.headerStatLabel, { color: 'rgba(255,255,255,0.7)' }]}>{t('profile.accuracy')}</Text>
+                        </View>
+                    </View>
+                </View>
+            </Header>
 
             <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}>
                 {/* Hero */}
@@ -257,12 +303,17 @@ const styles = StyleSheet.create({
     activeCard: { margin: 16, padding: 32, borderRadius: 16, alignItems: 'center' },
     activeTitle: { fontSize: 24, fontWeight: 'bold', marginTop: 16 },
     activeSubtitle: { fontSize: 14, marginTop: 8, textAlign: 'center' },
-    statsCard: { margin: 16, padding: 16, borderRadius: 12, alignItems: 'center' },
-    statsTitle: { fontSize: 16, fontWeight: '600', marginBottom: 16 },
-    statsRow: { flexDirection: 'row', gap: 32 },
-    statItem: { alignItems: 'center' },
-    statValue: { fontSize: 24, fontWeight: 'bold' },
-    statLabel: { fontSize: 12, marginTop: 4 },
+    headerStatsRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 10, marginTop: 12 },
+    headerStatCard: { 
+        flex: 1, 
+        padding: 10, 
+        borderRadius: 16, 
+        alignItems: 'center',
+        flexDirection: 'row',
+        gap: 8
+    },
+    headerStatValue: { fontSize: 16, fontWeight: '900' },
+    headerStatLabel: { fontSize: 9, fontWeight: '700', textTransform: 'uppercase' },
     manageButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 16, borderRadius: 12, borderWidth: 1, gap: 8 },
     manageButtonText: { fontSize: 15 },
 });
