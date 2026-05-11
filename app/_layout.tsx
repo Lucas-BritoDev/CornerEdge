@@ -58,24 +58,42 @@ function AppContent() {
     const { resolvedTheme } = useTheme();
     const { isLoading: authLoading } = useAuth();
 
-    // ✅ AdMob: inicializado de forma segura
+    // ✅ Inicialização e Splash Screen: Garantindo que o app entre em no máximo 5s
     useEffect(() => {
+        let isMounted = true;
+        
+        // Timeout de segurança global: 5 segundos para esconder o splash
+        const fallbackTimeout = setTimeout(async () => {
+            if (isMounted) {
+                console.warn('[CornerEdge] Splash Screen fallback ativado (5s)');
+                await SplashScreen.hideAsync().catch(() => {});
+            }
+        }, 5000);
+
         const init = async () => {
             try {
+                // Tenta carregar o AdMob de forma assíncrona
                 const { initializeAdMob } = await import('../lib/admob-init');
                 await initializeAdMob();
                 console.log('[CornerEdge] AdMob pronto');
             } catch (e) {
                 console.warn('[CornerEdge] AdMob falhou (não fatal):', e);
             } finally {
-                // Ocultar splash screen após carregar o necessário
-                if (!authLoading) {
+                // Ocultar splash screen somente se o auth já carregou
+                // ou se o componente for desmontado
+                if (isMounted && !authLoading) {
+                    clearTimeout(fallbackTimeout);
                     await SplashScreen.hideAsync().catch(() => {});
                 }
             }
         };
 
         init();
+
+        return () => {
+            isMounted = false;
+            clearTimeout(fallbackTimeout);
+        };
     }, [authLoading]);
 
     const statusBarBg = resolvedTheme === 'dark' ? '#0D0D0D' : '#FFFFFF';

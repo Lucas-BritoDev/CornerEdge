@@ -62,31 +62,42 @@ export async function initializeAdMob(): Promise<void> {
 
   // ✅ Toda a lógica envolta em Promise que sempre resolve (nunca rejeita)
   initializationPromise = new Promise<void>(async (resolve) => {
+    let timeoutId: NodeJS.Timeout | null = null;
+
+    // Timeout de segurança: 3 segundos para inicializar o SDK
+    const timeoutPromise = new Promise<void>((res) => {
+      timeoutId = setTimeout(() => {
+        console.warn('[AdMob] Timeout de inicialização (3s) — prosseguindo sem o SDK completo');
+        res();
+      }, 3000);
+    });
+
     try {
       const ads = await loadMobileAdsModule();
 
       if (!ads) {
         console.log('[AdMob] SDK não disponível');
         isInitialized = true;
+        if (timeoutId) clearTimeout(timeoutId);
         return resolve();
       }
 
-      const adapterStatuses = await ads.initialize();
-      isInitialized = true;
-      console.log('[AdMob] SDK inicializado com sucesso!');
+      // Corrida entre a inicialização real e o timeout
+      await Promise.race([
+        ads.initialize().then(() => {
+          console.log('[AdMob] SDK inicializado com sucesso!');
+        }),
+        timeoutPromise
+      ]);
 
-      if (__DEV__) {
-        console.log(
-          '[AdMob] Adapters inicializados:',
-          Object.keys(adapterStatuses).length
-        );
-      }
+      isInitialized = true;
     } catch (error) {
       // ✅ CRÍTICO: nunca relança — apenas loga
       // O app continua funcionando sem anúncios
       console.error('[AdMob] Erro ao inicializar SDK (não fatal):', error);
       isInitialized = true; // Evita retry infinito
     } finally {
+      if (timeoutId) clearTimeout(timeoutId);
       resolve(); // Sempre resolve, nunca rejeita
     }
   });
