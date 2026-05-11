@@ -26,18 +26,14 @@ const queryClient = new QueryClient({
   },
 });
 
-// ─── Inicialização do AdMob (Segura) ──────────────────────────────────────────
+// ─── Inicialização do AdMob (Segura — nunca crasha o app) ─────────────────────
 function AdMobInitializer() {
     useEffect(() => {
-        const init = async () => {
-            try {
-                await initializeAdMob();
-                console.log('[App] AdMob inicializado com sucesso no RootLayout');
-            } catch (error) {
-                console.error('[App] Erro ao inicializar AdMob:', error);
-            }
-        };
-        init();
+        // ✅ Dupla proteção: admob-init também captura internamente
+        // Mas garantimos aqui também para segurança máxima
+        initializeAdMob()
+            .then(() => console.log('[App] AdMob pronto'))
+            .catch((e) => console.warn('[App] AdMob falhou (não fatal):', e));
     }, []);
 
     return null;

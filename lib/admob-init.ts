@@ -1,8 +1,12 @@
 // ============================================================================
-// AdMob Initialization
+// AdMob Initialization - CornerEdge
 // ============================================================================
 // Inicialização do Google Mobile Ads SDK seguindo documentação oficial
 // Docs: https://github.com/invertase/react-native-google-mobile-ads
+//
+// ✅ CORREÇÃO CRASH: nunca propaga exceção para o caller.
+//    O throw original causava crash no startup quando o SDK nativo
+//    não estava completamente pronto (race condition).
 // ============================================================================
 
 import { Platform } from 'react-native';
@@ -11,30 +15,23 @@ import Constants from 'expo-constants';
 let isInitialized = false;
 let initializationPromise: Promise<void> | null = null;
 
-let mobileAds: any = null;
-
-async function loadMobileAdsModule() {
-  if (mobileAds) return mobileAds;
+async function loadMobileAdsModule(): Promise<any | null> {
   try {
-    // Importa o módulo diretamente
     const module = require('react-native-google-mobile-ads');
-    mobileAds = module.default || module;
-    return mobileAds;
+    return module.default || module;
   } catch (e) {
-    console.log('[AdMob] Módulo nativo não disponível (Expo Go?)');
+    console.log('[AdMob] Módulo nativo não disponível (Expo Go ou ambiente não suportado)');
     return null;
   }
 }
 
 /**
- * Inicializa o Google Mobile Ads SDK
- * 
+ * Inicializa o Google Mobile Ads SDK de forma SEGURA.
+ *
  * IMPORTANTE:
  * - Deve ser chamado UMA VEZ no início do app
  * - Deve ser chamado ANTES de carregar qualquer anúncio
- * - Retorna uma Promise que resolve quando a inicialização está completa
- * 
- * @returns Promise que resolve quando o SDK está inicializado
+ * - NUNCA lança exceção — erros são logados mas não propagados
  */
 export async function initializeAdMob(): Promise<void> {
   // Se já está inicializado, retornar imediatamente
@@ -49,50 +46,56 @@ export async function initializeAdMob(): Promise<void> {
     return initializationPromise;
   }
 
-  // Skip in Expo Go - native modules not available
-  const isExpoGo = Constants.executionEnvironment === 'storeClient' || 
-                   Constants.appOwnership === 'expo' || 
-                   Platform.OS === 'web';
-  
-  console.log('[AdMob] lib/admob-init.ts - isExpoGo:', isExpoGo);
-  
+  // Skip in Expo Go or web
+  const isExpoGo =
+    Constants.executionEnvironment === 'storeClient' ||
+    (Constants as any).appOwnership === 'expo' ||
+    Platform.OS === 'web';
+
   if (isExpoGo) {
     console.log('[AdMob] Expo Go detectado — pulando inicialização');
-    isInitialized = true; // Consider initialized for flow purposes
+    isInitialized = true;
     return Promise.resolve();
   }
 
   console.log('[AdMob] Iniciando SDK...');
-  
-  const ads = await loadMobileAdsModule();
-  if (!ads) {
-    console.log('[AdMob] SDK não disponível');
-    return Promise.resolve();
-  }
-  
-  initializationPromise = ads.initialize()
-    .then((adapterStatuses: any) => {
+
+  // ✅ Toda a lógica envolta em Promise que sempre resolve (nunca rejeita)
+  initializationPromise = new Promise<void>(async (resolve) => {
+    try {
+      const ads = await loadMobileAdsModule();
+
+      if (!ads) {
+        console.log('[AdMob] SDK não disponível');
+        isInitialized = true;
+        return resolve();
+      }
+
+      const adapterStatuses = await ads.initialize();
       isInitialized = true;
       console.log('[AdMob] SDK inicializado com sucesso!');
-      
+
       if (__DEV__) {
-        console.log('[AdMob] Adapters inicializados:', 
+        console.log(
+          '[AdMob] Adapters inicializados:',
           Object.keys(adapterStatuses).length
         );
       }
-    })
-    .catch((error: Error) => {
-      console.error('[AdMob] Erro ao inicializar SDK:', error);
-      initializationPromise = null;
-      throw error;
-    });
+    } catch (error) {
+      // ✅ CRÍTICO: nunca relança — apenas loga
+      // O app continua funcionando sem anúncios
+      console.error('[AdMob] Erro ao inicializar SDK (não fatal):', error);
+      isInitialized = true; // Evita retry infinito
+    } finally {
+      resolve(); // Sempre resolve, nunca rejeita
+    }
+  });
 
-  return initializationPromise ?? Promise.resolve();
+  return initializationPromise;
 }
 
 /**
  * Verifica se o AdMob SDK está inicializado
- * @returns true se inicializado, false caso contrário
  */
 export function isAdMobInitialized(): boolean {
   return isInitialized;
@@ -100,19 +103,9 @@ export function isAdMobInitialized(): boolean {
 
 /**
  * Aguarda a inicialização do AdMob SDK
- * Útil para garantir que o SDK está pronto antes de mostrar anúncios
- * 
- * @returns Promise que resolve quando o SDK está inicializado
  */
 export async function waitForAdMobInitialization(): Promise<void> {
-  if (isInitialized) {
-    return Promise.resolve();
-  }
-
-  if (initializationPromise) {
-    return initializationPromise;
-  }
-
-  // Se não foi inicializado ainda, inicializar agora
+  if (isInitialized) return Promise.resolve();
+  if (initializationPromise) return initializationPromise;
   return initializeAdMob();
 }
