@@ -202,7 +202,8 @@ serve(async (req) => {
     const supabase = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
     const url = new URL(req.url);
     const force = url.searchParams.get('force') === 'true';
-    const targetDate = url.searchParams.get('date') || new Date().toISOString().split('T')[0];
+    const targetDate = url.searchParams.get('date') || 
+      new Intl.DateTimeFormat('sv-SE', { timeZone: 'America/Sao_Paulo' }).format(new Date());
 
     console.log(`Processing date: ${targetDate} (Force: ${force})`);
 

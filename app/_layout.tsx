@@ -8,37 +8,22 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from '../context/AuthContext';
 import { ThemeProvider, useTheme } from '../context/ThemeContext';
 import { LanguageProvider } from '../context/LanguageContext';
-import { initializeAdMob } from '../lib/admob-init';
 import '../i18n';
 
 // ============================================================================
-// REACT QUERY CLIENT - Cache global para o app
+// REACT QUERY CLIENT
 // ============================================================================
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 5 * 60 * 1000,        // 5 minutos - dados considerados "frescos"
-      gcTime: 30 * 60 * 1000,          // 30 minutos - tempo no cache (antes era cacheTime)
-      refetchOnWindowFocus: false,     // Não refaz query ao voltar pro app
-      refetchOnReconnect: true,        // Refaz query ao reconectar internet
-      retry: 2,                        // Tenta 2 vezes se falhar
+      staleTime: 5 * 60 * 1000,
+      gcTime: 30 * 60 * 1000,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: true,
+      retry: 2,
     },
   },
 });
-
-// ─── Inicialização do AdMob (Segura — nunca crasha o app) ─────────────────────
-function AdMobInitializer() {
-    useEffect(() => {
-        // ✅ Dupla proteção: admob-init também captura internamente
-        // Mas garantimos aqui também para segurança máxima
-        initializeAdMob()
-            .then(() => console.log('[App] AdMob pronto'))
-            .catch((e) => console.warn('[App] AdMob falhou (não fatal):', e));
-    }, []);
-
-    return null;
-}
-
 
 // ─── Proteção de rotas baseada em sessão ──────────────────────────────
 function AuthGate() {
@@ -52,15 +37,12 @@ function AuthGate() {
         const inAuthGroup = ['login', 'signup', 'forgot-password', 'new-password', 'onboarding'].includes(segments[0] as string);
 
         if (!isOnboarded) {
-            // Primeira vez: mostrar onboarding independente de estar logado ou não
             if (segments[0] !== 'onboarding') {
                 router.replace('/onboarding');
             }
         } else if (!user && !inAuthGroup) {
-            // Onboarding feito, mas não autenticado
             router.replace('/login');
         } else if (user && inAuthGroup) {
-            // Autenticado tentando acessar telas de auth/onboarding
             router.replace('/');
         }
     }, [user, isLoading, isOnboarded, segments]);
@@ -70,11 +52,18 @@ function AuthGate() {
 
 function AppContent() {
     const { resolvedTheme } = useTheme();
-    const segments = useSegments();
 
-    const isAuthScreen = ['login', 'signup', 'forgot-password', 'new-password', 'onboarding'].includes(segments[0] as string);
-    
-    // Fundo da status bar basedo no tema
+    // ✅ AdMob: inicializado de forma segura com import dinâmico
+    // Isso evita crash quando o módulo nativo não está disponível (Expo Go, emulador, etc.)
+    // O admob-init.ts internamente NUNCA lança exceção — sempre resolve
+    useEffect(() => {
+        import('../lib/admob-init').then(({ initializeAdMob }) => {
+            initializeAdMob()
+                .then(() => console.log('[CornerEdge] AdMob pronto'))
+                .catch((e) => console.warn('[CornerEdge] AdMob falhou (não fatal):', e));
+        });
+    }, []);
+
     const statusBarBg = resolvedTheme === 'dark' ? '#0D0D0D' : '#FFFFFF';
 
     return (
@@ -103,7 +92,6 @@ export default function RootLayout() {
             <ThemeProvider>
                 <LanguageProvider>
                     <AuthProvider>
-                        <AdMobInitializer />
                         <SafeAreaProvider>
                             <GestureHandlerRootView style={{ flex: 1 }}>
                                 <AppContent />
