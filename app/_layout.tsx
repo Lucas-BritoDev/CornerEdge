@@ -8,7 +8,11 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from '../context/AuthContext';
 import { ThemeProvider, useTheme } from '../context/ThemeContext';
 import { LanguageProvider } from '../context/LanguageContext';
+import * as SplashScreen from 'expo-splash-screen';
 import '../i18n';
+
+// Manter o splash screen visível enquanto carregamos recursos
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 // ============================================================================
 // REACT QUERY CLIENT
@@ -52,17 +56,27 @@ function AuthGate() {
 
 function AppContent() {
     const { resolvedTheme } = useTheme();
+    const { isLoading: authLoading } = useAuth();
 
-    // ✅ AdMob: inicializado de forma segura com import dinâmico
-    // Isso evita crash quando o módulo nativo não está disponível (Expo Go, emulador, etc.)
-    // O admob-init.ts internamente NUNCA lança exceção — sempre resolve
+    // ✅ AdMob: inicializado de forma segura
     useEffect(() => {
-        import('../lib/admob-init').then(({ initializeAdMob }) => {
-            initializeAdMob()
-                .then(() => console.log('[CornerEdge] AdMob pronto'))
-                .catch((e) => console.warn('[CornerEdge] AdMob falhou (não fatal):', e));
-        });
-    }, []);
+        const init = async () => {
+            try {
+                const { initializeAdMob } = await import('../lib/admob-init');
+                await initializeAdMob();
+                console.log('[CornerEdge] AdMob pronto');
+            } catch (e) {
+                console.warn('[CornerEdge] AdMob falhou (não fatal):', e);
+            } finally {
+                // Ocultar splash screen após carregar o necessário
+                if (!authLoading) {
+                    await SplashScreen.hideAsync().catch(() => {});
+                }
+            }
+        };
+
+        init();
+    }, [authLoading]);
 
     const statusBarBg = resolvedTheme === 'dark' ? '#0D0D0D' : '#FFFFFF';
 

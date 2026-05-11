@@ -66,11 +66,10 @@ export default {
         "expo-build-properties",
         {
           "android": {
-            "extraProguardRules": "-keep class com.google.android.gms.internal.consent_sdk.** { *; }",
             "minSdkVersion": 24,
             "compileSdkVersion": 35,
             "targetSdkVersion": 35,
-            "buildToolsVersion": "35.0.0"
+            "extraProguardRules": "-keep class com.google.android.gms.** { *; }\n-keep class com.google.ads.** { *; }"
           },
           "ios": {
             "deploymentTarget": "15.1"

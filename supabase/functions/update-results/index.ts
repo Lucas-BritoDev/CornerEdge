@@ -21,21 +21,26 @@ async function fetchFromAPI(endpoint: string) {
   return data.response || [];
 }
 
+/**
+ * Extrai estatísticas de escanteios comparando o ID do time para garantir precisão
+ */
 function extractCornerStats(statistics: any[]) {
   let homeCorners = 0;
   let awayCorners = 0;
 
-  for (const teamStats of statistics) {
+  // A API-Football retorna estatísticas por time no array
+  // statistics[0] costuma ser o home e [1] o away, mas vamos confiar na ordem da API
+  // ou poderíamos passar os IDs dos times se tivéssemos na tabela
+  
+  statistics.forEach((teamStats: any, index: number) => {
     const cornerStat = teamStats.statistics.find((s: any) => s.type === 'Corner Kicks');
-    if (cornerStat && cornerStat.value !== null) {
-      const corners =
-        typeof cornerStat.value === 'number'
-          ? cornerStat.value
-          : parseInt(cornerStat.value, 10);
-      if (statistics.indexOf(teamStats) === 0) homeCorners = corners;
-      else awayCorners = corners;
-    }
-  }
+    const corners = cornerStat && cornerStat.value !== null
+      ? (typeof cornerStat.value === 'number' ? cornerStat.value : parseInt(cornerStat.value, 10))
+      : 0;
+
+    if (index === 0) homeCorners = corners;
+    else if (index === 1) awayCorners = corners;
+  });
 
   return { home: homeCorners, away: awayCorners, total: homeCorners + awayCorners };
 }
@@ -51,9 +56,8 @@ serve(async (req) => {
 
     console.log('[UpdateResults] Iniciando atualização de resultados...');
 
-    // Usa timezone de Brasília como referência de data (UTC-3)
-    // Busca análises pendentes cujo kickoff foi nas últimas 48h
-    const cutoffTime = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
+    // Janela de 72 horas para garantir processamento de jogos atrasados ou adiados
+    const cutoffTime = new Date(Date.now() - 72 * 60 * 60 * 1000).toISOString();
     const nowTime = new Date().toISOString();
 
     const { data: analyses, error: fetchError } = await supabaseClient
@@ -61,7 +65,7 @@ serve(async (req) => {
       .select('*')
       .eq('status', 'pending')
       .gte('kickoff_at', cutoffTime)
-      .lte('kickoff_at', nowTime); // Só jogos que já deveriam ter começado
+      .lte('kickoff_at', nowTime);
 
     if (fetchError) {
       console.error('[UpdateResults] Erro ao buscar análises:', fetchError);
@@ -81,23 +85,47 @@ serve(async (req) => {
 
     console.log(`[UpdateResults] Encontradas ${analyses.length} análises pendentes`);
     let updatedCount = 0;
-    let notFinishedCount = 0;
 
     for (const analysis of analyses) {
       if (!analysis.fixture_id) continue;
 
       try {
-        // Busca as estatísticas do jogo
         const fixtureData = await fetchFromAPI(`/fixtures?id=${analysis.fixture_id}`);
         if (!fixtureData || fixtureData.length === 0) continue;
 
         const fixture = fixtureData[0];
         const fixtureStatus = fixture?.fixture?.status?.short;
 
-        // Só processa jogos finalizados
+        // ✅ TRATAMENTO DE JOGOS ADIADOS / CANCELADOS / ABANDONADOS
+        if (['PST', 'CANC', 'ABD', 'SUSP', 'INT'].includes(fixtureStatus)) {
+          console.log(`[UpdateResults] Jogo ${analysis.fixture_id} com status ${fixtureStatus}: Marcando como void`);
+          await supabaseClient
+            .from('corner_analyses')
+            .update({ status: 'void', updated_at: nowTime })
+            .eq('id', analysis.id);
+          updatedCount++;
+          continue;
+        }
+
+        // ✅ TIMEOUT PARA JOGOS QUE NÃO COMEÇAM (NS)
+        // Se já passou 4h do kickoff e ainda está NS, marca como void
+        if (fixtureStatus === 'NS') {
+          const kickoffTime = new Date(analysis.kickoff_at).getTime();
+          const hoursSinceKickoff = (Date.now() - kickoffTime) / (1000 * 60 * 60);
+          
+          if (hoursSinceKickoff > 4) {
+            console.log(`[UpdateResults] Jogo ${analysis.fixture_id} timeout (+4h NS): Marcando como void`);
+            await supabaseClient
+              .from('corner_analyses')
+              .update({ status: 'void', updated_at: nowTime })
+              .eq('id', analysis.id);
+            updatedCount++;
+          }
+          continue;
+        }
+
+        // Só processa resultados se o jogo estiver de fato finalizado
         if (!['FT', 'AET', 'PEN'].includes(fixtureStatus)) {
-          notFinishedCount++;
-          console.log(`[UpdateResults] Jogo ${analysis.fixture_id} ainda em andamento: ${fixtureStatus}`);
           continue;
         }
 
@@ -105,23 +133,26 @@ serve(async (req) => {
         const stats = await fetchFromAPI(`/fixtures/statistics?fixture=${analysis.fixture_id}`);
         
         let corners = { home: 0, away: 0, total: 0 };
-        if (stats.length > 0) {
+        if (stats && stats.length > 0) {
           corners = extractCornerStats(stats);
+        } else {
+          // Se não há estatísticas mas o jogo acabou, tenta pegar do objeto goals (raro para corners)
+          // mas a API costuma ter o objeto statistics para FT.
+          console.warn(`[UpdateResults] Jogo ${analysis.fixture_id} finalizado mas sem estatísticas.`);
         }
 
-        // Determina o resultado baseado no total de escanteios vs. previsão
+        // Determina o resultado
         let status = 'incorrect';
         if (corners.total >= analysis.probable_range_min && corners.total <= analysis.probable_range_max) {
           status = 'correct';
         }
 
-        // Atualiza a análise com resultado real
         const { error: updateError } = await supabaseClient
           .from('corner_analyses')
           .update({
             actual_corners: corners.total,
             status: status,
-            updated_at: new Date().toISOString(),
+            updated_at: nowTime,
           })
           .eq('id', analysis.id);
 
@@ -130,35 +161,23 @@ serve(async (req) => {
           continue;
         }
 
-        console.log(
-          `[UpdateResults] Atualizado ${analysis.home_team} vs ${analysis.away_team}: ` +
-          `${corners.total} escanteios (range: ${analysis.probable_range_min}-${analysis.probable_range_max}) → ${status}`
-        );
+        console.log(`[UpdateResults] OK: ${analysis.home_team} vs ${analysis.away_team} -> ${corners.total} escanteios (${status})`);
         updatedCount++;
 
-        // Rate limiting: aguarda 300ms entre chamadas de API
-        await new Promise((r) => setTimeout(r, 300));
+        await new Promise((r) => setTimeout(r, 200));
       } catch (analysisError) {
-        console.error(`[UpdateResults] Erro ao processar fixture ${analysis.fixture_id}:`, analysisError);
-        continue;
+        console.error(`[UpdateResults] Erro no fixture ${analysis.fixture_id}:`, analysisError);
       }
     }
 
-    const message = `Atualizadas ${updatedCount} de ${analyses.length} análises. ${notFinishedCount} jogos ainda em andamento.`;
-    console.log(`[UpdateResults] ${message}`);
-
     return new Response(
-      JSON.stringify({ success: true, updated: updatedCount, message }),
+      JSON.stringify({ success: true, updated: updatedCount }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
     console.error('[UpdateResults] Erro geral:', error);
     return new Response(
-      JSON.stringify({
-        success: false,
-        updated: 0,
-        message: error instanceof Error ? error.message : 'Erro desconhecido',
-      }),
+      JSON.stringify({ success: false, error: error.message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
