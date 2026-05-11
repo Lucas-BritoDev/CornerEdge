@@ -67,7 +67,7 @@ export default {
         {
           "android": {
             "extraProguardRules": "-keep class com.google.android.gms.internal.consent_sdk.** { *; }",
-            "minSdkVersion": 23,
+            "minSdkVersion": 24,
             "compileSdkVersion": 35,
             "targetSdkVersion": 35,
             "buildToolsVersion": "35.0.0"
