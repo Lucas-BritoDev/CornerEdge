@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, Platform } from 'react-native';
 import Constants from 'expo-constants';
+import { AD_UNITS } from '../services/ads-service';
 
 // IDs de anúncio — usa test IDs em dev, produção em release
 const BANNER_AD_UNIT_ID = __DEV__
@@ -8,10 +9,10 @@ const BANNER_AD_UNIT_ID = __DEV__
         ? 'ca-app-pub-3940256099942544/2934735716' // iOS test banner
         : 'ca-app-pub-3940256099942544/6300978111' // Android test banner
     : Platform.OS === 'ios'
-        ? 'ca-app-pub-8609967398609187/5936939727' // iOS produção
-        : 'ca-app-pub-8609967398609187/5936939727'; // Android produção
+        ? AD_UNITS.IOS_BANNER
+        : AD_UNITS.ANDROID_BANNER;
 
-const isExpoGo = Constants.executionEnvironment === 'storeClient';
+const isExpoGo = Constants.executionEnvironment === 'storeClient' || Constants.appOwnership === 'expo';
 
 let BannerAd: any = null;
 let BannerAdSize: any = null;

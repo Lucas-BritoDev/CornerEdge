@@ -1,14 +1,45 @@
 import React from 'react';
+import type { RewardedAdReward } from 'react-native-google-mobile-ads';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { 
-  RewardedAd, 
-  RewardedAdEventType, 
-  TestIds,
-  AdEventType
-} from 'react-native-google-mobile-ads';
+import Constants from 'expo-constants';
 import { AD_UNITS } from '../services/ads-service';
 import { waitForAdMobInitialization } from '../lib/admob-init';
+
+// Verifica se está rodando no Expo Go
+const isExpoGo = Constants.executionEnvironment === 'storeClient' || 
+                 Constants.appOwnership === 'expo' || 
+                 Platform.OS === 'web';
+
+console.log('[AdMob] hook/useRewardedAd.ts - isExpoGo:', isExpoGo);
+
+
+// Importa o módulo de anúncios de forma segura
+let adsModule: any = null;
+try {
+  if (!isExpoGo) {
+    console.log('[AdMob] Carregando módulo nativo...');
+    adsModule = require('react-native-google-mobile-ads');
+    console.log('[AdMob] Módulo nativo carregado com sucesso');
+  } else {
+    console.log('[AdMob] Pulando require do módulo nativo (Expo Go)');
+  }
+} catch (e) {
+  console.log('[AdMob] Erro ao carregar módulo nativo:', e);
+}
+
+const RewardedAd = adsModule?.RewardedAd;
+const RewardedAdEventType = adsModule?.RewardedAdEventType || {
+  LOADED: 'rewarded_loaded',
+  EARNED_REWARD: 'rewarded_earned_reward',
+};
+const AdEventType = adsModule?.AdEventType || {
+  ERROR: 'error',
+  CLOSED: 'closed',
+};
+const TestIds = adsModule?.TestIds || {
+  REWARDED: 'ca-app-pub-3940256099942544/5224354917',
+};
 
 // ID do anúncio baseado na plataforma e ambiente
 const adUnitId = __DEV__ 
@@ -19,7 +50,7 @@ const adUnitId = __DEV__
 const UNLOCK_STORAGE_PREFIX = 'rewarded_unlock_';
 
 export function useRewardedAd() {
-  const [rewardedAd, setRewardedAd] = React.useState<RewardedAd | null>(null);
+  const [rewardedAd, setRewardedAd] = React.useState<any>(null);
   const [loaded, setLoaded] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -33,7 +64,13 @@ export function useRewardedAd() {
       // Garante que o SDK está inicializado
       await waitForAdMobInitialization();
 
-      const ad = RewardedAd.createForAdUnitId(adUnitId, {
+      if (isExpoGo || !RewardedAd) {
+        setLoading(false);
+        setLoaded(false);
+        return () => {};
+      }
+
+      const ad = RewardedAd.createForAdRequest(adUnitId, {
         requestNonPersonalizedAdsOnly: true,
         keywords: ['sports', 'betting', 'football', 'soccer'],
       });
@@ -43,7 +80,7 @@ export function useRewardedAd() {
         setLoading(false);
       });
 
-      const unsubscribeError = ad.addAdEventListener(AdEventType.ERROR, (err) => {
+      const unsubscribeError = ad.addAdEventListener(AdEventType.ERROR, (err: Error) => {
         console.error('AdMob Reward Error:', err);
         setError(err.message);
         setLoading(false);
@@ -115,7 +152,7 @@ export function useRewardedAd() {
 
       const unsubscribeEarned = rewardedAd.addAdEventListener(
         RewardedAdEventType.EARNED_REWARD,
-        async (reward) => {
+        async (reward: RewardedAdReward) => {
           console.log('User earned reward:', reward);
           earnedReward = true;
           try {

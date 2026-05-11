@@ -8,19 +8,19 @@ android {
     signingConfigs {
         release {
             // Tentar encontrar a keystore em múltiplos locais
-            def keystoreFile = file('../../@luck1993__goaledge.jks') // No root (local)
+            def keystoreFile = file('../../@luck1993__corneredge.jks') // No root (local)
             if (!keystoreFile.exists()) {
                 keystoreFile = file('release.keystore') // No android/app (workflow)
             }
             if (!keystoreFile.exists()) {
-                keystoreFile = file('../@luck1993__goaledge.jks') // No android/
+                keystoreFile = file('../@luck1993__corneredge.jks') // No android/
             }
             
             if (keystoreFile.exists()) {
                 storeFile keystoreFile
                 // Prioridade: Variáveis de ambiente -> Senha padrão "android"
                 storePassword System.getenv("KEYSTORE_PASSWORD") ?: "android"
-                keyAlias System.getenv("KEY_ALIAS") ?: "goaledge"
+                keyAlias System.getenv("KEY_ALIAS") ?: "corneredge"
                 keyPassword System.getenv("KEY_PASSWORD") ?: "android"
                 
                 println "✅ Usando keystore: ${keystoreFile.absolutePath}"

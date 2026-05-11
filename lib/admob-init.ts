@@ -6,6 +6,7 @@
 // ============================================================================
 
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 
 let isInitialized = false;
 let initializationPromise: Promise<void> | null = null;
@@ -15,7 +16,9 @@ let mobileAds: any = null;
 async function loadMobileAdsModule() {
   if (mobileAds) return mobileAds;
   try {
-    mobileAds = require('react-native-google-mobile-ads').default;
+    // Importa o módulo diretamente
+    const module = require('react-native-google-mobile-ads');
+    mobileAds = module.default || module;
     return mobileAds;
   } catch (e) {
     console.log('[AdMob] Módulo nativo não disponível (Expo Go?)');
@@ -47,12 +50,16 @@ export async function initializeAdMob(): Promise<void> {
   }
 
   // Skip in Expo Go - native modules not available
-  if (Platform.OS === 'ios' || Platform.OS === 'android') {
-    const adsModule = await loadMobileAdsModule();
-    if (!adsModule) {
-      console.log('[AdMob] Pulando inicialização em Expo Go');
-      return Promise.resolve();
-    }
+  const isExpoGo = Constants.executionEnvironment === 'storeClient' || 
+                   Constants.appOwnership === 'expo' || 
+                   Platform.OS === 'web';
+  
+  console.log('[AdMob] lib/admob-init.ts - isExpoGo:', isExpoGo);
+  
+  if (isExpoGo) {
+    console.log('[AdMob] Expo Go detectado — pulando inicialização');
+    isInitialized = true; // Consider initialized for flow purposes
+    return Promise.resolve();
   }
 
   console.log('[AdMob] Iniciando SDK...');

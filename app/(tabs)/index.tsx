@@ -11,7 +11,7 @@ import { useRewardedAd } from '../../hooks/useRewardedAd';
 import { useTodayAnalyses } from '../../services/analyses-service';
 import { AnalysisWithDetails } from '../../types';
 
-export default function HomeScreen() {
+function HomeScreen() {
     const insets = useSafeAreaInsets();
     const router = useRouter();
     const { colors } = useTheme();
@@ -566,3 +566,5 @@ const styles = StyleSheet.create({
     teamStatsTitle: { fontSize: 15, fontWeight: 'bold', marginBottom: 8 },
     statText: { fontSize: 13, marginBottom: 4, lineHeight: 18 },
 });
+
+export default HomeScreen;

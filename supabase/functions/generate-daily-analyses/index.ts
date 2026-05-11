@@ -15,6 +15,17 @@ const MIN_VALID_MATCHES = 1;
 const TIER1_IDS = [39, 140, 135, 78, 61, 94, 88, 203, 71, 128];
 const TIER2_IDS = [2, 3, 848, 13, 11, 253, 307, 169, 113, 119, 144, 40, 103, 235, 200, 233, 197, 207, 244, 239, 271, 283, 327, 333, 345];
 
+// Fatores de Liga (Média de escanteios por liga para normalização Dixon-Coles simplificada)
+const LEAGUE_FACTORS: Record<number, number> = {
+  39: 10.6,  // Premier League
+  140: 9.2,  // La Liga
+  135: 10.1, // Serie A
+  78: 9.8,   // Bundesliga
+  61: 9.1,   // Ligue 1
+  71: 11.2,  // Serie A Brasil
+  13: 10.4,  // First Division A (Belgium)
+};
+
 const teamCache = new Map<number, any>();
 
 async function fetchFromAPI(endpoint: string) {
@@ -29,18 +40,29 @@ async function fetchFromAPI(endpoint: string) {
 async function analyzeTeamCorners(teamId: number, teamName: string) {
   if (teamCache.has(teamId)) return teamCache.get(teamId);
 
-  const lastMatches = await fetchFromAPI(`/fixtures?team=${teamId}&last=8`);
-  const validMatches = lastMatches.filter((m: any) => m.fixture.status.short === 'FT');
+  // Busca os últimos 10 jogos para ter uma base melhor, filtrando os 8 mais relevantes
+  const lastMatches = await fetchFromAPI(`/fixtures?team=${teamId}&last=10`);
+  const validMatches = lastMatches
+    .filter((m: any) => m.fixture.status.short === 'FT')
+    .slice(0, 8); // Mantemos os 8 mais recentes
   
   const statsPromises = validMatches.map((m: any) => fetchFromAPI(`/fixtures/statistics?fixture=${m.fixture.id}`));
   const allStats = await Promise.all(statsPromises);
 
-  const cornersHome: number[] = [], cornersAway: number[] = [];
-  const concededHome: number[] = [], concededAway: number[] = [];
+  const cornersHome: { value: number, weight: number }[] = [];
+  const cornersAway: { value: number, weight: number }[] = [];
+  const concededHome: { value: number, weight: number }[] = [];
+  const concededAway: { value: number, weight: number }[] = [];
 
   allStats.forEach((stats, index) => {
     if (!stats || !stats.length) return;
     const match = validMatches[index];
+    
+    // Decaimento Temporal Exponencial: w = e^(-0.15 * index)
+    // index 0 (mais recente) weight = 1.0
+    // index 7 (mais antigo) weight = ~0.35
+    const weight = Math.exp(-0.15 * index);
+
     let hc = 0, ac = 0;
     for (const ts of stats) {
       const cs = ts.statistics.find((s: any) => s.type === 'Corner Kicks');
@@ -49,17 +71,40 @@ async function analyzeTeamCorners(teamId: number, teamName: string) {
         if (stats.indexOf(ts) === 0) hc = v; else ac = v;
       }
     }
+
     if (hc === 0 && ac === 0) return;
-    if (match.teams.home.id === teamId) { cornersHome.push(hc); concededHome.push(ac); }
-    else { cornersAway.push(ac); concededAway.push(hc); }
+
+    if (match.teams.home.id === teamId) {
+      cornersHome.push({ value: hc, weight });
+      concededHome.push({ value: ac, weight });
+    } else {
+      cornersAway.push({ value: ac, weight });
+      concededAway.push({ value: hc, weight });
+    }
   });
 
-  const avg = (arr: number[]) => arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
+  const weightedAvg = (arr: { value: number, weight: number }[]) => {
+    if (arr.length === 0) return 0;
+    const totalWeight = arr.reduce((sum, item) => sum + item.weight, 0);
+    return arr.reduce((sum, item) => sum + (item.value * item.weight), 0) / totalWeight;
+  };
+
+  const rawValues = (arr: { value: number, weight: number }[]) => arr.map(i => i.value);
+
+  // Momentum: Média dos últimos 3 jogos vs média dos 8
+  const last3Home = weightedAvg(cornersHome.slice(0, 3));
+  const last3Away = weightedAvg(cornersAway.slice(0, 3));
+  const momentum = (last3Home + last3Away) / 2;
+
   const result = {
     teamId, teamName,
-    avgCornersHome: avg(cornersHome), avgCornersAway: avg(cornersAway),
-    avgConcededHome: avg(concededHome), avgConcededAway: avg(concededAway),
-    stdDevHome: stdDev(cornersHome), stdDevAway: stdDev(cornersAway),
+    avgCornersHome: weightedAvg(cornersHome),
+    avgCornersAway: weightedAvg(cornersAway),
+    avgConcededHome: weightedAvg(concededHome),
+    avgConcededAway: weightedAvg(concededAway),
+    momentum,
+    stdDevHome: stdDev(rawValues(cornersHome)),
+    stdDevAway: stdDev(rawValues(cornersAway)),
     totalValidMatches: cornersHome.length + cornersAway.length,
   };
   teamCache.set(teamId, result);
@@ -90,25 +135,63 @@ function toMarketLine(mu: number): number {
   return Math.max(7.5, Math.min(12.5, line));
 }
 
-function calculatePrediction(hs: any, as_: any) {
-  const expectedHome = (hs.avgCornersHome + as_.avgConcededAway) / 2;
-  const expectedAway = (as_.avgCornersAway + hs.avgConcededHome) / 2;
-  const mu = expectedHome + expectedAway;
+function calculatePrediction(hs: any, as_: any, leagueId: number) {
+  // Normalização por Força do Adversário (Ajuste de Intensidade)
+  const homeAttackStrength = hs.avgCornersHome;
+  const awayDefenseWeakness = as_.avgConcededAway;
+  
+  // Vantagem Casa (Home Advantage) - Brasileirão (71) tem vantagem maior
+  const homeFactor = leagueId === 71 ? 1.12 : 1.05; 
+  const expectedHome = ((homeAttackStrength * 0.6) + (awayDefenseWeakness * 0.4)) * homeFactor;
+  
+  const awayAttackStrength = as_.avgCornersAway;
+  const homeDefenseWeakness = hs.avgConcededHome;
+  const expectedAway = ((awayAttackStrength * 0.6) + (homeDefenseWeakness * 0.4)) * 0.92; // Desvantagem fora
+
+  // Ajuste de Momentum (Se os últimos 3 jogos indicam tendência de alta/baixa)
+  const avgMomentum = (hs.momentum + as_.momentum) / 2;
+  const baseMu = expectedHome + expectedAway;
+  const muWithMomentum = (baseMu * 0.8) + (avgMomentum * 0.2);
+
   const totalData = hs.totalValidMatches + as_.totalValidMatches;
-  const dataWeight = Math.min(1, totalData / 8);
-  const expectedTotal = parseFloat((mu * dataWeight + 10.0 * (1 - dataWeight)).toFixed(2));
+  
+  // Média da Liga como âncora (shrinkage)
+  const leagueBaseline = LEAGUE_FACTORS[leagueId] || 10.0;
+  
+  // Peso dos dados: se temos poucos jogos, tendemos à média da liga
+  const dataWeight = Math.min(1, totalData / 10);
+  const expectedTotal = parseFloat((muWithMomentum * dataWeight + leagueBaseline * (1 - dataWeight)).toFixed(2));
+  
   const marketLine = toMarketLine(expectedTotal);
+  
+  // Cálculo de confiança baseado na Volatilidade (Desvio Padrão)
   const avgStdDev = ((hs.stdDevHome + hs.stdDevAway) / 2 + (as_.stdDevHome + as_.stdDevAway) / 2) / 2;
-  const lambdaAdj = Math.max(expectedTotal - avgStdDev * 0.02, expectedTotal * 0.99);
+  
+  // Lambda ajustado para Poisson (penaliza volatilidade alta e recompensa consistência)
+  const volatilityPenalty = avgStdDev > 3 ? 0.3 : 0.1;
+  const lambdaAdj = Math.max(expectedTotal - (avgStdDev * volatilityPenalty), expectedTotal * 0.92);
+  
   const overProb = parseFloat(poissonOverProbability(lambdaAdj, marketLine).toFixed(1));
-  const dataQuality = Math.min(100, Math.round((totalData / 12) * 70 + (avgStdDev < 3 ? 30 : 10)));
-  const confidence = Math.min(95, Math.max(35, Math.round(overProb * 0.85 + dataQuality * 0.15)));
-  const sigma = Math.max(1.2, avgStdDev);
+  
+  // Qualidade dos dados (0-100)
+  const dataQuality = Math.min(100, Math.round((totalData / 12) * 60 + (avgStdDev < 2.5 ? 40 : 10)));
+  
+  // Confiança Final: Mistura de probabilidade matemática e qualidade dos dados
+  // Se for uma liga Tier 1, a confiança ganha um bônus de consistência de dados
+  const isTier1 = TIER1_IDS.includes(leagueId);
+  const confidenceBonus = isTier1 ? 5 : 0;
+  const confidence = Math.min(98, Math.max(35, Math.round(overProb * 0.70 + dataQuality * 0.30) + confidenceBonus));
+  
+  const sigma = Math.max(1.0, avgStdDev);
+  
   return { 
     expectedTotal, marketLine, overProbability: overProb, confidence, 
     probableRangeMin: Math.max(5, Math.round(expectedTotal - sigma)), 
     probableRangeMax: Math.round(expectedTotal + sigma),
-    distribution: [7.5, 8.5, 9.5, 10.5, 11.5, 12.5].map(line => ({ threshold: line, probability: parseFloat(poissonOverProbability(lambdaAdj, line).toFixed(1)) })),
+    distribution: [7.5, 8.5, 9.5, 10.5, 11.5, 12.5].map(line => ({ 
+      threshold: line, 
+      probability: parseFloat(poissonOverProbability(lambdaAdj, line).toFixed(1)) 
+    })),
     dataQuality 
   };
 }
@@ -158,7 +241,7 @@ serve(async (req) => {
       try {
         const [hs, as_] = await Promise.all([ analyzeTeamCorners(f.teams.home.id, f.teams.home.name), analyzeTeamCorners(f.teams.away.id, f.teams.away.name) ]);
         if (hs.totalValidMatches + as_.totalValidMatches < MIN_VALID_MATCHES) continue;
-        const pred = calculatePrediction(hs, as_);
+        const pred = calculatePrediction(hs, as_, f.league.id);
         
         // Se for Tier 1 ou 2, aceitamos mesmo com confiança um pouco menor para garantir preenchimento dos slots
         const isTiered = TIER1_IDS.includes(f.league.id) || TIER2_IDS.includes(f.league.id);

@@ -1,5 +1,5 @@
 # ============================================================================
-# GoalEdge - Build Android via EAS (Local no GitHub Actions)
+# CornerEdge - Build Android via EAS (Local no GitHub Actions)
 # ============================================================================
 # Este workflow utiliza o EAS CLI para fazer o build localmente no GitHub
 # Isso garante que a assinatura do Expo seja aplicada corretamente.

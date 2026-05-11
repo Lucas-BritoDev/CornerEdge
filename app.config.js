@@ -10,7 +10,7 @@ export default {
     name: "CornerEdge",
     slug: "corneredge",
     owner: "luck1993",
-    version: "1.0.0",
+    version: "1.0.1",
     orientation: "portrait",
     icon: "./assets/images/icon.png",
     scheme: "corneredge",
@@ -24,7 +24,8 @@ export default {
     
     ios: {
       supportsTablet: true,
-      bundleIdentifier: "com.corneredge.app"
+      bundleIdentifier: "com.corneredge.app",
+      buildNumber: "2"
     },
     
     android: {
@@ -32,7 +33,8 @@ export default {
         foregroundImage: "./assets/images/adaptive-icon.png",
         backgroundColor: "#1A1A1A"
       },
-      package: "com.corneredge.app"
+      package: "com.corneredge.app",
+      versionCode: 2
       // Usar Hermes (padrão e recomendado)
       // jsEngine: "hermes"
     },
@@ -52,8 +54,8 @@ export default {
         "react-native-google-mobile-ads",
         {
           // Application IDs de PRODUÇÃO
-          "androidAppId": "ca-app-pub-8609967398609187~5936939727",
-          "iosAppId": "ca-app-pub-8609967398609187~5936939727",
+          "androidAppId": "ca-app-pub-8609967398609187~6517332149",
+          "iosAppId": "ca-app-pub-8609967398609187~6517332149",
           // Descrição para App Tracking Transparency (iOS)
           "userTrackingUsageDescription": "Este identificador será usado para fornecer anúncios personalizados para você.",
           // Atrasar inicialização de medição de app para evitar crash prematuro/compliance
@@ -64,7 +66,14 @@ export default {
         "expo-build-properties",
         {
           "android": {
-            "extraProguardRules": "-keep class com.google.android.gms.internal.consent_sdk.** { *; }"
+            "extraProguardRules": "-keep class com.google.android.gms.internal.consent_sdk.** { *; }",
+            "minSdkVersion": 23,
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 35,
+            "buildToolsVersion": "35.0.0"
+          },
+          "ios": {
+            "deploymentTarget": "15.1"
           }
         }
       ]

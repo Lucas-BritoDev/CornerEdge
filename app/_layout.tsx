@@ -26,16 +26,23 @@ const queryClient = new QueryClient({
   },
 });
 
-// ============================================================================
-// ADMOB INITIALIZATION - Inicializar SDK no início do app
-// ============================================================================
-// IMPORTANTE: Deve ser chamado UMA VEZ no início do app
-// Docs: https://github.com/invertase/react-native-google-mobile-ads
-// ============================================================================
-initializeAdMob().catch((error) => {
-  console.error('[App] Erro ao inicializar AdMob:', error);
-  // Não bloquear o app se AdMob falhar
-});
+// ─── Inicialização do AdMob (Segura) ──────────────────────────────────────────
+function AdMobInitializer() {
+    useEffect(() => {
+        const init = async () => {
+            try {
+                await initializeAdMob();
+                console.log('[App] AdMob inicializado com sucesso no RootLayout');
+            } catch (error) {
+                console.error('[App] Erro ao inicializar AdMob:', error);
+            }
+        };
+        init();
+    }, []);
+
+    return null;
+}
+
 
 // ─── Proteção de rotas baseada em sessão ──────────────────────────────
 function AuthGate() {
@@ -100,6 +107,7 @@ export default function RootLayout() {
             <ThemeProvider>
                 <LanguageProvider>
                     <AuthProvider>
+                        <AdMobInitializer />
                         <SafeAreaProvider>
                             <GestureHandlerRootView style={{ flex: 1 }}>
                                 <AppContent />

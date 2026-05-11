@@ -6,13 +6,45 @@
 // ============================================================================
 
 import { Platform } from 'react-native';
-import { 
-  RewardedAd, 
-  RewardedAdEventType,
-  AdEventType,
-  TestIds 
-} from 'react-native-google-mobile-ads';
+import type { RewardedAdReward } from 'react-native-google-mobile-ads';
+import Constants from 'expo-constants';
 import { waitForAdMobInitialization } from '@/lib/admob-init';
+
+// Verifica se está rodando no Expo Go
+const isExpoGo = Constants.executionEnvironment === 'storeClient' || 
+                 Constants.appOwnership === 'expo' || 
+                 Platform.OS === 'web';
+
+console.log('[AdMob] service/ads-service.ts - isExpoGo:', isExpoGo);
+
+
+// Importa o módulo de anúncios de forma segura
+let adsModule: any = null;
+try {
+  if (!isExpoGo) {
+    console.log('[AdMob] [Service] Carregando módulo nativo...');
+    adsModule = require('react-native-google-mobile-ads');
+    console.log('[AdMob] [Service] Módulo nativo carregado com sucesso');
+  } else {
+    console.log('[AdMob] [Service] Pulando require do módulo nativo (Expo Go)');
+  }
+} catch (e) {
+  console.log('[AdMob] [Service] Erro ao carregar módulo nativo:', e);
+}
+
+const RewardedAd = adsModule?.RewardedAd;
+const RewardedAdEventType = adsModule?.RewardedAdEventType || {
+  LOADED: 'rewarded_loaded',
+  EARNED_REWARD: 'rewarded_earned_reward',
+};
+const AdEventType = adsModule?.AdEventType || {
+  ERROR: 'error',
+  CLOSED: 'closed',
+};
+const TestIds = adsModule?.TestIds || {
+  REWARDED: 'ca-app-pub-3940256099942544/5224354917',
+  BANNER: 'ca-app-pub-3940256099942544/6300978111',
+};
 
 // ============================================================================
 // AdMob IDs - PRODUÇÃO
@@ -23,13 +55,20 @@ import { waitForAdMobInitialization } from '@/lib/admob-init';
 
 const ADMOB_IDS = {
     android: {
-        banner: 'ca-app-pub-8609967398609187/5936939727',
-        rewarded: 'ca-app-pub-8609967398609187/7851666948',
+        banner: 'ca-app-pub-8609967398609187/9167546218',
+        rewarded: 'ca-app-pub-8609967398609187/8558768015',
     },
     ios: {
-        banner: 'ca-app-pub-8609967398609187/5936939727',
-        rewarded: 'ca-app-pub-8609967398609187/7851666948',
+        banner: 'ca-app-pub-8609967398609187/9167546218',
+        rewarded: 'ca-app-pub-8609967398609187/8558768015',
     }
+};
+
+export const AD_UNITS = {
+  ANDROID_REWARDED: ADMOB_IDS.android.rewarded,
+  IOS_REWARDED: ADMOB_IDS.ios.rewarded,
+  ANDROID_BANNER: ADMOB_IDS.android.banner,
+  IOS_BANNER: ADMOB_IDS.ios.banner,
 };
 
 // ============================================================================
@@ -89,6 +128,11 @@ export const adsService = {
       const adUnitId = getAdUnitId('rewarded');
       console.log('[AdsService] Ad Unit ID:', __DEV__ ? 'TEST' : 'PRODUCTION');
 
+      if (isExpoGo || !RewardedAd) {
+        console.log('[AdsService] Expo Go: Simulando recompensa...');
+        return { rewarded: true }; // Em dev/Expo Go, simulamos sucesso
+      }
+
       const rewardedAd = RewardedAd.createForAdRequest(adUnitId, {
         requestNonPersonalizedAdsOnly: false,
       });
@@ -111,7 +155,7 @@ export const adsService = {
         // Listener: Usuário ganhou recompensa
         const unsubscribeEarned = rewardedAd.addAdEventListener(
           RewardedAdEventType.EARNED_REWARD,
-          (reward) => {
+          (reward: RewardedAdReward) => {
             console.log('[AdsService] Recompensa ganha:', reward);
             isRewarded = true;
           }
@@ -137,7 +181,7 @@ export const adsService = {
         // Listener: Erro ao carregar
         const unsubscribeError = rewardedAd.addAdEventListener(
           AdEventType.ERROR,
-          (error) => {
+          (error: Error) => {
             console.error('[AdsService] Erro ao carregar anúncio:', error);
             
             // Limpar listeners
