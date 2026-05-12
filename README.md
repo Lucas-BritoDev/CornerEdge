@@ -264,4 +264,6 @@ Para dúvidas ou suporte, entre em contato através de:
 
 ---
 
+**Última atualização: 12/05/2026**
+
 Desenvolvido com ⚽ por CornerEdge Team
