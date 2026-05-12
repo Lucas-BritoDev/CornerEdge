@@ -2,13 +2,39 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Linking, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Crown, Check, CreditCard, AlertTriangle, TrendingUp, Target, Activity } from 'lucide-react-native';
+import { Crown, Check, CreditCard, AlertTriangle, Zap, Bell, BarChart2, Star } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
-import { useUserStats } from '../../services/analyses-service';
 import { supabase } from '../../lib/supabase';
 import { Header } from '../../components/Header';
+
+const FEATURES = [
+    {
+        icon: Zap,
+        label: 'Análises por dia',
+        free: '4 análises (60-71%)',
+        premium: '6 análises (72%+)',
+    },
+    {
+        icon: Star,
+        label: 'Acesso às análises',
+        free: 'Apenas FREE',
+        premium: 'FREE + PREMIUM',
+    },
+    {
+        icon: BarChart2,
+        label: 'Estatísticas completas',
+        free: 'Não disponível',
+        premium: 'Completo',
+    },
+    {
+        icon: Bell,
+        label: 'Notificações',
+        free: 'Não disponível',
+        premium: 'Push em tempo real',
+    },
+];
 
 export default function PremiumScreen() {
     const insets = useSafeAreaInsets();
@@ -16,7 +42,6 @@ export default function PremiumScreen() {
     const { colors } = useTheme();
     const { t, i18n } = useTranslation();
     const { isPremium, profile, user, refreshProfile } = useAuth();
-    const { data: stats, isLoading: isStatsLoading } = useUserStats();
     const [loading, setLoading] = useState(false);
 
     const formatDate = () => {
@@ -24,30 +49,6 @@ export default function PremiumScreen() {
         return new Date().toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long' });
     };
 
-    const features = [
-        {
-            label: t('premium.all_analyses'),
-            free: `2 ${t('common.analyses')}/${t('common.day')}`,
-            hasPremium: true,
-        },
-        {
-            label: t('premium.full_access'),
-            free: t('premium.limited_preview'),
-            hasPremium: true,
-        },
-        {
-            label: t('premium.push_notifications'),
-            free: t('premium.no_notifications'),
-            hasPremium: true,
-        },
-        {
-            label: t('premium.full_stats'),
-            free: t('premium.basic_stats'),
-            hasPremium: true,
-        },
-    ];
-
-    // Simula ativação premium — atualiza subscription_tier no banco
     const handleSubscribe = async () => {
         Alert.alert(
             t('premium.subscribe_title'),
@@ -64,11 +65,8 @@ export default function PremiumScreen() {
                                 .from('profiles')
                                 .update({ subscription_tier: 'premium' })
                                 .eq('id', user.id);
-
                             if (error) throw error;
-
                             await refreshProfile();
-
                             Alert.alert(
                                 t('premium.subscribe_success_title'),
                                 t('premium.subscribe_success_message')
@@ -91,50 +89,23 @@ export default function PremiumScreen() {
     const openPrivacy = () => Linking.openURL('https://corneredge.app/privacy');
     const openTerms = () => Linking.openURL('https://corneredge.app/terms');
 
-    // ── Tela para usuário já premium ──────────────────────────────────────────
+    // ── Tela para usuário já premium ──────────────────────────────────────
     if (isPremium) {
         return (
             <View style={[styles.container, { backgroundColor: colors.backgroundPrimary }]}>
-                <Header 
-                    title="CornerEdge" 
-                    subtitle={formatDate()} 
-                >
-                    <View style={styles.headerStatsRow}>
-                        <View style={[styles.headerStatCard, { backgroundColor: 'rgba(255,255,255,0.1)' }]}>
-                            <TrendingUp size={16} color="#FFF" />
-                            <View>
-                                <Text style={[styles.headerStatValue, { color: '#FFF' }]}>
-                                    {isStatsLoading ? '—' : stats?.totalAnalyses ?? 0}
-                                </Text>
-                                <Text style={[styles.headerStatLabel, { color: 'rgba(255,255,255,0.7)' }]}>{t('profile.total_analyses')}</Text>
-                            </View>
-                        </View>
-
-                        <View style={[styles.headerStatCard, { backgroundColor: 'rgba(255,255,255,0.1)' }]}>
-                            <Target size={16} color="#4ADE80" />
-                            <View>
-                                <Text style={[styles.headerStatValue, { color: '#4ADE80' }]}>
-                                    {isStatsLoading ? '—' : stats?.hitRate7Days != null ? `${stats.hitRate7Days}%` : '—'}
-                                </Text>
-                                <Text style={[styles.headerStatLabel, { color: 'rgba(255,255,255,0.7)' }]}>{t('results.hit_rate')}</Text>
-                            </View>
-                        </View>
-
-                        <View style={[styles.headerStatCard, { backgroundColor: 'rgba(255,255,255,0.1)' }]}>
-                            <Activity size={16} color="#FFF" />
-                            <View>
-                                <Text style={[styles.headerStatValue, { color: '#FFF' }]}>
-                                    {isStatsLoading ? '—' : `${stats?.correct ?? 0}/${stats?.incorrect ?? 0}`}
-                                </Text>
-                                <Text style={[styles.headerStatLabel, { color: 'rgba(255,255,255,0.7)' }]}>{t('profile.accuracy')}</Text>
-                            </View>
-                        </View>
-                    </View>
-                </Header>
+                <Header
+                    title={t('premium.title') || 'Premium'}
+                    subtitle={formatDate()}
+                />
 
                 <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}>
-                    <View style={[styles.activeCard, { backgroundColor: colors.backgroundSecondary }]}>
-                        <Crown color={colors.accentOrange} size={48} />
+                    {/* Card de status ativo */}
+                    <View style={[styles.activeCard, { backgroundColor: colors.backgroundSecondary, borderColor: colors.accentOrange }]}>
+                        <View style={[styles.activeBadge, { backgroundColor: colors.accentOrange }]}>
+                            <Crown color="#FFF" size={14} />
+                            <Text style={styles.activeBadgeText}>ATIVO</Text>
+                        </View>
+                        <Crown color={colors.accentOrange} size={48} style={{ marginTop: 8 }} />
                         <Text style={[styles.activeTitle, { color: colors.textPrimary }]}>{t('premium.active_plan')}</Text>
                         <Text style={[styles.activeSubtitle, { color: colors.textMuted }]}>
                             {profile?.subscription_expires_at
@@ -144,8 +115,27 @@ export default function PremiumScreen() {
                         </Text>
                     </View>
 
+                    {/* Benefícios ativos */}
+                    <View style={styles.section}>
+                        <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Seus benefícios</Text>
+                        {FEATURES.map((f, i) => {
+                            const Icon = f.icon;
+                            return (
+                                <View key={i} style={[styles.benefitRow, { backgroundColor: colors.backgroundSecondary, borderColor: colors.cardBorder }]}>
+                                    <View style={[styles.benefitIcon, { backgroundColor: colors.accentOrange + '22' }]}>
+                                        <Icon color={colors.accentOrange} size={18} />
+                                    </View>
+                                    <View style={styles.benefitText}>
+                                        <Text style={[styles.benefitLabel, { color: colors.textPrimary }]}>{f.label}</Text>
+                                        <Text style={[styles.benefitValue, { color: colors.accentOrange }]}>{f.premium}</Text>
+                                    </View>
+                                    <Check color={colors.statusGreen} size={20} />
+                                </View>
+                            );
+                        })}
+                    </View>
 
-
+                    {/* Gerenciar */}
                     <View style={styles.section}>
                         <TouchableOpacity
                             style={[styles.manageButton, { borderColor: colors.cardBorder }]}
@@ -160,45 +150,13 @@ export default function PremiumScreen() {
         );
     }
 
-    // ── Tela para usuário free ────────────────────────────────────────────────
+    // ── Tela para usuário free ────────────────────────────────────────────
     return (
         <View style={[styles.container, { backgroundColor: colors.backgroundPrimary }]}>
-            <Header 
-                title="CornerEdge" 
-                subtitle={formatDate()} 
-            >
-                <View style={styles.headerStatsRow}>
-                    <View style={[styles.headerStatCard, { backgroundColor: 'rgba(255,255,255,0.1)' }]}>
-                        <TrendingUp size={16} color="#FFF" />
-                        <View>
-                            <Text style={[styles.headerStatValue, { color: '#FFF' }]}>
-                                {isStatsLoading ? '—' : stats?.totalAnalyses ?? 0}
-                            </Text>
-                            <Text style={[styles.headerStatLabel, { color: 'rgba(255,255,255,0.7)' }]}>{t('profile.total_analyses')}</Text>
-                        </View>
-                    </View>
-
-                    <View style={[styles.headerStatCard, { backgroundColor: 'rgba(255,255,255,0.1)' }]}>
-                        <Target size={16} color="#4ADE80" />
-                        <View>
-                            <Text style={[styles.headerStatValue, { color: '#4ADE80' }]}>
-                                {isStatsLoading ? '—' : stats?.hitRate7Days != null ? `${stats.hitRate7Days}%` : '—'}
-                            </Text>
-                            <Text style={[styles.headerStatLabel, { color: 'rgba(255,255,255,0.7)' }]}>{t('results.hit_rate')}</Text>
-                        </View>
-                    </View>
-
-                    <View style={[styles.headerStatCard, { backgroundColor: 'rgba(255,255,255,0.1)' }]}>
-                        <Activity size={16} color="#FFF" />
-                        <View>
-                            <Text style={[styles.headerStatValue, { color: '#FFF' }]}>
-                                {isStatsLoading ? '—' : `${stats?.correct ?? 0}/${stats?.incorrect ?? 0}`}
-                            </Text>
-                            <Text style={[styles.headerStatLabel, { color: 'rgba(255,255,255,0.7)' }]}>{t('profile.accuracy')}</Text>
-                        </View>
-                    </View>
-                </View>
-            </Header>
+            <Header
+                title={t('premium.title') || 'Premium'}
+                subtitle={formatDate()}
+            />
 
             <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}>
                 {/* Hero */}
@@ -214,25 +172,42 @@ export default function PremiumScreen() {
                     </View>
                 </View>
 
-                {/* Feature table */}
+                {/* Tabela de comparação */}
                 <View style={styles.section}>
-                    <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>{t('premium.subscription_benefits')}</Text>
+                    <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Free vs Premium</Text>
 
-                    <View style={[styles.featureTable, { backgroundColor: colors.backgroundSecondary, borderColor: colors.cardBorder }]}>
-                        <View style={[styles.tableHeader, { borderBottomColor: colors.cardBorder }]}>
-                            <Text style={[styles.tableHeaderText, { color: colors.textMuted }]}>{t('premium.feature')}</Text>
-                            <Text style={[styles.tableHeaderText, { color: colors.textMuted, textAlign: 'center' }]}>{t('premium.free')}</Text>
-                            <Text style={[styles.tableHeaderTextPremium, { color: colors.accentOrange }]}>{t('common.premium')}</Text>
-                        </View>
-                        {features.map((feature, index) => (
-                            <View key={index} style={[styles.tableRow, { borderBottomColor: colors.cardBorder }]}>
-                                <Text style={[styles.tableCell, { color: colors.textSecondary }]}>{feature.label}</Text>
-                                <Text style={[styles.tableCell, { color: colors.textMuted, textAlign: 'center', fontSize: 11 }]}>{feature.free}</Text>
-                                <View style={{ flex: 1, alignItems: 'flex-end' }}>
-                                    <Check color={colors.statusGreen} size={20} />
-                                </View>
+                    <View style={[styles.compTable, { backgroundColor: colors.backgroundSecondary, borderColor: colors.cardBorder }]}>
+                        {/* Cabeçalho */}
+                        <View style={[styles.compHeader, { borderBottomColor: colors.cardBorder }]}>
+                            <Text style={[styles.compHeaderFeature, { color: colors.textMuted }]}>Recurso</Text>
+                            <Text style={[styles.compHeaderFree, { color: colors.textMuted }]}>Free</Text>
+                            <View style={[styles.compHeaderPremiumBox, { backgroundColor: colors.accentOrange }]}>
+                                <Crown color="#FFF" size={12} />
+                                <Text style={styles.compHeaderPremiumText}>Premium</Text>
                             </View>
-                        ))}
+                        </View>
+
+                        {/* Linhas */}
+                        {FEATURES.map((f, i) => {
+                            const Icon = f.icon;
+                            const isLast = i === FEATURES.length - 1;
+                            return (
+                                <View
+                                    key={i}
+                                    style={[
+                                        styles.compRow,
+                                        !isLast && { borderBottomWidth: 1, borderBottomColor: colors.cardBorder },
+                                    ]}
+                                >
+                                    <View style={styles.compFeatureCell}>
+                                        <Icon color={colors.textMuted} size={14} />
+                                        <Text style={[styles.compFeatureText, { color: colors.textSecondary }]}>{f.label}</Text>
+                                    </View>
+                                    <Text style={[styles.compFreeText, { color: colors.textMuted }]}>{f.free}</Text>
+                                    <Text style={[styles.compPremiumText, { color: colors.accentOrange }]}>{f.premium}</Text>
+                                </View>
+                            );
+                        })}
                     </View>
                 </View>
 
@@ -246,7 +221,10 @@ export default function PremiumScreen() {
                         {loading ? (
                             <ActivityIndicator color="#FFFFFF" />
                         ) : (
-                            <Text style={styles.ctaButtonText}>{t('premium.subscribe_now')}</Text>
+                            <>
+                                <Crown color="#FFF" size={20} />
+                                <Text style={styles.ctaButtonText}>{t('premium.subscribe_now')}</Text>
+                            </>
                         )}
                     </TouchableOpacity>
 
@@ -256,8 +234,8 @@ export default function PremiumScreen() {
                 </View>
 
                 {/* Disclaimer */}
-                <View style={styles.disclaimerSection}>
-                    <AlertTriangle color={colors.textMuted} size={16} />
+                <View style={[styles.disclaimerSection, { backgroundColor: colors.backgroundSecondary }]}>
+                    <AlertTriangle color={colors.textMuted} size={14} />
                     <Text style={[styles.disclaimer, { color: colors.textMuted }]}>
                         {t('premium.gamble_responsibly')}.{'\n'}
                         18+. {t('premium.skill_analysis')}.{'\n\n'}
@@ -274,46 +252,55 @@ export default function PremiumScreen() {
 
 const styles = StyleSheet.create({
     container: { flex: 1 },
-    header: { paddingHorizontal: 24, paddingBottom: 24, borderBottomLeftRadius: 24, borderBottomRightRadius: 24 },
-    headerTitle: { color: '#FFFFFF', fontSize: 28, fontWeight: 'bold' },
-    headerDate: { color: '#FFFFFF', fontSize: 14, opacity: 0.8, marginTop: 4, textTransform: 'capitalize' },
     content: { flex: 1, marginTop: -12 },
-    heroCard: { margin: 16, padding: 32, borderRadius: 16, alignItems: 'center' },
-    heroTitle: { fontSize: 24, fontWeight: 'bold', marginTop: 16, textAlign: 'center' },
+
+    // Hero
+    heroCard: { margin: 16, padding: 28, borderRadius: 20, alignItems: 'center' },
+    heroTitle: { fontSize: 22, fontWeight: 'bold', marginTop: 16, textAlign: 'center' },
     heroSubtitle: { fontSize: 14, marginTop: 8, textAlign: 'center', lineHeight: 20 },
     priceRow: { flexDirection: 'row', alignItems: 'baseline', marginTop: 16 },
-    price: { fontSize: 48, fontWeight: 'bold' },
+    price: { fontSize: 44, fontWeight: 'bold' },
     pricePeriod: { fontSize: 18, marginLeft: 4 },
-    section: { padding: 16 },
+
+    // Tabela
+    section: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 8 },
     sectionTitle: { fontSize: 18, fontWeight: '600', marginBottom: 12 },
-    featureTable: { borderRadius: 12, borderWidth: 1, overflow: 'hidden' },
-    tableHeader: { flexDirection: 'row', padding: 12, borderBottomWidth: 1 },
-    tableHeaderText: { flex: 1, fontSize: 12, fontWeight: '600' },
-    tableHeaderTextPremium: { flex: 1, fontSize: 12, fontWeight: 'bold', textAlign: 'right' },
-    tableRow: { flexDirection: 'row', padding: 12, borderBottomWidth: 1, alignItems: 'center' },
-    tableCell: { flex: 1, fontSize: 13 },
-    ctaSection: { padding: 16 },
-    ctaButton: { padding: 16, borderRadius: 12, alignItems: 'center', justifyContent: 'center', minHeight: 52 },
+    compTable: { borderRadius: 16, borderWidth: 1, overflow: 'hidden' },
+    compHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1 },
+    compHeaderFeature: { flex: 2, fontSize: 12, fontWeight: '600' },
+    compHeaderFree: { flex: 1.5, fontSize: 12, fontWeight: '600', textAlign: 'center' },
+    compHeaderPremiumBox: { flex: 1.5, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 4, paddingHorizontal: 8, borderRadius: 8 },
+    compHeaderPremiumText: { color: '#FFF', fontSize: 11, fontWeight: 'bold' },
+    compRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 10 },
+    compFeatureCell: { flex: 2, flexDirection: 'row', alignItems: 'center', gap: 6 },
+    compFeatureText: { fontSize: 12, flex: 1 },
+    compFreeText: { flex: 1.5, fontSize: 11, textAlign: 'center' },
+    compPremiumText: { flex: 1.5, fontSize: 11, fontWeight: '600', textAlign: 'center' },
+
+    // CTA
+    ctaSection: { padding: 16, gap: 8 },
+    ctaButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, padding: 16, borderRadius: 14, minHeight: 52 },
     ctaButtonText: { color: '#FFFFFF', fontSize: 16, fontWeight: 'bold' },
     restoreButton: { padding: 12, alignItems: 'center' },
     restoreText: { fontSize: 13 },
-    disclaimerSection: { flexDirection: 'row', padding: 16, marginHorizontal: 16, gap: 8 },
+
+    // Disclaimer
+    disclaimerSection: { flexDirection: 'row', margin: 16, padding: 16, borderRadius: 12, gap: 10, alignItems: 'flex-start' },
     disclaimer: { flex: 1, fontSize: 11, lineHeight: 18 },
+
     // Premium ativo
-    activeCard: { margin: 16, padding: 32, borderRadius: 16, alignItems: 'center' },
-    activeTitle: { fontSize: 24, fontWeight: 'bold', marginTop: 16 },
-    activeSubtitle: { fontSize: 14, marginTop: 8, textAlign: 'center' },
-    headerStatsRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 10, marginTop: 12 },
-    headerStatCard: { 
-        flex: 1, 
-        padding: 10, 
-        borderRadius: 16, 
-        alignItems: 'center',
-        flexDirection: 'row',
-        gap: 8
-    },
-    headerStatValue: { fontSize: 16, fontWeight: '900' },
-    headerStatLabel: { fontSize: 9, fontWeight: '700', textTransform: 'uppercase' },
+    activeCard: { margin: 16, padding: 28, borderRadius: 20, alignItems: 'center', borderWidth: 2 },
+    activeBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 20 },
+    activeBadgeText: { color: '#FFF', fontSize: 11, fontWeight: 'bold' },
+    activeTitle: { fontSize: 22, fontWeight: 'bold', marginTop: 12 },
+    activeSubtitle: { fontSize: 14, marginTop: 6, textAlign: 'center' },
+
+    benefitRow: { flexDirection: 'row', alignItems: 'center', padding: 14, borderRadius: 12, borderWidth: 1, marginBottom: 8, gap: 12 },
+    benefitIcon: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+    benefitText: { flex: 1 },
+    benefitLabel: { fontSize: 13, fontWeight: '500' },
+    benefitValue: { fontSize: 12, marginTop: 2 },
+
     manageButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 16, borderRadius: 12, borderWidth: 1, gap: 8 },
     manageButtonText: { fontSize: 15 },
 });

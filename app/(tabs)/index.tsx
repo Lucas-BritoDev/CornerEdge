@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, M
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { ChevronRight, Lock, Play, Crown, RefreshCw, TrendingUp, BarChart3, Target, Calendar, Info, Clock, ShieldCheck, Zap, Share2, TrendingDown, Activity } from 'lucide-react-native';
+import { ChevronRight, Lock, Play, Crown, RefreshCw, TrendingUp, BarChart3, Target, Calendar, Info, Clock, ShieldCheck, Zap, Share2, TrendingDown } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInUp, FadeInDown, Layout, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
@@ -12,7 +12,7 @@ import { useAuth } from '../../context/AuthContext';
 import { AdBanner } from '../../components/AdBanner';
 import { useRewardedAd } from '../../hooks/useRewardedAd';
 import { Header } from '../../components/Header';
-import { useTodayAnalyses, useUserStats } from '../../services/analyses-service';
+import { useTodayAnalyses } from '../../services/analyses-service';
 import { AnalysisWithDetails } from '../../types';
 
 const { width } = Dimensions.get('window');
@@ -21,21 +21,62 @@ function HomeScreen() {
     const insets = useSafeAreaInsets();
     const router = useRouter();
     const { colors, resolvedTheme } = useTheme();
-    const { isPremium } = useAuth();
+    const { isPremium, user, isLoading: authLoading } = useAuth();
     const { t, i18n } = useTranslation();
     
-    const { data: analyses = [], isLoading, error, refetch } = useTodayAnalyses();
-    const { data: stats, isLoading: isStatsLoading } = useUserStats();
+    const { data: analyses = [], isLoading: analysesLoading, error, refetch } = useTodayAnalyses({
+        enabled: !authLoading && !!user,
+    });
+
+    // Quando o auth resolver após o timeout, refaz o fetch se ainda não tiver dados
+    const prevAuthLoading = React.useRef(authLoading);
+    React.useEffect(() => {
+        if (prevAuthLoading.current && !authLoading && user) {
+            refetch();
+        }
+        prevAuthLoading.current = authLoading;
+    }, [authLoading, user]);
+
+    // Mostra skeleton enquanto auth ou análises estão carregando
+    const isLoading = authLoading || analysesLoading;
     
     const [selectedAnalysis, setSelectedAnalysis] = React.useState<AnalysisWithDetails | null>(null);
     const [showDetail, setShowDetail] = React.useState(false);
     const [showRewardedModal, setShowRewardedModal] = React.useState(false);
     const [rewardTargetAnalysis, setRewardTargetAnalysis] = React.useState<AnalysisWithDetails | null>(null);
     const [unlockedAnalyses, setUnlockedAnalyses] = React.useState<Set<string>>(new Set());
-    const { loaded: rewardedLoaded, loading: rewardedLoading, showAd, isUnlockedToday } = useRewardedAd();
+    const { loaded: rewardedLoaded, loading: rewardedLoading, showAd, isUnlockedToday, hasUsedAdToday } = useRewardedAd();
+
+    // Restaura desbloqueios persistidos ao carregar as análises
+    // Garante que picks desbloqueadas via anúncio continuem visíveis após fechar/reabrir o app
+    const premiumAnalysisIds = (premiumAnalyses ?? []).map(a => a.id).join(',');
+    React.useEffect(() => {
+        if (!premiumAnalyses?.length) return;
+        const restoreUnlocks = async () => {
+            const unlocked = new Set<string>();
+            for (const analysis of premiumAnalyses) {
+                const wasUnlocked = await isUnlockedToday(analysis.id);
+                if (wasUnlocked) unlocked.add(analysis.id);
+            }
+            if (unlocked.size > 0) {
+                setUnlockedAnalyses(unlocked);
+            }
+        };
+        restoreUnlocks();
+    }, [premiumAnalysisIds]);
     
     const freeAnalyses = analyses.filter(a => a.tier === 'free');
     const premiumAnalyses = analyses.filter(a => a.tier === 'premium');
+
+    // Pick premium sorteada para desbloquear — determinística por dia (seed = data)
+    // O usuário só vê UMA pick premium bloqueada, sem saber qual é
+    const unlockablePremiumAnalysis = React.useMemo(() => {
+        if (!premiumAnalyses.length) return null;
+        const today = new Date().toISOString().split('T')[0];
+        const seed = today.split('-').reduce((acc, val) => acc + parseInt(val), 0);
+        const idx = seed % premiumAnalyses.length;
+        return premiumAnalyses[idx];
+    }, [premiumAnalyses]);
 
     const formatDate = () => {
         const locale = i18n.language === 'en' ? 'en-US' : i18n.language === 'es' ? 'es-ES' : 'pt-BR';
@@ -68,6 +109,18 @@ function HomeScreen() {
 
     const handleLockedPress = async (analysis: AnalysisWithDetails) => {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+
+        // Verificar limite diário primeiro
+        const usedToday = await hasUsedAdToday();
+        if (usedToday) {
+            Alert.alert(
+                '⏰ Limite diário atingido',
+                'Você já desbloqueou uma análise premium hoje. Volte amanhã para desbloquear outra.',
+                [{ text: 'OK' }]
+            );
+            return;
+        }
+
         const alreadyUnlocked = await isUnlockedToday(analysis.id);
         if (alreadyUnlocked) {
             setUnlockedAnalyses(prev => new Set([...prev, analysis.id]));
@@ -171,12 +224,15 @@ function HomeScreen() {
                             </Text>
                         </LinearGradient>
                         
-                        <View style={styles.confidenceBadge}>
-                            <Zap size={14} color={colors.accentOrange} style={{ marginRight: 4 }} />
-                            <Text style={[styles.confidenceValue, { color: colors.accentOrange }]}>
-                                {analysis.confidence}%
-                            </Text>
-                        </View>
+                        {/* Oculta a confiança quando o card está bloqueado */}
+                        {!effectiveLocked && (
+                            <View style={styles.confidenceBadge}>
+                                <Zap size={14} color={colors.accentOrange} style={{ marginRight: 4 }} />
+                                <Text style={[styles.confidenceValue, { color: colors.accentOrange }]}>
+                                    {analysis.confidence}%
+                                </Text>
+                            </View>
+                        )}
                     </View>
 
                     {effectiveLocked ? (
@@ -290,11 +346,11 @@ function HomeScreen() {
                                 >
                                     <Text style={[
                                         styles.viewAnalysisBtnText,
-                                        { color: isPremiumCard ? '#FFF' : colors.textPrimary }
+                                        { color: isPremiumCard ? '#FFF' : (resolvedTheme === 'light' ? '#CC5500' : colors.accentOrange) }
                                     ]}>
                                         {t('home.view_full_analysis')}
                                     </Text>
-                                    <ChevronRight size={16} color={isPremiumCard ? '#FFF' : colors.textPrimary} />
+                                    <ChevronRight size={16} color={isPremiumCard ? '#FFF' : (resolvedTheme === 'light' ? '#CC5500' : colors.accentOrange)} />
                                 </LinearGradient>
                             </TouchableOpacity>
                         </>
@@ -309,39 +365,7 @@ function HomeScreen() {
             <Header 
                 title="CornerEdge"
                 subtitle={formatDate()}
-            >
-                <View style={styles.headerStatsRow}>
-                    <View style={[styles.headerStatCard, { backgroundColor: 'rgba(255,255,255,0.1)' }]}>
-                        <TrendingUp size={16} color="#FFF" />
-                        <View>
-                            <Text style={[styles.headerStatValue, { color: '#FFF' }]}>
-                                {isStatsLoading ? '—' : stats?.totalAnalyses ?? 0}
-                            </Text>
-                            <Text style={[styles.headerStatLabel, { color: 'rgba(255,255,255,0.7)' }]}>{t('profile.total_analyses')}</Text>
-                        </View>
-                    </View>
-
-                    <View style={[styles.headerStatCard, { backgroundColor: 'rgba(255,255,255,0.1)' }]}>
-                        <Target size={16} color="#4ADE80" />
-                        <View>
-                            <Text style={[styles.headerStatValue, { color: '#4ADE80' }]}>
-                                {isStatsLoading ? '—' : stats?.hitRate7Days != null ? `${stats.hitRate7Days}%` : '—'}
-                            </Text>
-                            <Text style={[styles.headerStatLabel, { color: 'rgba(255,255,255,0.7)' }]}>{t('results.hit_rate')}</Text>
-                        </View>
-                    </View>
-
-                    <View style={[styles.headerStatCard, { backgroundColor: 'rgba(255,255,255,0.1)' }]}>
-                        <Activity size={16} color="#FFF" />
-                        <View>
-                            <Text style={[styles.headerStatValue, { color: '#FFF' }]}>
-                                {isStatsLoading ? '—' : `${stats?.correct ?? 0}/${stats?.incorrect ?? 0}`}
-                            </Text>
-                            <Text style={[styles.headerStatLabel, { color: 'rgba(255,255,255,0.7)' }]}>{t('profile.accuracy')}</Text>
-                        </View>
-                    </View>
-                </View>
-            </Header>
+            />
 
             <ScrollView
                 style={styles.content}
@@ -351,20 +375,7 @@ function HomeScreen() {
             >
                 {isLoading ? renderSkeleton() : (
                     <View style={styles.sectionsContainer}>
-                        {freeAnalyses.length > 0 && (
-                            <>
-                                <View style={styles.sectionHeader}>
-                                    <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>{t('common.free')}</Text>
-                                    <View style={[styles.sectionTitleBadge, { backgroundColor: colors.backgroundTertiary }]}>
-                                        <Text style={[styles.sectionTitleBadgeText, { color: colors.white }]}>{freeAnalyses.length}</Text>
-                                    </View>
-                                </View>
-                                <View style={styles.section}>
-                                    {freeAnalyses.map((analysis, index) => renderAnalysisCard(analysis, index))}
-                                </View>
-                            </>
-                        )}
-                        
+                        {/* Premium primeiro — maior assertividade, destaque visual */}
                         {premiumAnalyses.length > 0 && (
                             <>
                                 <View style={styles.sectionHeader}>
@@ -377,9 +388,34 @@ function HomeScreen() {
                                     </View>
                                 </View>
                                 <View style={styles.section}>
-                                    {premiumAnalyses.map((analysis, index) => 
-                                        renderAnalysisCard(analysis, index + freeAnalyses.length, !isPremium)
-                                    )}
+                                    {premiumAnalyses.map((analysis, index) => {
+                                        const isUnlocked = unlockedAnalyses.has(analysis.id);
+                                        // Usuário premium: vê todas
+                                        if (isPremium || isUnlocked) {
+                                            return renderAnalysisCard(analysis, index, false);
+                                        }
+                                        // Usuário free: só vê a pick sorteada para desbloquear
+                                        if (analysis.id === unlockablePremiumAnalysis?.id) {
+                                            return renderAnalysisCard(analysis, index, true);
+                                        }
+                                        // Demais picks premium ficam ocultas
+                                        return null;
+                                    })}
+                                </View>
+                            </>
+                        )}
+
+                        {/* Free depois */}
+                        {freeAnalyses.length > 0 && (
+                            <>
+                                <View style={styles.sectionHeader}>
+                                    <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>{t('common.free')}</Text>
+                                    <View style={[styles.sectionTitleBadge, { backgroundColor: colors.backgroundTertiary }]}>
+                                        <Text style={[styles.sectionTitleBadgeText, { color: colors.white }]}>{freeAnalyses.length}</Text>
+                                    </View>
+                                </View>
+                                <View style={styles.section}>
+                                    {freeAnalyses.map((analysis, index) => renderAnalysisCard(analysis, index + premiumAnalyses.length))}
                                 </View>
                             </>
                         )}

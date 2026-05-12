@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { useNavigation } from 'expo-router';
 import { ArrowLeft } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface HeaderProps {
@@ -9,47 +10,37 @@ interface HeaderProps {
     subtitle?: string;
     showBack?: boolean;
     rightAction?: React.ReactNode;
-    /** @deprecated align is ignored — header is always centered */
-    align?: 'left' | 'center';
     children?: React.ReactNode;
 }
 
-/**
- * AppHeader — header padrão do CornerEdge.
- *
- * Layout:
- *  - Fundo laranja sólido #FF6B00
- *  - Título centralizado, branco, bold, 22px
- *  - Data/subtítulo centralizado, branco, 13px, opacity 0.9
- *  - Sem bordas arredondadas no rodapé
- *  - Sem gradiente
- */
 export function Header({ title, subtitle, showBack, rightAction, children }: HeaderProps) {
     const navigation = useNavigation();
     const insets = useSafeAreaInsets();
 
     return (
-        <View style={[styles.container, { paddingTop: insets.top + 16 }]}>
-            {/* Row: back button | title area | right action */}
-            <View style={styles.row}>
-                {/* Left slot */}
+        <LinearGradient
+            colors={['#1A1A1A', '#FF6B00']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0.5 }}
+            style={[styles.container, { paddingTop: insets.top + 12 }]}
+        >
+            <View style={styles.content}>
+                {/* Espaço esquerdo — botão voltar ou placeholder para manter centralização */}
                 <View style={styles.sideSlot}>
                     {showBack && (
-                        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn}>
-                            <ArrowLeft color="#FFF" size={22} />
+                        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.button}>
+                            <ArrowLeft color="#FFF" size={24} />
                         </TouchableOpacity>
                     )}
                 </View>
 
-                {/* Center: title + subtitle */}
-                <View style={styles.centerSlot}>
+                {/* Título e subtítulo sempre centralizados */}
+                <View style={styles.titleContainer}>
                     <Text style={styles.title} numberOfLines={1}>{title}</Text>
-                    {subtitle ? (
-                        <Text style={styles.subtitle} numberOfLines={1}>{subtitle}</Text>
-                    ) : null}
+                    {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
                 </View>
 
-                {/* Right slot */}
+                {/* Espaço direito — ações opcionais ou placeholder */}
                 <View style={styles.sideSlot}>
                     {rightAction ?? null}
                 </View>
@@ -61,70 +52,72 @@ export function Header({ title, subtitle, showBack, rightAction, children }: Hea
                     {children}
                 </View>
             ) : null}
-        </View>
+        </LinearGradient>
     );
 }
 
 const styles = StyleSheet.create({
     container: {
         width: '100%',
-        backgroundColor: '#FF6B00',
-        paddingBottom: 20,
-        borderBottomLeftRadius: 0,
-        borderBottomRightRadius: 0,
+        borderBottomLeftRadius: 28,
+        borderBottomRightRadius: 28,
         ...Platform.select({
             ios: {
                 shadowColor: '#000',
-                shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.2,
-                shadowRadius: 8,
+                shadowOffset: { width: 0, height: 10 },
+                shadowOpacity: 0.3,
+                shadowRadius: 15,
             },
             android: {
-                elevation: 6,
+                elevation: 10,
             },
         }),
     },
-    row: {
+    content: {
+        minHeight: 80,
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 16,
-        minHeight: 52,
+        justifyContent: 'space-between',
+        paddingHorizontal: 24,
+        paddingBottom: 20,
     },
+    // Slots laterais com largura fixa garantem que o centro fique sempre centralizado
     sideSlot: {
-        width: 48,
+        width: 44,
         alignItems: 'center',
         justifyContent: 'center',
     },
-    centerSlot: {
+    titleContainer: {
         flex: 1,
         alignItems: 'center',
         justifyContent: 'center',
     },
     title: {
         fontSize: 22,
-        fontWeight: 'bold',
-        color: '#FFFFFF',
+        fontWeight: '900',
+        color: '#FFF',
+        letterSpacing: -0.5,
         textAlign: 'center',
-        letterSpacing: 0.3,
     },
     subtitle: {
         fontSize: 13,
-        color: '#FFFFFF',
-        opacity: 0.9,
+        color: 'rgba(255, 255, 255, 0.8)',
         marginTop: 3,
+        fontWeight: '600',
         textAlign: 'center',
         textTransform: 'capitalize',
     },
-    iconBtn: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
-        backgroundColor: 'rgba(255,255,255,0.15)',
+    button: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        backgroundColor: 'rgba(255, 255, 255, 0.15)',
         justifyContent: 'center',
         alignItems: 'center',
     },
     childrenContainer: {
-        paddingHorizontal: 16,
+        paddingHorizontal: 24,
         paddingTop: 12,
+        paddingBottom: 4,
     },
 });

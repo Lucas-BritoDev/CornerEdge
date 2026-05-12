@@ -133,16 +133,21 @@ export async function fetchAnalysesByDate(date: Date): Promise<AnalysisWithDetai
 // ============================================================================
 
 /**
- * Hook to fetch today's analyses with caching
+ * Hook to fetch today's analyses with caching.
+ * Só executa quando `enabled` for true (padrão: sempre).
+ * Passe `enabled={!!user}` para aguardar o auth antes de buscar.
  */
-export function useTodayAnalyses() {
+export function useTodayAnalyses(options?: { enabled?: boolean }) {
     return useQuery({
         queryKey: ['analyses', 'today'],
         queryFn: fetchTodayAnalyses,
-        staleTime: 5 * 60 * 1000, // 5 minutes
-        gcTime: 30 * 60 * 1000, // 30 minutes
+        enabled: options?.enabled !== false, // default true, mas permite desabilitar
+        staleTime: 5 * 60 * 1000,
+        gcTime: 30 * 60 * 1000,
         refetchOnWindowFocus: false,
         refetchOnReconnect: true,
+        retry: 3,
+        retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 8000),
     });
 }
 
@@ -151,13 +156,15 @@ export function useTodayAnalyses() {
  */
 export function useAnalysesByDate(date: Date) {
     const dateKey = date.toISOString().split('T')[0];
-    
+
     return useQuery({
         queryKey: ['analyses', 'date', dateKey],
         queryFn: () => fetchAnalysesByDate(date),
-        staleTime: 10 * 60 * 1000, // 10 minutes
-        gcTime: 60 * 60 * 1000, // 60 minutes
+        staleTime: 10 * 60 * 1000,  // 10 minutes
+        gcTime: 60 * 60 * 1000,     // 60 minutes
         refetchOnWindowFocus: false,
+        retry: 2,
+        retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 6000),
     });
 }
 

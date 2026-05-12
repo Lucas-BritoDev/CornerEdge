@@ -31,25 +31,33 @@ const queryClient = new QueryClient({
 
 // ─── Proteção de rotas baseada em sessão ──────────────────────────────
 function AuthGate() {
-    const { user, isLoading, isOnboarded } = useAuth();
+    const { user, isLoading } = useAuth();
     const segments = useSegments();
     const router = useRouter();
 
     useEffect(() => {
+        // Aguarda auth terminar de carregar
         if (isLoading) return;
 
-        const inAuthGroup = ['login', 'signup', 'forgot-password', 'new-password', 'onboarding'].includes(segments[0] as string);
+        // Aguarda o router ter segmentos válidos
+        if (!segments || segments.length === 0) return;
 
-        if (!isOnboarded) {
-            if (segments[0] !== 'onboarding') {
-                router.replace('/onboarding');
+        const currentSegment = segments[0] as string;
+        const inAuthGroup = ['login', 'signup', 'forgot-password', 'new-password'].includes(currentSegment);
+        const inTabs = currentSegment === '(tabs)';
+
+        if (!user) {
+            // Sem sessão — vai para login (só se não estiver em tela de auth)
+            if (!inAuthGroup) {
+                router.replace('/login');
             }
-        } else if (!user && !inAuthGroup) {
-            router.replace('/login');
-        } else if (user && inAuthGroup) {
-            router.replace('/');
+        } else {
+            // Com sessão — vai para home (só se estiver em tela de auth)
+            if (inAuthGroup) {
+                router.replace('/');
+            }
         }
-    }, [user, isLoading, isOnboarded, segments]);
+    }, [user, isLoading, segments[0]]);
 
     return null;
 }
@@ -71,10 +79,10 @@ function AppContent() {
             }
         };
 
-        // Timeout de segurança global: 5 segundos para esconder o splash independente de tudo
+        // Timeout de segurança global: 3 segundos para esconder o splash independente de tudo
         const fallbackTimeout = setTimeout(() => {
-            hideSplash('Timeout de segurança (5s)');
-        }, 5000);
+            hideSplash('Timeout de segurança (3s)');
+        }, 3000);
 
         const init = async () => {
             // Inicializa AdMob em segundo plano (sem await no fluxo crítico)
@@ -105,7 +113,6 @@ function AppContent() {
             <AuthGate />
             <Stack screenOptions={{ headerShown: false }}>
                 <Stack.Screen name="(tabs)" />
-                <Stack.Screen name="onboarding" />
                 <Stack.Screen name="login" />
                 <Stack.Screen name="signup" />
                 <Stack.Screen name="forgot-password" />

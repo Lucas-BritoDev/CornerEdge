@@ -1,16 +1,12 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Session, User } from '@supabase/supabase-js';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase, Profile } from '../lib/supabase';
-
-const ONBOARDING_KEY = '@corneredge:onboarded';
 
 interface AuthContextType {
     user: User | null;
     session: Session | null;
     profile: Profile | null;
     isLoading: boolean;
-    isOnboarded: boolean;
     isPremium: boolean;
     login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
     signup: (name: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>;
@@ -18,7 +14,6 @@ interface AuthContextType {
     resetPassword: (email: string) => Promise<{ success: boolean; error?: string }>;
     updateNewPassword: (newPassword: string) => Promise<{ success: boolean; error?: string }>;
     updateProfile: (data: Partial<Profile>) => Promise<void>;
-    completeOnboarding: () => Promise<void>;
     deleteAccount: () => Promise<void>;
     refreshProfile: () => Promise<void>;
 }
@@ -40,7 +35,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const [session, setSession] = useState<Session | null>(null);
     const [profile, setProfile] = useState<Profile | null>(null);
     const [isLoading, setIsLoading] = useState(true);
-    const [isOnboarded, setIsOnboarded] = useState(false); // false até verificar AsyncStorage
 
     // Derivado: usuário é premium?
     const isPremium =
@@ -49,32 +43,39 @@ export function AuthProvider({ children }: AuthProviderProps) {
             new Date(profile.subscription_expires_at) > new Date());
 
     useEffect(() => {
-        // Verifica se o onboarding já foi concluído
-        AsyncStorage.getItem(ONBOARDING_KEY).then((value) => {
-            if (value === 'true') setIsOnboarded(true);
-        });
+        let cancelled = false;
 
-        // Recupera sessão inicial com timeout de segurança
-        const sessionTimeout = setTimeout(() => {
-            if (isLoading) {
-                console.warn('[CornerEdge] Session fetch timeout - forcing isLoading false');
-                setIsLoading(false);
-            }
-        }, 5000);
+        const initialize = async () => {
+            // Timeout de segurança: 3s para conexões lentas
+            // O Supabase usa AsyncStorage como cache local, normalmente resolve em < 1s
+            const sessionTimeout = setTimeout(() => {
+                if (!cancelled) {
+                    console.warn('[CornerEdge] Session fetch timeout (3s) - forcing isLoading false');
+                    setIsLoading(false);
+                }
+            }, 3000);
 
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            clearTimeout(sessionTimeout);
-            setSession(session);
-            setUser(session?.user ?? null);
-            if (session?.user) {
-                fetchProfile(session.user.id).finally(() => setIsLoading(false));
-            } else {
-                setIsLoading(false);
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+
+                clearTimeout(sessionTimeout);
+                if (cancelled) return;
+
+                setSession(session);
+                setUser(session?.user ?? null);
+
+                if (session?.user) {
+                    await fetchProfile(session.user.id);
+                }
+            } catch (err) {
+                clearTimeout(sessionTimeout);
+                console.error('[CornerEdge] Erro na inicialização:', err);
+            } finally {
+                if (!cancelled) setIsLoading(false);
             }
-        }).catch(() => {
-            clearTimeout(sessionTimeout);
-            setIsLoading(false);
-        });
+        };
+
+        initialize();
 
         // Escuta mudanças de estado de autenticação
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -94,7 +95,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
             }
         );
 
-        return () => subscription.unsubscribe();
+        return () => {
+            cancelled = true;
+            subscription.unsubscribe();
+        };
     }, []);
 
     const fetchProfile = async (userId: string) => {
@@ -155,7 +159,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     // ─── Logout ─────────────────────────────────────────────────────────
     const signOut = async () => {
-        await supabase.auth.signOut();
+        try {
+            await supabase.auth.signOut();
+        } finally {
+            // Garante reset de estado mesmo se o listener falhar
+            setSession(null);
+            setUser(null);
+            setProfile(null);
+        }
     };
 
     // ─── Recuperação de senha (envia e-mail) ────────────────────────────
@@ -195,12 +206,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
     };
 
-    // ─── Onboarding ─────────────────────────────────────────────────────
-    const completeOnboarding = async () => {
-        await AsyncStorage.setItem(ONBOARDING_KEY, 'true');
-        setIsOnboarded(true);
-    };
-
     // ─── Excluir conta ───────────────────────────────────────────────────
     const deleteAccount = async () => {
         if (!user) return;
@@ -216,7 +221,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
                 session,
                 profile,
                 isLoading,
-                isOnboarded,
                 isPremium,
                 login,
                 signup,
@@ -224,7 +228,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
                 resetPassword,
                 updateNewPassword,
                 updateProfile,
-                completeOnboarding,
                 deleteAccount,
                 refreshProfile,
             }}

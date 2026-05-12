@@ -8,216 +8,266 @@ import { waitForAdMobInitialization } from '../lib/admob-init';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 
-// Verifica se está rodando no Expo Go
-const isExpoGo = Constants.executionEnvironment === 'storeClient' || 
-                 Platform.OS === 'web';
+// ── Detecção de ambiente ──────────────────────────────────────────────────────
+const isExpoGo =
+    Constants.executionEnvironment === 'storeClient' ||
+    (Constants as any).appOwnership === 'expo' ||
+    Platform.OS === 'web';
 
-console.log('[AdMob] hook/useRewardedAd.ts - isExpoGo:', isExpoGo);
-
-
-// Importa o módulo de anúncios de forma segura
+// ── Carregamento seguro do módulo nativo ──────────────────────────────────────
 let adsModule: any = null;
 try {
-  if (!isExpoGo) {
-    console.log('[AdMob] Carregando módulo nativo...');
-    adsModule = require('react-native-google-mobile-ads');
-    console.log('[AdMob] Módulo nativo carregado com sucesso');
-  } else {
-    console.log('[AdMob] Pulando require do módulo nativo (Expo Go)');
-  }
+    if (!isExpoGo) {
+        adsModule = require('react-native-google-mobile-ads');
+    }
 } catch (e) {
-  console.log('[AdMob] Erro ao carregar módulo nativo:', e);
+    console.log('[RewardedAd] Módulo nativo não disponível:', e);
 }
 
-const RewardedAd = adsModule?.RewardedAd;
-const RewardedAdEventType = adsModule?.RewardedAdEventType || {
-  LOADED: 'rewarded_loaded',
-  EARNED_REWARD: 'rewarded_earned_reward',
+const RewardedAd          = adsModule?.RewardedAd;
+const RewardedAdEventType = adsModule?.RewardedAdEventType ?? {
+    LOADED: 'rewarded_loaded',
+    EARNED_REWARD: 'rewarded_earned_reward',
 };
-const AdEventType = adsModule?.AdEventType || {
-  ERROR: 'error',
-  CLOSED: 'closed',
-};
-const TestIds = adsModule?.TestIds || {
-  REWARDED: 'ca-app-pub-3940256099942544/5224354917',
+const AdEventType = adsModule?.AdEventType ?? {
+    ERROR: 'error',
+    CLOSED: 'closed',
 };
 
-// ID do anúncio baseado na plataforma e ambiente
-const adUnitId = __DEV__ 
-  ? TestIds.REWARDED 
-  : (Platform.OS === 'ios' ? AD_UNITS.IOS_REWARDED : AD_UNITS.ANDROID_REWARDED);
+// ID do anúncio: test em dev, produção em release
+const adUnitId = __DEV__
+    ? (Platform.OS === 'ios'
+        ? 'ca-app-pub-3940256099942544/1712485313'   // iOS test
+        : 'ca-app-pub-3940256099942544/5224354917')  // Android test
+    : (Platform.OS === 'ios' ? AD_UNITS.IOS_REWARDED : AD_UNITS.ANDROID_REWARDED);
 
-// Chave para armazenar desbloqueios temporários (24h)
+// Chave para o desbloqueio específico de uma análise
 const UNLOCK_STORAGE_PREFIX = 'rewarded_unlock_';
 
+// Chave GLOBAL: registra se o usuário já usou o anúncio hoje (independente da pick)
+// Formato: 'rewarded_daily_used_YYYY-MM-DD' → id da análise desbloqueada
+const DAILY_AD_KEY = 'rewarded_daily_used';
+
+// ── Helpers de data ───────────────────────────────────────────────────────────
+function todayStr(): string {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// ── Hook ──────────────────────────────────────────────────────────────────────
 export function useRewardedAd() {
-  const [rewardedAd, setRewardedAd] = React.useState<any>(null);
-  const [loaded, setLoaded] = React.useState(false);
-  const [loading, setLoading] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
-  const { user } = useAuth();
+    const { user } = useAuth();
 
-  // Inicializa e carrega o anúncio
-  const loadAd = React.useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
+    const adRef      = React.useRef<any>(null);
+    const loadedRef  = React.useRef(false);
+    const loadingRef = React.useRef(false);
 
-      // Garante que o SDK está inicializado
-      await waitForAdMobInitialization();
+    const [loading, setLoading] = React.useState(false);
 
-      if (isExpoGo || !RewardedAd) {
-        setLoading(false);
-        setLoaded(false);
-        return () => {};
-      }
-
-      const ad = RewardedAd.createForAdRequest(adUnitId, {
-        requestNonPersonalizedAdsOnly: true,
-        keywords: ['sports', 'betting', 'football', 'soccer'],
-      });
-
-      const unsubscribeLoaded = ad.addAdEventListener(RewardedAdEventType.LOADED, () => {
-        setLoaded(true);
-        setLoading(false);
-      });
-
-      const unsubscribeError = ad.addAdEventListener(AdEventType.ERROR, (err: Error) => {
-        console.error('AdMob Reward Error:', err);
-        setError(err.message);
-        setLoading(false);
-        setLoaded(false);
-      });
-
-      ad.load();
-      setRewardedAd(ad);
-
-      return () => {
-        unsubscribeLoaded();
-        unsubscribeError();
-      };
-    } catch (e) {
-      console.error('Failed to create RewardedAd:', e);
-      setError('Initialization failed');
-      setLoading(false);
-      return () => {};
-    }
-  }, []);
-
-  React.useEffect(() => {
-    let cleanup: (() => void) | undefined;
-    
-    const init = async () => {
-      const loadCleanup = await loadAd();
-      cleanup = loadCleanup;
-    };
-
-    init();
-
-    return () => {
-      if (cleanup) cleanup();
-    };
-  }, [loadAd]);
-
-  // Verifica se o item já foi desbloqueado hoje
-  const isUnlockedToday = async (id: string): Promise<boolean> => {
-    try {
-      // 1. Verificar no Cache Local (Rápido)
-      const timestamp = await AsyncStorage.getItem(`${UNLOCK_STORAGE_PREFIX}${id}`);
-      if (timestamp) {
-        const unlockDate = new Date(parseInt(timestamp, 10));
-        const diffHours = (Date.now() - unlockDate.getTime()) / (1000 * 60 * 60);
-        if (diffHours < 24) return true;
-      }
-
-      // 2. Verificar no Supabase (Persistente)
-      if (user) {
-        const { data, error } = await supabase
-          .from('user_unlocked_picks')
-          .select('id')
-          .eq('user_id', user.id)
-          .eq('analysis_id', id)
-          .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
-          .maybeSingle();
-
-        if (data && !error) {
-          // Atualiza cache local para a próxima vez ser mais rápida
-          await AsyncStorage.setItem(`${UNLOCK_STORAGE_PREFIX}${id}`, Date.now().toString());
-          return true;
-        }
-      }
-
-      return false;
-    } catch (e) {
-      return false;
-    }
-  };
-
-  // Mostra o anúncio e retorna o resultado
-  const showAd = async (id: string): Promise<{ success: boolean; error?: string }> => {
-    if (!loaded || !rewardedAd) {
-      loadAd();
-      return { success: false, error: 'Ad not ready. Please try again.' };
-    }
-
-    return new Promise((resolve) => {
-      let earnedReward = false;
-
-      const unsubscribeEarned = rewardedAd.addAdEventListener(
-        RewardedAdEventType.EARNED_REWARD,
-        async (reward: RewardedAdReward) => {
-          console.log('User earned reward:', reward);
-          earnedReward = true;
-          
-          try {
-            // Salva no Cache Local
-            await AsyncStorage.setItem(`${UNLOCK_STORAGE_PREFIX}${id}`, Date.now().toString());
-            
-            // Salva no Supabase (Persistência entre dispositivos)
-            if (user) {
-              await supabase.from('user_unlocked_picks').insert({
-                user_id: user.id,
-                analysis_id: id
-              });
+    // ── Carrega um novo ad ────────────────────────────────────────────────
+    const loadAd = React.useCallback((): Promise<void> => {
+        return new Promise(async (resolve, reject) => {
+            if (isExpoGo || !RewardedAd) {
+                loadedRef.current = true;
+                resolve();
+                return;
             }
-          } catch (e) {
-            console.error('Failed to save reward state:', e);
-          }
+
+            if (loadingRef.current) {
+                resolve();
+                return;
+            }
+
+            loadingRef.current = true;
+            loadedRef.current  = false;
+
+            try {
+                await waitForAdMobInitialization();
+
+                const ad = RewardedAd.createForAdRequest(adUnitId, {
+                    requestNonPersonalizedAdsOnly: false,
+                    keywords: ['sports', 'football', 'soccer'],
+                });
+
+                const unsubLoaded = ad.addAdEventListener(RewardedAdEventType.LOADED, () => {
+                    loadedRef.current  = true;
+                    loadingRef.current = false;
+                    adRef.current      = ad;
+                    unsubLoaded();
+                    resolve();
+                });
+
+                const unsubError = ad.addAdEventListener(AdEventType.ERROR, (err: any) => {
+                    loadedRef.current  = false;
+                    loadingRef.current = false;
+                    unsubError();
+                    reject(new Error(err?.message ?? 'Falha ao carregar anúncio'));
+                });
+
+                ad.load();
+            } catch (e: any) {
+                loadingRef.current = false;
+                reject(new Error(e?.message ?? 'Erro ao criar anúncio'));
+            }
+        });
+    }, []);
+
+    React.useEffect(() => {
+        loadAd().catch(() => {});
+    }, [loadAd]);
+
+    // ── Verifica se o usuário já usou o anúncio hoje (limite global diário) ──
+    const hasUsedAdToday = async (): Promise<boolean> => {
+        try {
+            const stored = await AsyncStorage.getItem(DAILY_AD_KEY);
+            if (!stored) return false;
+            const { date } = JSON.parse(stored);
+            return date === todayStr();
+        } catch {
+            return false;
         }
-      );
+    };
 
-      const unsubscribeClosed = rewardedAd.addAdEventListener(
-        AdEventType.CLOSED,
-        () => {
-          unsubscribeEarned();
-          unsubscribeClosed();
-          
-          if (earnedReward) {
-            setLoaded(false);
-            loadAd();
-            resolve({ success: true });
-          } else {
-            resolve({ success: false, error: 'Ad closed before completion' });
-          }
+    // ── Verifica se uma análise específica já foi desbloqueada hoje ───────
+    const isUnlockedToday = async (id: string): Promise<boolean> => {
+        try {
+            // Verifica no Supabase (persistente entre dispositivos)
+            if (user) {
+                const { data } = await supabase
+                    .from('user_unlocked_picks')
+                    .select('id, created_at')
+                    .eq('user_id', user.id)
+                    .eq('analysis_id', id)
+                    .maybeSingle();
+
+                if (data) {
+                    const diffHours = (Date.now() - new Date((data as any).created_at).getTime()) / 3_600_000;
+                    if (diffHours < 24) return true;
+                }
+            }
+
+            // Fallback: cache local
+            const timestamp = await AsyncStorage.getItem(`${UNLOCK_STORAGE_PREFIX}${id}`);
+            if (!timestamp) return false;
+            const diffHours = (Date.now() - parseInt(timestamp, 10)) / 3_600_000;
+            if (diffHours >= 24) {
+                await AsyncStorage.removeItem(`${UNLOCK_STORAGE_PREFIX}${id}`);
+                return false;
+            }
+            return true;
+        } catch {
+            return false;
         }
-      );
+    };
 
-      try {
-        rewardedAd.show();
-      } catch (e) {
-        unsubscribeEarned();
-        unsubscribeClosed();
-        resolve({ success: false, error: 'Failed to display ad' });
-      }
-    });
-  };
+    // ── Exibe o anúncio e retorna o resultado ─────────────────────────────
+    // REGRA: 1 anúncio por dia, libera apenas 1 pick premium (a que foi sorteada)
+    const showAd = async (id: string): Promise<{ success: boolean; error?: string }> => {
+        // Verificar limite diário ANTES de exibir o anúncio
+        const alreadyUsed = await hasUsedAdToday();
+        if (alreadyUsed) {
+            return {
+                success: false,
+                error: 'Você já assistiu um anúncio hoje. Volte amanhã para desbloquear outra análise.',
+            };
+        }
 
-  return {
-    loaded,
-    loading,
-    error,
-    showAd,
-    isUnlockedToday,
-    reloadAd: loadAd
-  };
+        // Expo Go: simula recompensa sem anúncio real
+        if (isExpoGo || !RewardedAd) {
+            try {
+                await AsyncStorage.setItem(DAILY_AD_KEY, JSON.stringify({ date: todayStr(), analysisId: id }));
+                await AsyncStorage.setItem(`${UNLOCK_STORAGE_PREFIX}${id}`, Date.now().toString());
+                if (user) {
+                    await supabase.from('user_unlocked_picks').upsert(
+                        { user_id: user.id, analysis_id: id, created_at: new Date().toISOString() },
+                        { onConflict: 'user_id,analysis_id' }
+                    );
+                }
+            } catch { /* silencia */ }
+            return { success: true };
+        }
+
+        setLoading(true);
+
+        if (!loadedRef.current) {
+            try {
+                await Promise.race([
+                    loadAd(),
+                    new Promise<never>((_, reject) =>
+                        setTimeout(() => reject(new Error('Timeout')), 10_000)
+                    ),
+                ]);
+            } catch {
+                setLoading(false);
+                return { success: false, error: 'Anúncio não disponível. Tente novamente.' };
+            }
+        }
+
+        const ad = adRef.current;
+        if (!ad || !loadedRef.current) {
+            setLoading(false);
+            return { success: false, error: 'Anúncio não disponível. Tente novamente.' };
+        }
+
+        setLoading(false);
+
+        return new Promise((resolve) => {
+            let earnedReward = false;
+
+            const unsubEarned = ad.addAdEventListener(
+                RewardedAdEventType.EARNED_REWARD,
+                async (reward: RewardedAdReward) => {
+                    earnedReward = true;
+                    try {
+                        // Registra uso diário global (impede novo anúncio hoje)
+                        await AsyncStorage.setItem(DAILY_AD_KEY, JSON.stringify({ date: todayStr(), analysisId: id }));
+                        // Registra desbloqueio desta análise específica
+                        await AsyncStorage.setItem(`${UNLOCK_STORAGE_PREFIX}${id}`, Date.now().toString());
+                        if (user) {
+                            await supabase.from('user_unlocked_picks').upsert(
+                                { user_id: user.id, analysis_id: id, created_at: new Date().toISOString() },
+                                { onConflict: 'user_id,analysis_id' }
+                            );
+                        }
+                    } catch (e) {
+                        console.error('[RewardedAd] Erro ao salvar recompensa:', e);
+                    }
+                }
+            );
+
+            const unsubClosed = ad.addAdEventListener(AdEventType.CLOSED, () => {
+                unsubEarned();
+                unsubClosed();
+                loadedRef.current = false;
+                adRef.current     = null;
+                loadAd().catch(() => {});
+
+                if (earnedReward) {
+                    resolve({ success: true });
+                } else {
+                    resolve({ success: false, error: 'Anúncio fechado antes de completar.' });
+                }
+            });
+
+            const unsubError = ad.addAdEventListener(AdEventType.ERROR, (err: any) => {
+                unsubEarned();
+                unsubClosed();
+                unsubError();
+                loadedRef.current = false;
+                adRef.current     = null;
+                resolve({ success: false, error: err?.message ?? 'Erro ao exibir anúncio.' });
+            });
+
+            try {
+                ad.show();
+            } catch (e: any) {
+                unsubEarned();
+                unsubClosed();
+                unsubError();
+                resolve({ success: false, error: e?.message ?? 'Falha ao exibir anúncio.' });
+            }
+        });
+    };
+
+    return { loading, showAd, isUnlockedToday, hasUsedAdToday, reloadAd: loadAd };
 }

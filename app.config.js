@@ -10,7 +10,7 @@ export default {
     name: "CornerEdge",
     slug: "corneredge",
     owner: "luck1993",
-    version: "1.0.1",
+    version: "1.0.2",
     orientation: "portrait",
     icon: "./assets/images/icon.png",
     scheme: "corneredge",
@@ -25,7 +25,7 @@ export default {
     ios: {
       supportsTablet: true,
       bundleIdentifier: "com.corneredge.app",
-      buildNumber: "2"
+      buildNumber: "3"
     },
     
     android: {
@@ -34,7 +34,7 @@ export default {
         backgroundColor: "#1A1A1A"
       },
       package: "com.corneredge.app",
-      versionCode: 2
+      versionCode: 3
       // Usar Hermes (padrão e recomendado)
       // jsEngine: "hermes"
     },
@@ -106,3 +106,4 @@ export default {
     }
   }
 };
+
