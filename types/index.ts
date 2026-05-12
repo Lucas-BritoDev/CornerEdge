@@ -1,4 +1,5 @@
 // Core Types - CornerEdge
+// Updated: 2026-05-12
 
 // ====================
 // USER TYPES
