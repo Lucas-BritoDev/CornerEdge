@@ -51,7 +51,16 @@
     "away_intensity": "Intensidad fuera",
     "ad_unlocked": "¡Análisis desbloqueado con éxito!",
     "ad_error": "No se pudo cargar el anuncio. Inténtalo de nuevo.",
-    "actual_corners": "Corners reales"
+    "actual_corners": "Corners reales",
+    "no_analyses_today": "Sin análisis disponibles hoy",
+    "no_analyses_message": "Estamos preparando los análisis de hoy. Vuelve en unos minutos.",
+    "loading_analyses": "Cargando análisis...",
+    "ad_limit_reached": "Límite diario alcanzado",
+    "ad_limit_message": "Ya has desbloqueado un análisis premium hoy. Vuelve mañana para desbloquear otro.",
+    "ad_unavailable": "Anuncio no disponible",
+    "ad_unavailable_message": "No se pudo cargar el anuncio. Inténtalo de nuevo en unos momentos.",
+    "ad_closed_early": "Anuncio cerrado antes de completar",
+    "ad_closed_early_message": "Necesitas ver el anuncio completo para desbloquear el análisis."
   },
   "results": {
     "title": "Resultados",

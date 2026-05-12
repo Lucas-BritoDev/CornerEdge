@@ -114,8 +114,8 @@ function HomeScreen() {
         const usedToday = await hasUsedAdToday();
         if (usedToday) {
             Alert.alert(
-                '⏰ Limite diário atingido',
-                'Você já desbloqueou uma análise premium hoje. Volte amanhã para desbloquear outra.',
+                '⏰ ' + t('home.ad_limit_reached'),
+                t('home.ad_limit_message'),
                 [{ text: 'OK' }]
             );
             return;
@@ -150,9 +150,15 @@ function HomeScreen() {
             );
         } else {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+            const errorMessage = result.error?.includes('já assistiu') || result.error?.includes('já usou')
+                ? t('home.ad_limit_message')
+                : result.error?.includes('fechado') || result.error?.includes('closed')
+                ? t('home.ad_closed_early_message')
+                : t('home.ad_unavailable_message');
+            
             Alert.alert(
-                '⏰ ' + t('common.error'),
-                result.error || t('home.ad_error'),
+                '⚠️ ' + t('common.error'),
+                errorMessage,
                 [{ text: 'OK' }]
             );
         }
@@ -427,10 +433,10 @@ function HomeScreen() {
                             >
                                 <BarChart3 color={colors.textMuted} size={48} />
                                 <Text style={[styles.emptyText, { color: colors.textMuted }]}>
-                                    {t('home.no_analyses')}
+                                    {t('home.no_analyses_today')}
                                 </Text>
                                 <Text style={[styles.emptySubtext, { color: colors.textMuted }]}>
-                                    {t('home.check_back')}
+                                    {t('home.no_analyses_message')}
                                 </Text>
                             </Animated.View>
                         )}

@@ -51,7 +51,16 @@
     "away_intensity": "Intensidade fora",
     "ad_unlocked": "Análise desbloqueada com sucesso!",
     "ad_error": "Não foi possível carregar o anúncio. Tente novamente.",
-    "actual_corners": "Escanteios reais"
+    "actual_corners": "Escanteios reais",
+    "no_analyses_today": "Nenhuma análise disponível hoje",
+    "no_analyses_message": "Estamos preparando as análises de hoje. Volte em alguns minutos.",
+    "loading_analyses": "Carregando análises...",
+    "ad_limit_reached": "Limite diário atingido",
+    "ad_limit_message": "Você já desbloqueou uma análise premium hoje. Volte amanhã para desbloquear outra.",
+    "ad_unavailable": "Anúncio não disponível",
+    "ad_unavailable_message": "Não foi possível carregar o anúncio. Tente novamente em alguns instantes.",
+    "ad_closed_early": "Anúncio fechado antes de completar",
+    "ad_closed_early_message": "Você precisa assistir o anúncio completo para desbloquear a análise."
   },
   "results": {
     "title": "Resultados",

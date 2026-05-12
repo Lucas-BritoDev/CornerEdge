@@ -51,7 +51,16 @@
     "away_intensity": "Away intensity",
     "ad_unlocked": "Analysis unlocked successfully!",
     "ad_error": "Could not load the ad. Please try again.",
-    "actual_corners": "Actual corners"
+    "actual_corners": "Actual corners",
+    "no_analyses_today": "No analyses available today",
+    "no_analyses_message": "We're preparing today's analyses. Check back in a few minutes.",
+    "loading_analyses": "Loading analyses...",
+    "ad_limit_reached": "Daily limit reached",
+    "ad_limit_message": "You've already unlocked one premium analysis today. Come back tomorrow to unlock another.",
+    "ad_unavailable": "Ad not available",
+    "ad_unavailable_message": "Could not load the ad. Please try again in a few moments.",
+    "ad_closed_early": "Ad closed before completion",
+    "ad_closed_early_message": "You need to watch the complete ad to unlock the analysis."
   },
   "results": {
     "title": "Results",
