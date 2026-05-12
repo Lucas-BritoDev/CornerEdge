@@ -96,7 +96,7 @@ export default function PremiumScreen() {
         return (
             <View style={[styles.container, { backgroundColor: colors.backgroundPrimary }]}>
                 <Header 
-                    title={t('common.premium')} 
+                    title="CornerEdge" 
                     subtitle={formatDate()} 
                 >
                     <View style={styles.headerStatsRow}>
@@ -164,7 +164,7 @@ export default function PremiumScreen() {
     return (
         <View style={[styles.container, { backgroundColor: colors.backgroundPrimary }]}>
             <Header 
-                title={t('common.premium')} 
+                title="CornerEdge" 
                 subtitle={formatDate()} 
             >
                 <View style={styles.headerStatsRow}>

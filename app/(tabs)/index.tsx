@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, M
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { Bell, ChevronRight, Lock, Play, Crown, RefreshCw, TrendingUp, BarChart3, Target, Calendar, Info, Clock, ShieldCheck, Zap, Share2, TrendingDown, Activity } from 'lucide-react-native';
+import { ChevronRight, Lock, Play, Crown, RefreshCw, TrendingUp, BarChart3, Target, Calendar, Info, Clock, ShieldCheck, Zap, Share2, TrendingDown, Activity } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInUp, FadeInDown, Layout, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
@@ -307,22 +307,8 @@ function HomeScreen() {
     return (
         <View style={[styles.container, { backgroundColor: colors.backgroundPrimary }]}>
             <Header 
-                title={t('app.name').toUpperCase()}
+                title="CornerEdge"
                 subtitle={formatDate()}
-                align="left"
-                rightAction={
-                    <View style={styles.headerActions}>
-                        <TouchableOpacity 
-                            style={[styles.headerActionBtn, { backgroundColor: 'rgba(255,255,255,0.1)' }]}
-                            onPress={() => router.push('/(tabs)/premium')}
-                        >
-                            <Crown color="#FFF" size={20} />
-                        </TouchableOpacity>
-                        <TouchableOpacity style={[styles.headerActionBtn, { backgroundColor: 'rgba(255,255,255,0.1)' }]}>
-                            <Bell color="#FFF" size={20} />
-                        </TouchableOpacity>
-                    </View>
-                }
             >
                 <View style={styles.headerStatsRow}>
                     <View style={[styles.headerStatCard, { backgroundColor: 'rgba(255,255,255,0.1)' }]}>

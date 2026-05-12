@@ -54,8 +54,8 @@ export default {
         "react-native-google-mobile-ads",
         {
           // Application IDs de PRODUÇÃO
-          "androidAppId": "ca-app-pub-8609967398609187~6517332149",
-          "iosAppId": "ca-app-pub-8609967398609187~6517332149",
+          "androidAppId": "ca-app-pub-8609967398609187~5936939727",
+          "iosAppId": "ca-app-pub-8609967398609187~5936939727",
           // Descrição para App Tracking Transparency (iOS)
           "userTrackingUsageDescription": "Este identificador será usado para fornecer anúncios personalizados para você.",
           // Atrasar inicialização de medição de app para evitar crash prematuro/compliance

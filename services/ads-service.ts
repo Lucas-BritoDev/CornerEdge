@@ -12,7 +12,6 @@ import { waitForAdMobInitialization } from '@/lib/admob-init';
 
 // Verifica se está rodando no Expo Go
 const isExpoGo = Constants.executionEnvironment === 'storeClient' || 
-                 Constants.appOwnership === 'expo' || 
                  Platform.OS === 'web';
 
 console.log('[AdMob] service/ads-service.ts - isExpoGo:', isExpoGo);

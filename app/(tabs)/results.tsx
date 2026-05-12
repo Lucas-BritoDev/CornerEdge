@@ -94,7 +94,7 @@ export default function ResultsScreen() {
     return (
         <View style={[styles.container, { backgroundColor: colors.backgroundPrimary }]}>
             <Header 
-                title={t('results.title')} 
+                title="CornerEdge"
                 subtitle={formatDate(selectedDate)}
                 rightAction={
                     <TouchableOpacity onPress={() => refetchAnalyses()} disabled={isRefetching} style={styles.refreshBtn}>

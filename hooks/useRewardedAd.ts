@@ -10,7 +10,6 @@ import { useAuth } from '../context/AuthContext';
 
 // Verifica se está rodando no Expo Go
 const isExpoGo = Constants.executionEnvironment === 'storeClient' || 
-                 Constants.appOwnership === 'expo' || 
                  Platform.OS === 'web';
 
 console.log('[AdMob] hook/useRewardedAd.ts - isExpoGo:', isExpoGo);

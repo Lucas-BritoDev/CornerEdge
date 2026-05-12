@@ -49,7 +49,6 @@ export async function initializeAdMob(): Promise<void> {
   // Skip in Expo Go or web
   const isExpoGo =
     Constants.executionEnvironment === 'storeClient' ||
-    (Constants as any).appOwnership === 'expo' ||
     Platform.OS === 'web';
 
   if (isExpoGo) {

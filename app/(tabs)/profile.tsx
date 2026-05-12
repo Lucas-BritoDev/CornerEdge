@@ -65,7 +65,7 @@ export default function ProfileScreen() {
     return (
         <View style={[styles.container, { backgroundColor: colors.backgroundPrimary }]}>
             <Header 
-                title={t('profile.title')} 
+                title="CornerEdge" 
                 subtitle={formatDate()} 
             >
                 <View style={styles.headerStatsRow}>

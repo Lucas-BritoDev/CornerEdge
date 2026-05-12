@@ -12,7 +12,7 @@ const BANNER_AD_UNIT_ID = __DEV__
         ? AD_UNITS.IOS_BANNER
         : AD_UNITS.ANDROID_BANNER;
 
-const isExpoGo = Constants.executionEnvironment === 'storeClient' || Constants.appOwnership === 'expo';
+const isExpoGo = Constants.executionEnvironment === 'storeClient';
 
 let BannerAd: any = null;
 let BannerAdSize: any = null;
