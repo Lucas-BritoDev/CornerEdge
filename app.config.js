@@ -10,7 +10,7 @@ export default {
     name: "CornerEdge",
     slug: "corneredge",
     owner: "luck1993",
-    version: "1.0.2",
+    version: "1.0.3",
     orientation: "portrait",
     icon: "./assets/images/icon.png",
     scheme: "corneredge",
@@ -34,7 +34,7 @@ export default {
         backgroundColor: "#1A1A1A"
       },
       package: "com.corneredge.app",
-      versionCode: 3
+      versionCode: 21
       // Usar Hermes (padrão e recomendado)
       // jsEngine: "hermes"
     },
