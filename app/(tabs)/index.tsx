@@ -28,15 +28,6 @@ function HomeScreen() {
         enabled: !authLoading && !!user,
     });
 
-    // Quando o auth resolver após o timeout, refaz o fetch se ainda não tiver dados
-    const prevAuthLoading = React.useRef(authLoading);
-    React.useEffect(() => {
-        if (prevAuthLoading.current && !authLoading && user) {
-            refetch();
-        }
-        prevAuthLoading.current = authLoading;
-    }, [authLoading, user]);
-
     // Mostra skeleton enquanto auth ou análises estão carregando
     const isLoading = authLoading || analysesLoading;
     

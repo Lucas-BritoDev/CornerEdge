@@ -46,21 +46,21 @@ export function AuthProvider({ children }: AuthProviderProps) {
         let cancelled = false;
 
         const initialize = async () => {
-            // Timeout de segurança: 3s para conexões lentas
-            // O Supabase usa AsyncStorage como cache local, normalmente resolve em < 1s
-            const sessionTimeout = setTimeout(() => {
-                if (!cancelled) {
-                    console.warn('[CornerEdge] Session fetch timeout (3s) - forcing isLoading false');
-                    setIsLoading(false);
-                }
-            }, 3000);
-
             try {
-                const { data: { session } } = await supabase.auth.getSession();
+                console.log('[CornerEdge] Iniciando carregamento de sessão...');
+                const { data: { session }, error } = await supabase.auth.getSession();
 
-                clearTimeout(sessionTimeout);
                 if (cancelled) return;
 
+                if (error) {
+                    console.error('[CornerEdge] Erro ao carregar sessão:', error);
+                    setSession(null);
+                    setUser(null);
+                    setIsLoading(false);
+                    return;
+                }
+
+                console.log('[CornerEdge] Sessão carregada:', session ? 'autenticado' : 'não autenticado');
                 setSession(session);
                 setUser(session?.user ?? null);
 
@@ -68,10 +68,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
                     await fetchProfile(session.user.id);
                 }
             } catch (err) {
-                clearTimeout(sessionTimeout);
                 console.error('[CornerEdge] Erro na inicialização:', err);
+                setSession(null);
+                setUser(null);
             } finally {
-                if (!cancelled) setIsLoading(false);
+                if (!cancelled) {
+                    console.log('[CornerEdge] Inicialização completa, setando isLoading = false');
+                    setIsLoading(false);
+                }
             }
         };
 
