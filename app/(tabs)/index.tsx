@@ -25,7 +25,7 @@ function HomeScreen() {
     const { t, i18n } = useTranslation();
     
     const { data: analyses = [], isLoading: analysesLoading, error, refetch } = useTodayAnalyses({
-        enabled: !authLoading && !!user,
+        enabled: !authLoading,
     });
 
     // Mostra skeleton enquanto auth ou análises estão carregando
@@ -36,10 +36,13 @@ function HomeScreen() {
     const [showRewardedModal, setShowRewardedModal] = React.useState(false);
     const [rewardTargetAnalysis, setRewardTargetAnalysis] = React.useState<AnalysisWithDetails | null>(null);
     const [unlockedAnalyses, setUnlockedAnalyses] = React.useState<Set<string>>(new Set());
-    const { loaded: rewardedLoaded, loading: rewardedLoading, showAd, isUnlockedToday, hasUsedAdToday } = useRewardedAd();
+    const { loading: rewardedLoading, showAd, isUnlockedToday, hasUsedAdToday } = useRewardedAd();
 
     // Restaura desbloqueios persistidos ao carregar as análises
     // Garante que picks desbloqueadas via anúncio continuem visíveis após fechar/reabrir o app
+    const freeAnalyses = analyses.filter(a => a.tier === 'free');
+    const premiumAnalyses = analyses.filter(a => a.tier === 'premium');
+    
     const premiumAnalysisIds = (premiumAnalyses ?? []).map(a => a.id).join(',');
     React.useEffect(() => {
         if (!premiumAnalyses?.length) return;
@@ -55,9 +58,6 @@ function HomeScreen() {
         };
         restoreUnlocks();
     }, [premiumAnalysisIds]);
-    
-    const freeAnalyses = analyses.filter(a => a.tier === 'free');
-    const premiumAnalyses = analyses.filter(a => a.tier === 'premium');
 
     // Pick premium sorteada para desbloquear — determinística por dia (seed = data)
     // O usuário só vê UMA pick premium bloqueada, sem saber qual é
