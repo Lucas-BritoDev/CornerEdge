@@ -8,6 +8,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { useUserStats } from '../../services/analyses-service';
 import { Header } from '../../components/Header';
+import Constants from 'expo-constants';
 
 const languages = [
     { code: 'pt', label: 'PT', flag: '🇧🇷' },
@@ -21,6 +22,7 @@ export default function ProfileScreen() {
     const { colors, setTheme, resolvedTheme } = useTheme();
     const { user, profile, signOut, isPremium } = useAuth();
     const { t, i18n } = useTranslation();
+    const appVersion = Constants.expoConfig?.version ?? '1.0.0';
     const [notifications, setNotifications] = React.useState(true);
     const [isSigningOut, setIsSigningOut] = React.useState(false);
     const { data: stats, isLoading: statsLoading } = useUserStats();
@@ -219,7 +221,7 @@ export default function ProfileScreen() {
                 {/* Versão do app */}
                 <View style={[styles.appInfo, { backgroundColor: colors.backgroundSecondary }]}>
                     <Text style={[styles.appInfoText, { color: colors.textMuted }]}>
-                        CornerEdge v1.0.0{'\n'}{t('app.tagline')}
+                        CornerEdge v{appVersion}{'\n'}{t('app.tagline')}
                     </Text>
                 </View>
             </ScrollView>

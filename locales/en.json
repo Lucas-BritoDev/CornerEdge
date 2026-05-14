@@ -60,7 +60,12 @@
     "ad_unavailable": "Ad not available",
     "ad_unavailable_message": "Could not load the ad. Please try again in a few moments.",
     "ad_closed_early": "Ad closed before completion",
-    "ad_closed_early_message": "You need to watch the complete ad to unlock the analysis."
+    "ad_closed_early_message": "You need to watch the complete ad to unlock the analysis.",
+    "multiple": "Multiple",
+    "multiples_premium": "Premium Multiples",
+    "multiples_free": "Free Multiples",
+    "combined_odd": "Combined Odd",
+    "view_details": "VIEW DETAILS"
   },
   "results": {
     "title": "Results",
@@ -76,7 +81,16 @@
     "analyses": "Analyses",
     "no_results": "No results for this date",
     "select_date": "Select date",
-    "actual_corners": "Actual corners"
+    "actual_corners": "Actual corners",
+    "settled": "Settled",
+    "no_settled": "No settled analyses yet",
+    "filter_all": "All",
+    "more_games": "games",
+    "multiple_details": "Multiple Details",
+    "combined_confidence": "Combined confidence",
+    "prediction_details": "Prediction Details",
+    "won_abbr": "W",
+    "lost_abbr": "L"
   },
   "premium": {
     "title": "Premium",
@@ -139,7 +153,19 @@
     "restore_message": "Checking for previous purchases...",
     "restore_not_found": "No purchases found to restore.",
     "manage_title": "Manage Subscription",
-    "manage_message": "Opening subscription management..."
+    "manage_message": "Opening subscription management...",
+    "feat_analyses_label":   "Analyses per day",
+    "feat_analyses_free":    "4 analyses (60-71%)",
+    "feat_analyses_premium": "6 analyses (72%+)",
+    "feat_access_label":     "Analysis access",
+    "feat_access_free":      "FREE only",
+    "feat_access_premium":   "FREE + PREMIUM",
+    "feat_stats_label":      "Full statistics",
+    "feat_stats_free":       "Not available",
+    "feat_stats_premium":    "Complete",
+    "feat_notif_label":      "Notifications",
+    "feat_notif_free":       "Not available",
+    "feat_notif_premium":    "Real-time push"
   },
   "profile": {
     "title": "Profile",

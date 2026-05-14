@@ -65,7 +65,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
                 setUser(session?.user ?? null);
 
                 if (session?.user) {
-                    await fetchProfile(session.user.id);
+                    void fetchProfile(session.user.id);
                 }
             } catch (err) {
                 console.error('[CornerEdge] Erro na inicialização:', err);
@@ -88,7 +88,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
                 setUser(session?.user ?? null);
 
                 if (session?.user) {
-                    await fetchProfile(session.user.id);
+                    void fetchProfile(session.user.id);
                 } else {
                     setProfile(null);
                 }

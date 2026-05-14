@@ -131,7 +131,9 @@ export function useRewardedAd() {
     // ── Verifica se uma análise específica já foi desbloqueada hoje ───────
     const isUnlockedToday = async (id: string): Promise<boolean> => {
         try {
-            // Verifica no Supabase (persistente entre dispositivos)
+            const today = todayStr();
+            
+            // ✅ FIX: Verifica no Supabase primeiro (fonte de verdade)
             if (user) {
                 const { data } = await supabase
                     .from('user_unlocked_picks')
@@ -141,21 +143,33 @@ export function useRewardedAd() {
                     .maybeSingle();
 
                 if (data) {
-                    const diffHours = (Date.now() - new Date((data as any).created_at).getTime()) / 3_600_000;
-                    if (diffHours < 24) return true;
+                    const unlockDate = new Date((data as any).created_at).toISOString().split('T')[0];
+                    // ✅ FIX: Compara datas, não horas (resolve problema de reaparecimento)
+                    if (unlockDate === today) {
+                        // Sincroniza com AsyncStorage para offline
+                        await AsyncStorage.setItem(`${UNLOCK_STORAGE_PREFIX}${id}`, JSON.stringify({ date: today }));
+                        return true;
+                    }
                 }
             }
 
-            // Fallback: cache local
-            const timestamp = await AsyncStorage.getItem(`${UNLOCK_STORAGE_PREFIX}${id}`);
-            if (!timestamp) return false;
-            const diffHours = (Date.now() - parseInt(timestamp, 10)) / 3_600_000;
-            if (diffHours >= 24) {
+            // Fallback para AsyncStorage (offline ou sem usuário)
+            const stored = await AsyncStorage.getItem(`${UNLOCK_STORAGE_PREFIX}${id}`);
+            if (!stored) return false;
+            
+            try {
+                const { date } = JSON.parse(stored);
+                if (date === today) return true;
+                // Limpa desbloqueio de dia anterior
                 await AsyncStorage.removeItem(`${UNLOCK_STORAGE_PREFIX}${id}`);
-                return false;
+            } catch {
+                // Formato antigo (timestamp), migra para novo formato
+                await AsyncStorage.removeItem(`${UNLOCK_STORAGE_PREFIX}${id}`);
             }
-            return true;
-        } catch {
+            
+            return false;
+        } catch (err) {
+            console.error('[RewardedAd] Erro ao verificar desbloqueio:', err);
             return false;
         }
     };
@@ -175,8 +189,10 @@ export function useRewardedAd() {
         // Expo Go: simula recompensa sem anúncio real
         if (isExpoGo || !RewardedAd) {
             try {
-                await AsyncStorage.setItem(DAILY_AD_KEY, JSON.stringify({ date: todayStr(), analysisId: id }));
-                await AsyncStorage.setItem(`${UNLOCK_STORAGE_PREFIX}${id}`, Date.now().toString());
+                const today = todayStr();
+                // ✅ FIX: Salva com formato de data, não timestamp
+                await AsyncStorage.setItem(DAILY_AD_KEY, JSON.stringify({ date: today, analysisId: id }));
+                await AsyncStorage.setItem(`${UNLOCK_STORAGE_PREFIX}${id}`, JSON.stringify({ date: today }));
                 if (user) {
                     await supabase.from('user_unlocked_picks').upsert(
                         { user_id: user.id, analysis_id: id, created_at: new Date().toISOString() },
@@ -219,10 +235,10 @@ export function useRewardedAd() {
                 async (reward: RewardedAdReward) => {
                     earnedReward = true;
                     try {
-                        // Registra uso diário global (impede novo anúncio hoje)
-                        await AsyncStorage.setItem(DAILY_AD_KEY, JSON.stringify({ date: todayStr(), analysisId: id }));
-                        // Registra desbloqueio desta análise específica
-                        await AsyncStorage.setItem(`${UNLOCK_STORAGE_PREFIX}${id}`, Date.now().toString());
+                        const today = todayStr();
+                        // ✅ FIX: Salva com formato de data, não timestamp
+                        await AsyncStorage.setItem(DAILY_AD_KEY, JSON.stringify({ date: today, analysisId: id }));
+                        await AsyncStorage.setItem(`${UNLOCK_STORAGE_PREFIX}${id}`, JSON.stringify({ date: today }));
                         if (user) {
                             await supabase.from('user_unlocked_picks').upsert(
                                 { user_id: user.id, analysis_id: id, created_at: new Date().toISOString() },

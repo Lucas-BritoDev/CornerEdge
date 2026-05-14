@@ -3,7 +3,7 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from '../context/AuthContext';
 import { ThemeProvider, useTheme } from '../context/ThemeContext';
@@ -39,10 +39,8 @@ function AuthGate() {
         // Aguarda auth terminar de carregar
         if (isLoading) return;
 
-        // Aguarda o router ter segmentos válidos
-        if (!segments || segments.length === 0) return;
-
-        const currentSegment = segments[0] as string;
+        const currentSegment = segments[0] as string | undefined;
+        if (!currentSegment) return;
         const inAuthGroup = ['login', 'signup', 'forgot-password', 'new-password'].includes(currentSegment);
         const inTabs = currentSegment === '(tabs)';
 
@@ -65,45 +63,42 @@ function AuthGate() {
 function AppContent() {
     const { resolvedTheme } = useTheme();
     const { isLoading: authLoading } = useAuth();
+    const splashHiddenRef = useRef(false);
 
-    // ✅ Inicialização e Splash Screen: Garantindo que o app entre em no máximo 5s
+    const hideSplash = () => {
+        if (splashHiddenRef.current) return;
+        splashHiddenRef.current = true;
+        SplashScreen.hideAsync().catch(() => {});
+    };
+
     useEffect(() => {
-        let isMounted = true;
-        let splashHidden = false;
-        
-        const hideSplash = async (reason: string) => {
-            if (!splashHidden && isMounted) {
-                splashHidden = true;
-                console.log(`[CornerEdge] Ocultando Splash Screen. Motivo: ${reason}`);
-                await SplashScreen.hideAsync().catch(() => {});
-            }
-        };
+        let cancelled = false;
 
-        // Timeout de segurança global: 3 segundos para esconder o splash independente de tudo
+        import('../lib/admob-init').then(({ initializeAdMob }) => {
+            initializeAdMob()
+                .then(() => console.log('[CornerEdge] AdMob pronto'))
+                .catch(e => console.warn('[CornerEdge] AdMob falhou:', e));
+        }).catch(e => console.warn('[CornerEdge] Falha ao importar AdMob:', e));
+
         const fallbackTimeout = setTimeout(() => {
-            hideSplash('Timeout de segurança (3s)');
-        }, 3000);
-
-        const init = async () => {
-            // Inicializa AdMob em segundo plano (sem await no fluxo crítico)
-            import('../lib/admob-init').then(({ initializeAdMob }) => {
-                initializeAdMob()
-                    .then(() => console.log('[CornerEdge] AdMob pronto'))
-                    .catch(e => console.warn('[CornerEdge] AdMob falhou:', e));
-            }).catch(e => console.warn('[CornerEdge] Falha ao importar AdMob:', e));
-
-            // Se o auth já estiver carregado, fecha o splash imediatamente
-            if (!authLoading) {
-                hideSplash('Auth carregado');
+            if (!cancelled) {
+                console.log('[CornerEdge] Splash: timeout de segurança (6s)');
+                hideSplash();
             }
-        };
-
-        init();
+        }, 6000);
 
         return () => {
-            isMounted = false;
+            cancelled = true;
             clearTimeout(fallbackTimeout);
         };
+    }, []);
+
+    // Esconde o splash quando a sessão inicial estiver resolvida (não espera React Query).
+    // Esperar ['analyses','today'] aqui podia travar o splash antes da home montar a query.
+    useEffect(() => {
+        if (authLoading) return;
+        console.log('[CornerEdge] Splash: auth pronto, escondendo');
+        hideSplash();
     }, [authLoading]);
 
     const statusBarBg = resolvedTheme === 'dark' ? '#0D0D0D' : '#FFFFFF';

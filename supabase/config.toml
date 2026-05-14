@@ -1,33 +1,19 @@
 
+# ─── Funções chamadas por cron (sem JWT do cliente) ──────────────────────────
+
+[functions.generate-daily-analyses]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/generate-daily-analyses/index.ts"
+
+[functions.update-results]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/update-results/index.ts"
+
+# ─── Funções chamadas pelo app / cron ────────────────────────────────────────
+
 [functions.send-daily-notification]
 enabled = true
-verify_jwt = true
-import_map = "./functions/send-daily-notification/deno.json"
-# Uncomment to specify a custom file path to the entrypoint.
-# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+verify_jwt = false
 entrypoint = "./functions/send-daily-notification/index.ts"
-# Specifies static files to be bundled with the function. Supports glob patterns.
-# For example, if you want to serve static HTML pages in your function:
-# static_files = [ "./functions/send-daily-notification/*.html" ]
-
-[functions.create-checkout-session]
-enabled = true
-verify_jwt = true
-import_map = "./functions/create-checkout-session/deno.json"
-# Uncomment to specify a custom file path to the entrypoint.
-# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
-entrypoint = "./functions/create-checkout-session/index.ts"
-# Specifies static files to be bundled with the function. Supports glob patterns.
-# For example, if you want to serve static HTML pages in your function:
-# static_files = [ "./functions/create-checkout-session/*.html" ]
-
-[functions.stripe-webhook]
-enabled = true
-verify_jwt = true
-import_map = "./functions/stripe-webhook/deno.json"
-# Uncomment to specify a custom file path to the entrypoint.
-# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
-entrypoint = "./functions/stripe-webhook/index.ts"
-# Specifies static files to be bundled with the function. Supports glob patterns.
-# For example, if you want to serve static HTML pages in your function:
-# static_files = [ "./functions/stripe-webhook/*.html" ]

@@ -9,31 +9,11 @@ import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { Header } from '../../components/Header';
 
-const FEATURES = [
-    {
-        icon: Zap,
-        label: 'Análises por dia',
-        free: '4 análises (60-71%)',
-        premium: '6 análises (72%+)',
-    },
-    {
-        icon: Star,
-        label: 'Acesso às análises',
-        free: 'Apenas FREE',
-        premium: 'FREE + PREMIUM',
-    },
-    {
-        icon: BarChart2,
-        label: 'Estatísticas completas',
-        free: 'Não disponível',
-        premium: 'Completo',
-    },
-    {
-        icon: Bell,
-        label: 'Notificações',
-        free: 'Não disponível',
-        premium: 'Push em tempo real',
-    },
+const FEATURE_KEYS = [
+    { icon: Zap,      labelKey: 'premium.feat_analyses_label', freeKey: 'premium.feat_analyses_free', premiumKey: 'premium.feat_analyses_premium' },
+    { icon: Star,     labelKey: 'premium.feat_access_label',   freeKey: 'premium.feat_access_free',   premiumKey: 'premium.feat_access_premium' },
+    { icon: BarChart2,labelKey: 'premium.feat_stats_label',    freeKey: 'premium.feat_stats_free',    premiumKey: 'premium.feat_stats_premium' },
+    { icon: Bell,     labelKey: 'premium.feat_notif_label',    freeKey: 'premium.feat_notif_free',    premiumKey: 'premium.feat_notif_premium' },
 ];
 
 export default function PremiumScreen() {
@@ -72,7 +52,7 @@ export default function PremiumScreen() {
                                 t('premium.subscribe_success_message')
                             );
                         } catch (e: any) {
-                            Alert.alert(t('common.error'), e.message || t('common.generic_error'));
+                            Alert.alert(t('common.error'), t('common.generic_error'));
                         } finally {
                             setLoading(false);
                         }
@@ -103,7 +83,7 @@ export default function PremiumScreen() {
                     <View style={[styles.activeCard, { backgroundColor: colors.backgroundSecondary, borderColor: colors.accentOrange }]}>
                         <View style={[styles.activeBadge, { backgroundColor: colors.accentOrange }]}>
                             <Crown color="#FFF" size={14} />
-                            <Text style={styles.activeBadgeText}>ATIVO</Text>
+                            <Text style={styles.activeBadgeText}>{t('premium.premium_active').toUpperCase()}</Text>
                         </View>
                         <Crown color={colors.accentOrange} size={48} style={{ marginTop: 8 }} />
                         <Text style={[styles.activeTitle, { color: colors.textPrimary }]}>{t('premium.active_plan')}</Text>
@@ -117,8 +97,8 @@ export default function PremiumScreen() {
 
                     {/* Benefícios ativos */}
                     <View style={styles.section}>
-                        <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Seus benefícios</Text>
-                        {FEATURES.map((f, i) => {
+                        <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>{t('premium.subscription_benefits')}</Text>
+                        {FEATURE_KEYS.map((f, i) => {
                             const Icon = f.icon;
                             return (
                                 <View key={i} style={[styles.benefitRow, { backgroundColor: colors.backgroundSecondary, borderColor: colors.cardBorder }]}>
@@ -126,8 +106,8 @@ export default function PremiumScreen() {
                                         <Icon color={colors.accentOrange} size={18} />
                                     </View>
                                     <View style={styles.benefitText}>
-                                        <Text style={[styles.benefitLabel, { color: colors.textPrimary }]}>{f.label}</Text>
-                                        <Text style={[styles.benefitValue, { color: colors.accentOrange }]}>{f.premium}</Text>
+                                        <Text style={[styles.benefitLabel, { color: colors.textPrimary }]}>{t(f.labelKey)}</Text>
+                                        <Text style={[styles.benefitValue, { color: colors.accentOrange }]}>{t(f.premiumKey)}</Text>
                                     </View>
                                     <Check color={colors.statusGreen} size={20} />
                                 </View>
@@ -174,12 +154,12 @@ export default function PremiumScreen() {
 
                 {/* Tabela de comparação */}
                 <View style={styles.section}>
-                    <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Free vs Premium</Text>
+                    <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>{t('premium.feature_comparison')}</Text>
 
                     <View style={[styles.compTable, { backgroundColor: colors.backgroundSecondary, borderColor: colors.cardBorder }]}>
                         {/* Cabeçalho */}
                         <View style={[styles.compHeader, { borderBottomColor: colors.cardBorder }]}>
-                            <Text style={[styles.compHeaderFeature, { color: colors.textMuted }]}>Recurso</Text>
+                            <Text style={[styles.compHeaderFeature, { color: colors.textMuted }]}>{t('premium.feature')}</Text>
                             <Text style={[styles.compHeaderFree, { color: colors.textMuted }]}>Free</Text>
                             <View style={[styles.compHeaderPremiumBox, { backgroundColor: colors.accentOrange }]}>
                                 <Crown color="#FFF" size={12} />
@@ -188,9 +168,9 @@ export default function PremiumScreen() {
                         </View>
 
                         {/* Linhas */}
-                        {FEATURES.map((f, i) => {
+                        {FEATURE_KEYS.map((f, i) => {
                             const Icon = f.icon;
-                            const isLast = i === FEATURES.length - 1;
+                            const isLast = i === FEATURE_KEYS.length - 1;
                             return (
                                 <View
                                     key={i}
@@ -201,10 +181,10 @@ export default function PremiumScreen() {
                                 >
                                     <View style={styles.compFeatureCell}>
                                         <Icon color={colors.textMuted} size={14} />
-                                        <Text style={[styles.compFeatureText, { color: colors.textSecondary }]}>{f.label}</Text>
+                                        <Text style={[styles.compFeatureText, { color: colors.textSecondary }]}>{t(f.labelKey)}</Text>
                                     </View>
-                                    <Text style={[styles.compFreeText, { color: colors.textMuted }]}>{f.free}</Text>
-                                    <Text style={[styles.compPremiumText, { color: colors.accentOrange }]}>{f.premium}</Text>
+                                    <Text style={[styles.compFreeText, { color: colors.textMuted }]}>{t(f.freeKey)}</Text>
+                                    <Text style={[styles.compPremiumText, { color: colors.accentOrange }]}>{t(f.premiumKey)}</Text>
                                 </View>
                             );
                         })}

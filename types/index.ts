@@ -26,6 +26,21 @@ export interface UserProfile {
 // CORNER ANALYSIS TYPES
 // ====================
 
+export interface MultipleGame {
+    fixture_id: number;
+    home_team: string;
+    away_team: string;
+    league: string;
+    kickoff_at: string;
+    home_logo?: string;
+    away_logo?: string;
+    prediction: number;
+    strategy: 'over' | 'under';
+    confidence: number;
+    actual_corners?: number | null;
+    result: 'pending' | 'correct' | 'incorrect' | 'void';
+}
+
 export interface CornerAnalysis {
     id: string;
     home_team: string;
@@ -45,6 +60,12 @@ export interface CornerAnalysis {
     published_at: string;
     created_at: string;
     updated_at: string;
+    
+    // Multiple bet fields
+    is_multiple?: boolean;
+    games?: MultipleGame[];
+    combined_confidence?: number;
+    combined_odd?: number;
     
     // Relations (populated via joins)
     robust_scenarios?: RobustScenario[];

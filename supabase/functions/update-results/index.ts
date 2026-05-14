@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 
@@ -6,7 +7,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const API_KEY = Deno.env.get('FOOTBALL_API_KEY') || '1a896aad078a4eec7ab7121281bcd5ec';
+const API_KEY = Deno.env.get('FOOTBALL_API_KEY');
+if (!API_KEY) throw new Error('[UpdateResults] FOOTBALL_API_KEY env var não configurada');
 const API_BASE_URL = 'https://v3.football.api-sports.io';
 
 async function fetchFromAPI(endpoint: string) {
@@ -87,6 +89,138 @@ serve(async (req) => {
     let updatedCount = 0;
 
     for (const analysis of analyses) {
+      // ============================================================================
+      // PROCESSAR MÚLTIPLAS
+      // ============================================================================
+      if (analysis.is_multiple && analysis.games) {
+        console.log(`[UpdateResults] Processando múltipla ${analysis.id} com ${analysis.games.length} jogos`);
+        
+        let allCorrect = true;
+        let hasVoid = false;
+        const updatedGames = [];
+        
+        for (const game of analysis.games) {
+          try {
+            const fixtureData = await fetchFromAPI(`/fixtures?id=${game.fixture_id}`);
+            if (!fixtureData || fixtureData.length === 0) {
+              hasVoid = true;
+              updatedGames.push({ ...game, result: 'void' });
+              continue;
+            }
+            
+            const fixture = fixtureData[0];
+            const fixtureStatus = fixture?.fixture?.status?.short;
+            
+            // Jogos adiados/cancelados
+            if (['PST', 'CANC', 'ABD', 'SUSP', 'INT'].includes(fixtureStatus)) {
+              hasVoid = true;
+              updatedGames.push({ ...game, result: 'void' });
+              continue;
+            }
+            
+            // Timeout para jogos que não começam
+            if (fixtureStatus === 'NS') {
+              const kickoffTime = new Date(game.kickoff_at).getTime();
+              const hoursSinceKickoff = (Date.now() - kickoffTime) / (1000 * 60 * 60);
+              
+              if (hoursSinceKickoff > 4) {
+                hasVoid = true;
+                updatedGames.push({ ...game, result: 'void' });
+              } else {
+                updatedGames.push(game); // Ainda pendente
+              }
+              continue;
+            }
+            
+            // Só processa se finalizado
+            if (!['FT', 'AET', 'PEN'].includes(fixtureStatus)) {
+              updatedGames.push(game); // Ainda pendente
+              continue;
+            }
+            
+            // Busca estatísticas
+            const stats = await fetchFromAPI(`/fixtures/statistics?fixture=${game.fixture_id}`);
+            let corners = { home: 0, away: 0, total: 0 };
+            
+            if (stats && stats.length > 0) {
+              corners = extractCornerStats(stats);
+            }
+            
+            // Determina resultado do jogo individual
+            const threshold = parseFloat(game.prediction.toString());
+            let gameResult = 'incorrect';
+            
+            if (game.strategy === 'under') {
+              // Under: vitória se total <= threshold (linha exata = vitória)
+              gameResult = corners.total <= threshold ? 'correct' : 'incorrect';
+            } else {
+              // Over: vitória se total >= threshold (linha exata = vitória)
+              gameResult = corners.total >= threshold ? 'correct' : 'incorrect';
+            }
+            
+            updatedGames.push({
+              ...game,
+              actual_corners: corners.total,
+              result: gameResult
+            });
+            
+            if (gameResult === 'incorrect') {
+              allCorrect = false;
+            }
+            
+            console.log(`[UpdateResults] Jogo múltipla ${game.fixture_id}: ${corners.total} escanteios -> ${gameResult}`);
+            
+            await new Promise((r) => setTimeout(r, 200));
+          } catch (gameError) {
+            console.error(`[UpdateResults] Erro no jogo ${game.fixture_id} da múltipla:`, gameError);
+            hasVoid = true;
+            updatedGames.push({ ...game, result: 'void' });
+          }
+        }
+        
+        // Determina status da múltipla
+        // SÓ atualiza se TODOS os jogos estiverem encerrados
+        const hasPendingGames = updatedGames.some((g: any) => !g.result || g.result === 'pending');
+        
+        let multipleStatus = 'pending';
+        if (!hasPendingGames) {
+          // Todos os jogos encerrados, pode definir resultado
+          multipleStatus = hasVoid ? 'void' : (allCorrect ? 'correct' : 'incorrect');
+          
+          const { error: updateError } = await supabaseClient
+            .from('corner_analyses')
+            .update({
+              games: updatedGames,
+              status: multipleStatus,
+              updated_at: nowTime,
+            })
+            .eq('id', analysis.id);
+          
+          if (updateError) {
+            console.error(`[UpdateResults] Erro ao atualizar múltipla ${analysis.id}:`, updateError);
+            continue;
+          }
+          
+          console.log(`[UpdateResults] Múltipla ${analysis.id} -> ${multipleStatus}`);
+          updatedCount++;
+        } else {
+          // Ainda há jogos pendentes - atualiza apenas os jogos (mantém status pending)
+          await supabaseClient
+            .from('corner_analyses')
+            .update({
+              games: updatedGames,
+              updated_at: nowTime,
+            })
+            .eq('id', analysis.id);
+          
+          console.log(`[UpdateResults] Múltipla ${analysis.id} ainda tem jogos pendentes, mantém status 'pending'`);
+        }
+        continue;
+      }
+      
+      // ============================================================================
+      // PROCESSAR ANÁLISES INDIVIDUAIS (LÓGICA ORIGINAL)
+      // ============================================================================
       if (!analysis.fixture_id) continue;
 
       try {
@@ -141,14 +275,17 @@ serve(async (req) => {
           console.warn(`[UpdateResults] Jogo ${analysis.fixture_id} finalizado mas sem estatísticas.`);
         }
 
-        // Determina o resultado baseado na estratégia (Over/Under)
+        // ✅ FIX: Determina o resultado baseado na estratégia (Over/Under)
+        // Para Under: total de escanteios deve ser MENOR OU IGUAL à linha (ex: Under 7.5 com 7 escanteios = vitória)
+        // Para Over: total de escanteios deve ser MAIOR OU IGUAL à linha (ex: Over 9.5 com 10 escanteios = vitória)
         let status = 'incorrect';
-        const threshold = analysis.strategy_type === 'under' ? analysis.probable_range_max : analysis.probable_range_min;
+        const threshold = parseFloat(analysis.avg_prediction.toString());
         
         if (analysis.strategy_type === 'under') {
+          // Under: vitória se total <= threshold (linha exata = vitória)
           status = corners.total <= threshold ? 'correct' : 'incorrect';
         } else {
-          // Default é over
+          // Over: vitória se total >= threshold (linha exata = vitória)
           status = corners.total >= threshold ? 'correct' : 'incorrect';
         }
         

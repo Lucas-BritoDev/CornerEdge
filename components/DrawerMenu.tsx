@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { X, Home, Moon, Sun } from 'lucide-react-native';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import Constants from 'expo-constants';
 
 interface DrawerMenuProps {
     visible: boolean;
@@ -28,6 +29,7 @@ export function DrawerMenu({ visible, onClose }: DrawerMenuProps) {
     const isDark = theme === 'dark';
     const { width: screenWidth } = useWindowDimensions();
     const drawerWidth = Math.min(screenWidth * 0.85, 320);
+    const appVersion = Constants.expoConfig?.version ?? '1.0.0';
 
     const menuItems: MenuItem[] = [
         { id: 'home', label: 'Início', icon: <Home color={colors.textSecondary} size={22} />, route: '/' },
@@ -131,7 +133,7 @@ export function DrawerMenu({ visible, onClose }: DrawerMenuProps) {
 
                     {/* Version */}
                     <Text style={[styles.version, { color: colors.textMuted }]}>
-                        CornerEdge v1.0.0
+                        CornerEdge v{appVersion}
                     </Text>
                 </View>
 

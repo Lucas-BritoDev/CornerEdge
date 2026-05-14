@@ -60,7 +60,12 @@
     "ad_unavailable": "Anuncio no disponible",
     "ad_unavailable_message": "No se pudo cargar el anuncio. Inténtalo de nuevo en unos momentos.",
     "ad_closed_early": "Anuncio cerrado antes de completar",
-    "ad_closed_early_message": "Necesitas ver el anuncio completo para desbloquear el análisis."
+    "ad_closed_early_message": "Necesitas ver el anuncio completo para desbloquear el análisis.",
+    "multiple": "Múltiple",
+    "multiples_premium": "Múltiples Premium",
+    "multiples_free": "Múltiples Free",
+    "combined_odd": "Cuota Combinada",
+    "view_details": "VER DETALLES"
   },
   "results": {
     "title": "Resultados",
@@ -76,7 +81,16 @@
     "analyses": "Análisis",
     "no_results": "Sin resultados para esta fecha",
     "select_date": "Seleccionar fecha",
-    "actual_corners": "Corners reales"
+    "actual_corners": "Corners reales",
+    "settled": "Cerradas",
+    "no_settled": "Ningún análisis cerrado aún",
+    "filter_all": "Todas",
+    "more_games": "partidos",
+    "multiple_details": "Detalles de la Múltiple",
+    "combined_confidence": "Confianza combinada",
+    "prediction_details": "Detalles de la Predicción",
+    "won_abbr": "G",
+    "lost_abbr": "P"
   },
   "premium": {
     "title": "Premium",
@@ -139,7 +153,19 @@
     "restore_message": "Buscando compras anteriores...",
     "restore_not_found": "No se encontraron compras para restaurar.",
     "manage_title": "Gestionar Suscripción",
-    "manage_message": "Abriendo gestión de suscripción..."
+    "manage_message": "Abriendo gestión de suscripción...",
+    "feat_analyses_label":   "Análisis por día",
+    "feat_analyses_free":    "4 análisis (60-71%)",
+    "feat_analyses_premium": "6 análisis (72%+)",
+    "feat_access_label":     "Acceso a análisis",
+    "feat_access_free":      "Solo FREE",
+    "feat_access_premium":   "FREE + PREMIUM",
+    "feat_stats_label":      "Estadísticas completas",
+    "feat_stats_free":       "No disponible",
+    "feat_stats_premium":    "Completo",
+    "feat_notif_label":      "Notificaciones",
+    "feat_notif_free":       "No disponible",
+    "feat_notif_premium":    "Push en tiempo real"
   },
   "profile": {
     "title": "Perfil",
@@ -243,6 +269,8 @@
     "pending": "Pendiente",
     "correct": "Correcto",
     "incorrect": "Incorrecto",
-    "generic_error": "Ocurrió un error inesperado. Inténtalo de nuevo."
+    "generic_error": "Ocurrió un error inesperado. Inténtalo de nuevo.",
+    "retry": "Intentar de nuevo",
+    "void": "Anulado"
   }
 }

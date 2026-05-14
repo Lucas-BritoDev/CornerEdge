@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, RefreshControl, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
-import { Calendar, ChevronLeft, ChevronRight, CheckCircle, XCircle, Clock, TrendingUp, Crown, Zap } from 'lucide-react-native';
+import { Calendar, ChevronLeft, ChevronRight, CheckCircle, XCircle, Clock, TrendingUp, Crown, Zap, Layers } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { useAnalysesByDate } from '../../services/analyses-service';
-import { AnalysisWithDetails } from '../../types';
+import { AnalysisWithDetails, MultipleGame } from '../../types';
 import { AdBanner } from '../../components/AdBanner';
 import { useAuth } from '../../context/AuthContext';
 import { Header } from '../../components/Header';
@@ -42,6 +42,10 @@ export default function ResultsScreen() {
 
     const visiblePicks = isPremium ? allPicks : allPicks.filter(p => p.tier === 'free');
 
+    // Separa múltiplas das individuais (apenas encerradas)
+    const visibleMultiples = visiblePicks.filter(p => p.is_multiple === true && p.status !== 'pending');
+    const visibleIndividual = visiblePicks.filter(p => !p.is_multiple && p.status !== 'pending');
+
     // ── Stats por tier ────────────────────────────────────────────────────
     const calcStats = (picks: AnalysisWithDetails[]) => {
         const settled = picks.filter(p => p.status !== 'pending');
@@ -52,16 +56,16 @@ export default function ResultsScreen() {
         return { won, lost, total, hitRate };
     };
 
-    const premiumPicks = visiblePicks.filter(p => p.tier === 'premium');
-    const freePicks    = visiblePicks.filter(p => p.tier === 'free');
-    const statsAll     = calcStats(visiblePicks);
+    const premiumPicks = visibleIndividual.filter(p => p.tier === 'premium');
+    const freePicks    = visibleIndividual.filter(p => p.tier === 'free');
+    const statsAll     = calcStats(visibleIndividual);
     const statsPremium = calcStats(premiumPicks);
     const statsFree    = calcStats(freePicks);
 
     const filteredPicks =
         tierFilter === 'premium' ? premiumPicks :
         tierFilter === 'free'    ? freePicks    :
-        visiblePicks;
+        visibleIndividual;
 
     // ── Helpers ───────────────────────────────────────────────────────────
     const formatDate = (date: Date) => {
@@ -120,7 +124,7 @@ export default function ResultsScreen() {
                         {stats.hitRate !== null ? `${stats.hitRate}%` : '—'}
                     </Text>
                     <Text style={[styles.statsBlockSub, { color: colors.textMuted }]}>
-                        {i18n.language === 'en' ? 'Hit Rate' : 'Acerto'}
+                        {t('results.hit_rate')}
                     </Text>
                 </View>
                 <View style={[styles.statsBlockDivider, { backgroundColor: colors.cardBorder }]} />
@@ -133,23 +137,113 @@ export default function ResultsScreen() {
                         <XCircle size={13} color={colors.statusRed} />
                         <Text style={[styles.statsWonLostText, { color: colors.statusRed }]}>{stats.lost}</Text>
                     </View>
-                    <Text style={[styles.statsBlockSub, { color: colors.textMuted }]}>V / D</Text>
+                    <Text style={[styles.statsBlockSub, { color: colors.textMuted }]}>{t('results.won_abbr')} / {t('results.lost_abbr')}</Text>
                 </View>
                 <View style={[styles.statsBlockDivider, { backgroundColor: colors.cardBorder }]} />
                 <View style={styles.statsBlockItem}>
                     <Text style={[styles.statsBlockValue, { color: colors.textPrimary }]}>{stats.total}</Text>
                     <Text style={[styles.statsBlockSub, { color: colors.textMuted }]}>
-                        {i18n.language === 'en' ? 'Settled' : 'Fechadas'}
+                        {t('results.settled')}
                     </Text>
                 </View>
             </View>
             {stats.total === 0 && (
                 <Text style={[styles.statsBlockEmpty, { color: colors.textMuted }]}>
-                    {i18n.language === 'en' ? 'No settled picks yet' : 'Nenhuma análise fechada ainda'}
+                    {t('results.no_settled')}
                 </Text>
             )}
         </View>
     );
+
+    // ── Renderizador de card de múltipla nos resultados ──────────────────
+    const renderMultipleResultCard = (pick: AnalysisWithDetails) => {
+        const isExpanded = expandedPick === pick.id;
+        const statusColor = getStatusColor(pick.status);
+        const isPremiumPick = pick.tier === 'premium';
+        const tierAccent = isPremiumPick ? colors.accentOrange : colors.statusGreen;
+        const games = pick.games || [];
+
+        return (
+            <TouchableOpacity
+                key={pick.id}
+                style={[
+                    styles.resultCard,
+                    {
+                        backgroundColor: colors.backgroundSecondary,
+                        borderColor: isPremiumPick ? colors.accentOrange + '55' : colors.cardBorder,
+                        borderWidth: isPremiumPick ? 1.5 : 1,
+                    },
+                ]}
+                onPress={() => setExpandedPick(isExpanded ? null : pick.id)}
+                activeOpacity={0.7}
+            >
+                {/* Badge tier + múltipla */}
+                <View style={styles.tierRow}>
+                    <View style={[styles.tierBadge, { backgroundColor: tierAccent + '22', borderColor: tierAccent }]}>
+                        <Layers size={11} color={tierAccent} />
+                        <Text style={[styles.tierBadgeText, { color: tierAccent }]}>
+                            {isPremiumPick ? t('common.premium').toUpperCase() : t('common.free').toUpperCase()} • {t('home.multiple').toUpperCase()} {games.length}X
+                        </Text>
+                    </View>
+                </View>
+
+                <View style={styles.resultHeader}>
+                    <View style={[styles.statusBadge, { backgroundColor: statusColor }]}>
+                        <Text style={styles.statusBadgeText}>{getStatusLabel(pick.status)}</Text>
+                    </View>
+                    <Text style={[styles.resultConfidence, { color: tierAccent }]}>
+                        {pick.combined_confidence}% • {pick.combined_odd?.toFixed(2)}x
+                    </Text>
+                </View>
+
+                {/* Jogos da múltipla */}
+                {games.slice(0, isExpanded ? games.length : 2).map((game: MultipleGame, idx: number) => (
+                    <View
+                        key={`${game.fixture_id}-${idx}`}
+                        style={[styles.multipleGameRow, { borderTopColor: colors.cardBorder }]}
+                    >
+                        <Text style={[styles.multipleGameTeams, { color: colors.textPrimary }]} numberOfLines={1}>
+                            {game.home_team} vs {game.away_team}
+                        </Text>
+                        <View style={styles.multipleGameRight}>
+                            <Text style={[styles.multipleGameStrategy, { color: colors.accentOrange }]}>
+                                {game.strategy?.toUpperCase()} {game.prediction}
+                            </Text>
+                            {game.result !== 'pending' && (
+                                <View style={[styles.miniStatusBadge, { backgroundColor: getStatusColor(game.result) }]}>
+                                    <Text style={styles.miniStatusText}>{getStatusLabel(game.result)}</Text>
+                                </View>
+                            )}
+                        </View>
+                    </View>
+                ))}
+
+                {!isExpanded && games.length > 2 && (
+                    <Text style={[styles.moreGamesText, { color: colors.textMuted }]}>
+                        +{games.length - 2} {t('results.more_games')}
+                    </Text>
+                )}
+
+                {isExpanded && (
+                    <View style={[styles.selectionsExpanded, { borderTopColor: colors.cardBorder }]}>
+                        <Text style={[styles.expandedTitle, { color: colors.textPrimary }]}>
+                            {t('results.multiple_details')}
+                        </Text>
+                        <Text style={[styles.expandedText, { color: colors.textSecondary }]}>
+                            {t('results.combined_confidence')}: {pick.combined_confidence}%
+                        </Text>
+                        <Text style={[styles.expandedText, { color: colors.textSecondary }]}>
+                            {t('home.combined_odd')}: {pick.combined_odd?.toFixed(2)}x
+                        </Text>
+                    </View>
+                )}
+
+                <View style={styles.expandIcon}>
+                    <Text style={{ color: colors.textMuted }}>{isExpanded ? '▲' : '▼'}</Text>
+                </View>
+            </TouchableOpacity>
+        );
+    };
 
     return (
         <View style={[styles.container, { backgroundColor: colors.backgroundPrimary }]}>
@@ -225,8 +319,8 @@ export default function ResultsScreen() {
                         {(['all', ...(isPremium ? ['premium'] : []), 'free'] as TierFilter[]).map((f) => {
                             const isActive = tierFilter === f;
                             const label =
-                                f === 'all'     ? (i18n.language === 'en' ? 'All' : 'Todas') :
-                                f === 'premium' ? 'Premium' : 'Free';
+                                f === 'all'     ? t('results.filter_all') :
+                                f === 'premium' ? t('common.premium') : t('common.free');
                             const accent =
                                 f === 'free' ? colors.statusGreen : colors.accentOrange;
                             return (
@@ -247,7 +341,23 @@ export default function ResultsScreen() {
                         })}
                     </View>
 
-                    {/* ── Lista de análises ── */}
+                    {/* ── Lista de múltiplas ── */}
+                    {!picksLoading && visibleMultiples.length > 0 && (
+                        <View style={styles.section}>
+                            <View style={styles.multiplesHeader}>
+                                <Layers size={16} color={colors.accentOrange} />
+                                <Text style={[styles.multiplesHeaderText, { color: colors.textPrimary }]}>
+                                    {t('home.multiple')}
+                                </Text>
+                                <View style={[styles.tierBadge, { backgroundColor: colors.accentOrange + '22', borderColor: colors.accentOrange }]}>
+                                    <Text style={[styles.tierBadgeText, { color: colors.accentOrange }]}>{visibleMultiples.length}</Text>
+                                </View>
+                            </View>
+                            {visibleMultiples.map(pick => renderMultipleResultCard(pick))}
+                        </View>
+                    )}
+
+                    {/* ── Lista de análises individuais ── */}
                     <View style={styles.section}>
                         {picksLoading ? (
                             <ActivityIndicator size="large" color={colors.accentOrange} style={{ marginTop: 40 }} />
@@ -336,16 +446,26 @@ export default function ResultsScreen() {
                                             </Text>
                                         </View>
 
+                                        {pick.status !== 'pending' && pick.actual_corners != null && pick.actual_corners !== undefined && (
+                                            <Text style={[styles.resultOutcomeLine, { color: colors.textSecondary }]}>
+                                                {t('results.actual_corners')}: <Text style={{ fontWeight: '900', color: colors.textPrimary }}>{pick.actual_corners}</Text>
+                                                {' · '}
+                                                <Text style={{ color: getStatusColor(pick.status), fontWeight: '800' }}>
+                                                    {getStatusLabel(pick.status)}
+                                                </Text>
+                                            </Text>
+                                        )}
+
                                         {isExpanded && (
                                             <View style={[styles.selectionsExpanded, { borderTopColor: colors.cardBorder }]}>
                                                 <Text style={[styles.expandedTitle, { color: colors.textPrimary }]}>
                                                     {t('home.prediction_details') || 'Detalhes da Previsão'}
                                                 </Text>
                                                 <Text style={[styles.expandedText, { color: colors.textSecondary }]}>
-                                                    Média prevista: {pick.avg_prediction?.toFixed(1)} escanteios
+                                                    {t('home.average_prediction')}: {pick.avg_prediction?.toFixed(1)} {t('home.corners')}
                                                 </Text>
                                                 <Text style={[styles.expandedText, { color: colors.textSecondary }]}>
-                                                    Intervalo provável: {pick.probable_range_min} - {pick.probable_range_max}
+                                                    {t('home.probable_range')}: {pick.probable_range_min} - {pick.probable_range_max}
                                                 </Text>
                                                 {pick.status !== 'pending' && pick.actual_corners !== undefined && (
                                                     <Text style={[styles.expandedText, { color: colors.textSecondary }]}>
@@ -416,6 +536,7 @@ const styles = StyleSheet.create({
     predictionRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
     predictionLabel: { fontSize: 13 },
     predictionValue: { fontSize: 14, fontWeight: '700' },
+    resultOutcomeLine: { fontSize: 13, marginBottom: 6, marginTop: 2 },
 
     selectionsExpanded: { borderTopWidth: 1, paddingTop: 12, marginTop: 12, gap: 4 },
     expandedTitle: { fontSize: 13, fontWeight: '600', marginBottom: 6 },
@@ -425,4 +546,15 @@ const styles = StyleSheet.create({
     emptyState: { padding: 32, borderRadius: 12, alignItems: 'center' },
     emptyText: { fontSize: 14 },
     bannerWrapper: { alignItems: 'center', width: '100%' },
+
+    // Múltiplas
+    multiplesHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
+    multiplesHeaderText: { fontSize: 15, fontWeight: '700', flex: 1 },
+    multipleGameRow: { borderTopWidth: 1, paddingTop: 8, marginTop: 8, gap: 4 },
+    multipleGameTeams: { fontSize: 12, fontWeight: '600' },
+    multipleGameRight: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    multipleGameStrategy: { fontSize: 12, fontWeight: '700' },
+    miniStatusBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
+    miniStatusText: { color: '#FFF', fontSize: 9, fontWeight: '700' },
+    moreGamesText: { fontSize: 11, marginTop: 6, fontStyle: 'italic' },
 });

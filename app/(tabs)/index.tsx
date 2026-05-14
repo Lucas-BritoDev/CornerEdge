@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, M
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { ChevronRight, Lock, Play, Crown, RefreshCw, TrendingUp, BarChart3, Target, Calendar, Info, Clock, ShieldCheck, Zap, Share2, TrendingDown } from 'lucide-react-native';
+import { ChevronRight, Lock, Play, Crown, RefreshCw, TrendingUp, BarChart3, Target, Calendar, Info, Clock, ShieldCheck, Zap, Share2, TrendingDown, CheckCircle, XCircle } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInUp, FadeInDown, Layout, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
@@ -12,6 +12,7 @@ import { useAuth } from '../../context/AuthContext';
 import { AdBanner } from '../../components/AdBanner';
 import { useRewardedAd } from '../../hooks/useRewardedAd';
 import { Header } from '../../components/Header';
+import { MultipleCard } from '../../components/MultipleCard';
 import { useTodayAnalyses } from '../../services/analyses-service';
 import { AnalysisWithDetails } from '../../types';
 
@@ -21,43 +22,59 @@ function HomeScreen() {
     const insets = useSafeAreaInsets();
     const router = useRouter();
     const { colors, resolvedTheme } = useTheme();
-    const { isPremium, user, isLoading: authLoading } = useAuth();
+    const { isPremium } = useAuth();
     const { t, i18n } = useTranslation();
     
+    // ✅ FIX: Busca análises imediatamente, não aguarda auth (React Query tem retry automático)
     const { data: analyses = [], isLoading: analysesLoading, error, refetch } = useTodayAnalyses({
-        enabled: !authLoading,
+        enabled: true, // Sempre habilitado para evitar atraso
     });
 
-    // Mostra skeleton enquanto auth ou análises estão carregando
-    const isLoading = authLoading || analysesLoading;
+    // Lista: só aguarda análises; perfil carrega em background (não trava primeiro login).
+    const isLoading = analysesLoading;
     
     const [selectedAnalysis, setSelectedAnalysis] = React.useState<AnalysisWithDetails | null>(null);
     const [showDetail, setShowDetail] = React.useState(false);
     const [showRewardedModal, setShowRewardedModal] = React.useState(false);
     const [rewardTargetAnalysis, setRewardTargetAnalysis] = React.useState<AnalysisWithDetails | null>(null);
     const [unlockedAnalyses, setUnlockedAnalyses] = React.useState<Set<string>>(new Set());
+    const [unlocksRestored, setUnlocksRestored] = React.useState(false);
     const { loading: rewardedLoading, showAd, isUnlockedToday, hasUsedAdToday } = useRewardedAd();
 
-    // Restaura desbloqueios persistidos ao carregar as análises
-    // Garante que picks desbloqueadas via anúncio continuem visíveis após fechar/reabrir o app
-    const freeAnalyses = analyses.filter(a => a.tier === 'free');
-    const premiumAnalyses = analyses.filter(a => a.tier === 'premium');
+    // Filtra análises — separa múltiplas das individuais
+    const multipleAnalyses = analyses.filter(a => a.is_multiple === true);
+    const individualAnalyses = analyses.filter(a => !a.is_multiple);
+    const freeAnalyses = individualAnalyses.filter(a => a.tier === 'free');
+    const premiumAnalyses = individualAnalyses.filter(a => a.tier === 'premium');
+    const freeMultiples = multipleAnalyses.filter(a => a.tier === 'free');
+    const premiumMultiples = multipleAnalyses.filter(a => a.tier === 'premium');
     
-    const premiumAnalysisIds = (premiumAnalyses ?? []).map(a => a.id).join(',');
+    // ✅ FIX: Restaura desbloqueios apenas uma vez quando análises carregarem
     React.useEffect(() => {
-        if (!premiumAnalyses?.length) return;
+        if (unlocksRestored || !analyses.length) return;
+        
+        if (!premiumAnalyses.length) {
+            setUnlocksRestored(true);
+            return;
+        }
+
         const restoreUnlocks = async () => {
+            console.log('[CornerEdge] Restaurando desbloqueios...');
             const unlocked = new Set<string>();
             for (const analysis of premiumAnalyses) {
                 const wasUnlocked = await isUnlockedToday(analysis.id);
-                if (wasUnlocked) unlocked.add(analysis.id);
+                if (wasUnlocked) {
+                    console.log(`[CornerEdge] Análise ${analysis.id} já desbloqueada`);
+                    unlocked.add(analysis.id);
+                }
             }
             if (unlocked.size > 0) {
                 setUnlockedAnalyses(unlocked);
             }
+            setUnlocksRestored(true);
         };
         restoreUnlocks();
-    }, [premiumAnalysisIds]);
+    }, [analyses.length, unlocksRestored, premiumAnalyses.length, isUnlockedToday]);
 
     // Pick premium sorteada para desbloquear — determinística por dia (seed = data)
     // O usuário só vê UMA pick premium bloqueada, sem saber qual é
@@ -181,6 +198,19 @@ function HomeScreen() {
         </View>
     );
 
+    const cornerStatusColor = (status: string) => {
+        if (status === 'correct') return colors.statusGreen;
+        if (status === 'incorrect') return colors.statusRed;
+        if (status === 'void') return colors.textMuted;
+        return colors.statusPending;
+    };
+    const cornerStatusLabel = (status: string) => {
+        if (status === 'correct') return t('results.won') || 'GREEN';
+        if (status === 'incorrect') return t('results.lost') || 'RED';
+        if (status === 'void') return t('results.void') || 'VOID';
+        return t('common.pending') || 'PENDING';
+    };
+
     const renderAnalysisCard = (analysis: AnalysisWithDetails, index: number, isLocked: boolean = false) => {
         const isUnlocked = unlockedAnalyses.has(analysis.id);
         const effectiveLocked = isLocked && !isUnlocked;
@@ -234,6 +264,18 @@ function HomeScreen() {
 
                     {effectiveLocked ? (
                         <View style={styles.lockedContent}>
+                            {analysis.status !== 'pending' && (
+                                <View style={[styles.homeResultBadge, { backgroundColor: cornerStatusColor(analysis.status) }]}>
+                                    {analysis.status === 'correct' ? (
+                                        <CheckCircle color="#FFF" size={14} style={{ marginRight: 6 }} />
+                                    ) : analysis.status === 'incorrect' ? (
+                                        <XCircle color="#FFF" size={14} style={{ marginRight: 6 }} />
+                                    ) : (
+                                        <Clock color="#FFF" size={14} style={{ marginRight: 6 }} />
+                                    )}
+                                    <Text style={styles.homeResultBadgeText}>{cornerStatusLabel(analysis.status)}</Text>
+                                </View>
+                            )}
                             <View style={styles.lockIconContainer}>
                                  <Lock color={colors.accentOrange} size={32} />
                             </View>
@@ -313,6 +355,17 @@ function HomeScreen() {
                                 </View>
                             </View>
 
+                            <View style={[styles.homeAnalysisResultRow, { backgroundColor: colors.backgroundPrimary, borderColor: colors.cardBorder }]}>
+                                <View style={[styles.homeMiniStatus, { backgroundColor: cornerStatusColor(analysis.status) }]}>
+                                    <Text style={styles.homeMiniStatusText}>{cornerStatusLabel(analysis.status)}</Text>
+                                </View>
+                                {analysis.status !== 'pending' && analysis.actual_corners != null && analysis.actual_corners !== undefined && (
+                                    <Text style={[styles.homeActualCorners, { color: colors.textSecondary }]}>
+                                        {t('results.actual_corners')}: <Text style={{ fontWeight: '800', color: colors.textPrimary }}>{analysis.actual_corners}</Text>
+                                    </Text>
+                                )}
+                            </View>
+
                             <View style={[styles.divider, { backgroundColor: colors.cardBorder }]} />
 
                             <View style={styles.statsGrid}>
@@ -372,7 +425,64 @@ function HomeScreen() {
             >
                 {isLoading ? renderSkeleton() : (
                     <View style={styles.sectionsContainer}>
-                        {/* Premium primeiro — maior assertividade, destaque visual */}
+                        {/* Múltiplas Premium */}
+                        {(isPremium ? premiumMultiples : []).length > 0 && (
+                            <>
+                                <View style={styles.sectionHeader}>
+                                    <View style={styles.premiumTitleRow}>
+                                        <Crown size={20} color={colors.accentOrange} style={{ marginRight: 8 }} />
+                                        <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
+                                            {t('home.multiples_premium') || 'Múltiplas Premium'}
+                                        </Text>
+                                    </View>
+                                    <View style={[styles.sectionTitleBadge, { backgroundColor: colors.accentOrange }]}>
+                                        <Text style={[styles.sectionTitleBadgeText, { color: colors.white }]}>{premiumMultiples.length}</Text>
+                                    </View>
+                                </View>
+                                <View style={styles.section}>
+                                    {premiumMultiples.map((analysis, index) => (
+                                        <MultipleCard
+                                            key={analysis.id}
+                                            analysis={analysis}
+                                            index={index}
+                                            onPress={() => {
+                                                setSelectedAnalysis(analysis);
+                                                setShowDetail(true);
+                                            }}
+                                        />
+                                    ))}
+                                </View>
+                            </>
+                        )}
+
+                        {/* Múltiplas Free */}
+                        {freeMultiples.length > 0 && (
+                            <>
+                                <View style={styles.sectionHeader}>
+                                    <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
+                                        {t('home.multiples_free') || 'Múltiplas Free'}
+                                    </Text>
+                                    <View style={[styles.sectionTitleBadge, { backgroundColor: colors.backgroundTertiary }]}>
+                                        <Text style={[styles.sectionTitleBadgeText, { color: colors.white }]}>{freeMultiples.length}</Text>
+                                    </View>
+                                </View>
+                                <View style={styles.section}>
+                                    {freeMultiples.map((analysis, index) => (
+                                        <MultipleCard
+                                            key={analysis.id}
+                                            analysis={analysis}
+                                            index={index}
+                                            onPress={() => {
+                                                setSelectedAnalysis(analysis);
+                                                setShowDetail(true);
+                                            }}
+                                        />
+                                    ))}
+                                </View>
+                            </>
+                        )}
+
+                        {/* Premium individual — maior assertividade, destaque visual */}
                         {premiumAnalyses.length > 0 && (
                             <>
                                 <View style={styles.sectionHeader}>
@@ -500,7 +610,9 @@ function HomeScreen() {
                         <View style={[styles.modalHeader, { borderBottomColor: colors.cardBorder, borderBottomWidth: 1 }]}>
                             <View style={styles.modalTitleContainer}>
                                 <BarChart3 size={20} color={colors.accentOrange} style={{ marginRight: 8 }} />
-                                <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>{t('home.full_analysis')}</Text>
+                                <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>
+                                    {selectedAnalysis?.is_multiple ? t('home.multiple') || 'Múltipla' : t('home.full_analysis')}
+                                </Text>
                             </View>
                             <View style={styles.modalHeaderActions}>
                                 <TouchableOpacity 
@@ -518,7 +630,213 @@ function HomeScreen() {
                             </View>
                         </View>
                         
-                        {selectedAnalysis && (
+                        {selectedAnalysis && selectedAnalysis.is_multiple && selectedAnalysis.games ? (
+                            /* ── MODAL DE MÚLTIPLA ── */
+                            <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
+                                {/* Header da múltipla */}
+                                <View style={[styles.multipleModalHeader, { backgroundColor: colors.backgroundSecondary }]}>
+                                    <View style={styles.multipleModalBadgeRow}>
+                                        <LinearGradient
+                                            colors={selectedAnalysis.tier === 'premium' ? ['#FF8C00', colors.accentOrange] : [colors.backgroundTertiary, colors.backgroundTertiary]}
+                                            style={styles.multipleModalBadge}
+                                        >
+                                            {selectedAnalysis.tier === 'premium' && <Crown color="#FFF" size={12} style={{ marginRight: 4 }} />}
+                                            <Text style={[styles.multipleModalBadgeText, { color: selectedAnalysis.tier === 'premium' ? '#FFF' : colors.textMuted }]}>
+                                                {selectedAnalysis.tier === 'premium' ? 'PREMIUM' : 'FREE'} • {t('home.multiple') || 'MÚLTIPLA'} {selectedAnalysis.games.length}X
+                                            </Text>
+                                        </LinearGradient>
+                                        <View style={styles.multipleModalOddBadge}>
+                                            <Text style={[styles.multipleModalOddLabel, { color: colors.textMuted }]}>{t('home.combined_odd') || 'Odd'}</Text>
+                                            <Text style={[styles.multipleModalOddValue, { color: colors.accentOrange }]}>{selectedAnalysis.combined_odd?.toFixed(2)}x</Text>
+                                        </View>
+                                    </View>
+                                    <View style={[styles.multipleModalConfRow, { borderTopColor: colors.cardBorder }]}>
+                                        <Zap size={16} color={colors.accentOrange} />
+                                        <Text style={[styles.multipleModalConfLabel, { color: colors.textMuted }]}>{t('home.statistical_confidence')}</Text>
+                                        <Text style={[styles.multipleModalConfValue, { color: colors.accentOrange }]}>{selectedAnalysis.combined_confidence}%</Text>
+                                    </View>
+                                    <View style={[styles.multipleModalResultRow, { borderTopColor: colors.cardBorder }]}>
+                                        <Text style={[styles.multipleModalResultLabel, { color: colors.textMuted }]}>
+                                            {t('results.multiple_outcome') || (i18n.language === 'en' ? 'Multiple result' : 'Resultado da múltipla')}
+                                        </Text>
+                                        <View style={[styles.homeMiniStatus, { backgroundColor: cornerStatusColor(selectedAnalysis.status) }]}>
+                                            <Text style={styles.homeMiniStatusText}>{cornerStatusLabel(selectedAnalysis.status)}</Text>
+                                        </View>
+                                    </View>
+                                </View>
+
+                                {/* Um card por jogo da múltipla */}
+                                {selectedAnalysis.games.map((game, idx) => (
+                                    <View key={`${game.fixture_id}-${idx}`} style={[styles.multipleGameCard, { backgroundColor: colors.backgroundSecondary }]}>
+                                        {/* Número do jogo */}
+                                        <View style={styles.multipleGameIndexRow}>
+                                            <View style={[styles.multipleGameIndex, { backgroundColor: colors.accentOrange }]}>
+                                                <Text style={styles.multipleGameIndexText}>{idx + 1}</Text>
+                                            </View>
+                                            <Text style={[styles.multipleGameLeague, { color: colors.textMuted }]}>{game.league}</Text>
+                                            <View style={styles.multipleGameTimeRow}>
+                                                <Clock size={11} color={colors.textMuted} />
+                                                <Text style={[styles.multipleGameTime, { color: colors.textMuted }]}>
+                                                    {new Date(game.kickoff_at).toLocaleTimeString(
+                                                        i18n.language === 'pt' ? 'pt-BR' : i18n.language === 'es' ? 'es-ES' : 'en-US',
+                                                        { hour: '2-digit', minute: '2-digit' }
+                                                    )}
+                                                </Text>
+                                            </View>
+                                        </View>
+
+                                        {/* Times */}
+                                        <View style={styles.multipleGameTeamsRow}>
+                                            <View style={styles.multipleGameTeam}>
+                                                {game.home_logo ? (
+                                                    <Image source={{ uri: game.home_logo }} style={styles.multipleGameLogo} />
+                                                ) : (
+                                                    <View style={[styles.multipleGameLogoPlaceholder, { backgroundColor: colors.backgroundTertiary }]}>
+                                                        <Text style={{ color: colors.textMuted, fontSize: 12, fontWeight: '700' }}>{game.home_team.substring(0, 1)}</Text>
+                                                    </View>
+                                                )}
+                                                <Text style={[styles.multipleGameTeamName, { color: colors.textPrimary }]} numberOfLines={2}>{game.home_team}</Text>
+                                            </View>
+                                            <View style={[styles.multipleGameVs, { borderColor: colors.cardBorder }]}>
+                                                <Text style={[styles.multipleGameVsText, { color: colors.textMuted }]}>VS</Text>
+                                            </View>
+                                            <View style={[styles.multipleGameTeam, { alignItems: 'flex-end' }]}>
+                                                {game.away_logo ? (
+                                                    <Image source={{ uri: game.away_logo }} style={styles.multipleGameLogo} />
+                                                ) : (
+                                                    <View style={[styles.multipleGameLogoPlaceholder, { backgroundColor: colors.backgroundTertiary }]}>
+                                                        <Text style={{ color: colors.textMuted, fontSize: 12, fontWeight: '700' }}>{game.away_team.substring(0, 1)}</Text>
+                                                    </View>
+                                                )}
+                                                <Text style={[styles.multipleGameTeamName, { color: colors.textPrimary, textAlign: 'right' }]} numberOfLines={2}>{game.away_team}</Text>
+                                            </View>
+                                        </View>
+
+                                        {/* Estratégia */}
+                                        <View style={[styles.multipleGameStrategyRow, { backgroundColor: colors.backgroundPrimary, borderColor: colors.cardBorder }]}>
+                                            {game.strategy === 'over' ? (
+                                                <TrendingUp size={16} color={colors.accentOrange} />
+                                            ) : (
+                                                <TrendingDown size={16} color={colors.accentOrange} />
+                                            )}
+                                            <View style={{ flex: 1 }}>
+                                                <Text style={[styles.multipleGameStrategyLabel, { color: colors.textMuted }]}>{t('home.strategy')}</Text>
+                                                <Text style={[styles.multipleGameStrategyValue, { color: colors.accentOrange }]}>
+                                                    {t(`home.${game.strategy}`)} {game.prediction} {t('home.corners') || 'escanteios'}
+                                                </Text>
+                                            </View>
+                                            <View style={[styles.multipleGameConfBadge, { backgroundColor: colors.accentOrange + '22', borderColor: colors.accentOrange }]}>
+                                                <Zap size={11} color={colors.accentOrange} />
+                                                <Text style={[styles.multipleGameConfText, { color: colors.accentOrange }]}>{game.confidence}%</Text>
+                                            </View>
+                                        </View>
+
+                                        {/* Resultado do jogo (múltipla) */}
+                                        {(game.result && game.result !== 'pending') || game.actual_corners != null ? (
+                                            <View style={[styles.multipleGameResultRow, { backgroundColor: colors.backgroundPrimary, borderColor: colors.cardBorder }]}>
+                                                <View style={[styles.homeMiniStatus, { backgroundColor: cornerStatusColor(game.result || 'pending') }]}>
+                                                    <Text style={styles.homeMiniStatusText}>{cornerStatusLabel(game.result || 'pending')}</Text>
+                                                </View>
+                                                {game.actual_corners != null && game.actual_corners !== undefined && (
+                                                    <Text style={[styles.multipleGameResultCorners, { color: colors.textPrimary }]}>
+                                                        {t('results.actual_corners')}: <Text style={{ fontWeight: '900' }}>{game.actual_corners}</Text>
+                                                    </Text>
+                                                )}
+                                            </View>
+                                        ) : null}
+
+                                        {/* Justificativa estatística */}
+                                        <View style={[styles.multipleGameRationale, { borderTopColor: colors.cardBorder }]}>
+                                            <View style={styles.multipleGameRationaleHeader}>
+                                                <Info size={13} color={colors.textMuted} />
+                                                <Text style={[styles.multipleGameRationaleTitle, { color: colors.textMuted }]}>
+                                                    {i18n.language === 'en' ? 'Why this pick?' : i18n.language === 'es' ? '¿Por qué esta pick?' : 'Por que esta pick?'}
+                                                </Text>
+                                            </View>
+                                            <Text style={[styles.multipleGameRationaleText, { color: colors.textSecondary }]}>
+                                                {game.strategy === 'over'
+                                                    ? i18n.language === 'en'
+                                                        ? `Statistical model projects ${game.prediction}+ corners. Both teams show high offensive pressure in recent matches. Confidence: ${game.confidence}%.`
+                                                        : i18n.language === 'es'
+                                                        ? `El modelo estadístico proyecta ${game.prediction}+ corners. Ambos equipos muestran alta presión ofensiva en partidos recientes. Confianza: ${game.confidence}%.`
+                                                        : `Modelo estatístico projeta ${game.prediction}+ escanteios. Ambas as equipes apresentam alta pressão ofensiva nos jogos recentes. Confiança: ${game.confidence}%.`
+                                                    : i18n.language === 'en'
+                                                        ? `Statistical model projects under ${game.prediction} corners. Both teams show low offensive pressure and defensive solidity. Confidence: ${game.confidence}%.`
+                                                        : i18n.language === 'es'
+                                                        ? `El modelo estadístico proyecta menos de ${game.prediction} corners. Ambos equipos muestran baja presión ofensiva y solidez defensiva. Confianza: ${game.confidence}%.`
+                                                        : `Modelo estatístico projeta menos de ${game.prediction} escanteios. Ambas as equipes apresentam baixa pressão ofensiva e solidez defensiva. Confiança: ${game.confidence}%.`
+                                                }
+                                            </Text>
+
+                                            {/* Barra de confiança visual */}
+                                            <View style={styles.multipleGameConfBar}>
+                                                <View style={[styles.multipleGameConfBarTrack, { backgroundColor: colors.backgroundPrimary }]}>
+                                                    <LinearGradient
+                                                        colors={game.confidence >= 65 ? [colors.accentOrange, '#FF8C00'] : ['#888', '#666']}
+                                                        start={{ x: 0, y: 0 }}
+                                                        end={{ x: 1, y: 0 }}
+                                                        style={[styles.multipleGameConfBarFill, { width: `${game.confidence}%` }]}
+                                                    />
+                                                </View>
+                                                <Text style={[styles.multipleGameConfBarLabel, { color: colors.textMuted }]}>
+                                                    {game.confidence >= 65
+                                                        ? (i18n.language === 'en' ? 'High confidence' : i18n.language === 'es' ? 'Alta confianza' : 'Alta confiança')
+                                                        : (i18n.language === 'en' ? 'Moderate confidence' : i18n.language === 'es' ? 'Confianza moderada' : 'Confiança moderada')
+                                                    }
+                                                </Text>
+                                            </View>
+                                        </View>
+                                    </View>
+                                ))}
+
+                                {/* Resumo da múltipla */}
+                                <View style={[styles.multipleSummaryCard, { backgroundColor: colors.backgroundSecondary, borderColor: colors.accentOrange }]}>
+                                    <View style={styles.cardHeaderWithIcon}>
+                                        <Target size={16} color={colors.accentOrange} style={{ marginRight: 8 }} />
+                                        <Text style={[styles.distributionTitle, { color: colors.textPrimary }]}>
+                                            {i18n.language === 'en' ? 'Multiple Summary' : i18n.language === 'es' ? 'Resumen de la Múltiple' : 'Resumo da Múltipla'}
+                                        </Text>
+                                    </View>
+                                    <View style={styles.multipleSummaryGrid}>
+                                        <View style={styles.multipleSummaryItem}>
+                                            <Text style={[styles.multipleSummaryLabel, { color: colors.textMuted }]}>
+                                                {i18n.language === 'en' ? 'Games' : i18n.language === 'es' ? 'Partidos' : 'Jogos'}
+                                            </Text>
+                                            <Text style={[styles.multipleSummaryValue, { color: colors.textPrimary }]}>{selectedAnalysis.games.length}</Text>
+                                        </View>
+                                        <View style={[styles.multipleSummaryDivider, { backgroundColor: colors.cardBorder }]} />
+                                        <View style={styles.multipleSummaryItem}>
+                                            <Text style={[styles.multipleSummaryLabel, { color: colors.textMuted }]}>{t('home.combined_odd') || 'Odd'}</Text>
+                                            <Text style={[styles.multipleSummaryValue, { color: colors.accentOrange }]}>{selectedAnalysis.combined_odd?.toFixed(2)}x</Text>
+                                        </View>
+                                        <View style={[styles.multipleSummaryDivider, { backgroundColor: colors.cardBorder }]} />
+                                        <View style={styles.multipleSummaryItem}>
+                                            <Text style={[styles.multipleSummaryLabel, { color: colors.textMuted }]}>
+                                                {i18n.language === 'en' ? 'Avg Conf.' : i18n.language === 'es' ? 'Conf. Media' : 'Conf. Média'}
+                                            </Text>
+                                            <Text style={[styles.multipleSummaryValue, { color: colors.accentOrange }]}>{selectedAnalysis.combined_confidence}%</Text>
+                                        </View>
+                                    </View>
+                                    <Text style={[styles.multipleSummaryNote, { color: colors.textMuted }]}>
+                                        {i18n.language === 'en'
+                                            ? 'All games must win for the multiple to be correct.'
+                                            : i18n.language === 'es'
+                                            ? 'Todos los partidos deben ganar para que la múltiple sea correcta.'
+                                            : 'Todos os jogos precisam acertar para a múltipla ser correta.'
+                                        }
+                                    </Text>
+                                </View>
+
+                                <TouchableOpacity 
+                                    onPress={() => setShowDetail(false)}
+                                    style={[styles.modalCloseFooter, { backgroundColor: colors.backgroundTertiary }]}
+                                >
+                                    <Text style={styles.modalCloseFooterText}>{t('common.close')}</Text>
+                                </TouchableOpacity>
+                                <View style={{ height: 40 }} />
+                            </ScrollView>
+                        ) : selectedAnalysis ? (
+                            /* ── MODAL DE ANÁLISE INDIVIDUAL (original) ── */
                             <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
                                 <View style={[styles.modalAnalysisHeader, { backgroundColor: colors.backgroundSecondary }]}>
                                      <View style={styles.teamsHeaderSmall}>
@@ -531,6 +849,17 @@ function HomeScreen() {
                                      <View style={styles.leagueTagSmall}>
                                         <Text style={[styles.leagueTextSmall, { color: colors.textMuted }]}>{selectedAnalysis.league}</Text>
                                      </View>
+                                </View>
+
+                                <View style={[styles.modalResultBanner, { backgroundColor: colors.backgroundSecondary, borderColor: colors.cardBorder }]}>
+                                    <View style={[styles.homeMiniStatus, { backgroundColor: cornerStatusColor(selectedAnalysis.status) }]}>
+                                        <Text style={styles.homeMiniStatusText}>{cornerStatusLabel(selectedAnalysis.status)}</Text>
+                                    </View>
+                                    {selectedAnalysis.actual_corners != null && selectedAnalysis.actual_corners !== undefined && (
+                                        <Text style={[styles.modalResultCorners, { color: colors.textSecondary }]}>
+                                            {t('results.actual_corners')}: <Text style={{ color: colors.textPrimary, fontWeight: '800' }}>{selectedAnalysis.actual_corners}</Text>
+                                        </Text>
+                                    )}
                                 </View>
 
                                 <View style={[styles.summaryCard, { backgroundColor: colors.backgroundSecondary }]}>
@@ -683,10 +1012,10 @@ function HomeScreen() {
                                 
                                 <View style={{ height: 40 }} />
                             </ScrollView>
-                        )}
+                        ) : null}
                     </View>
                 </View>
-            </Modal>
+</Modal>
         </View>
     );
 }
@@ -773,6 +1102,58 @@ const styles = StyleSheet.create({
     matchInfoRow: { flexDirection: 'row', gap: 10, marginBottom: 16 },
     infoTag: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(128,128,128,0.08)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10 },
     infoTagText: { fontSize: 12, fontWeight: '700' },
+
+    homeAnalysisResultRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: 10,
+        paddingVertical: 10,
+        paddingHorizontal: 12,
+        borderRadius: 12,
+        borderWidth: 1,
+        marginBottom: 14,
+    },
+    homeMiniStatus: { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 10 },
+    homeMiniStatusText: { color: '#FFF', fontSize: 11, fontWeight: '900', letterSpacing: 0.5 },
+    homeActualCorners: { fontSize: 13, flex: 1, textAlign: 'right' },
+    homeResultBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, marginBottom: 10 },
+    homeResultBadgeText: { color: '#FFF', fontSize: 13, fontWeight: '900' },
+    modalResultBanner: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: 10,
+        padding: 14,
+        borderRadius: 14,
+        borderWidth: 1,
+        marginBottom: 14,
+    },
+    modalResultCorners: { fontSize: 13, flex: 1 },
+    multipleModalResultRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingTop: 12,
+        marginTop: 4,
+        borderTopWidth: 1,
+        gap: 10,
+    },
+    multipleModalResultLabel: { fontSize: 12, fontWeight: '700', flex: 1 },
+    multipleGameResultRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: 10,
+        marginTop: 10,
+        padding: 10,
+        borderRadius: 10,
+        borderWidth: 1,
+    },
+    multipleGameResultCorners: { fontSize: 13 },
     
     divider: { height: 1, width: '100%', opacity: 0.1, marginBottom: 16 },
     
@@ -871,6 +1252,57 @@ const styles = StyleSheet.create({
     
     modalCloseFooter: { paddingVertical: 20, borderRadius: 24, alignItems: 'center', marginTop: 10, marginBottom: 20 },
     modalCloseFooterText: { color: '#FFF', fontSize: 16, fontWeight: '900', letterSpacing: 0.5 },
+
+    // ── Estilos do modal de múltipla ──────────────────────────────────────
+    multipleModalHeader: { padding: 16, borderRadius: 16, marginBottom: 12 },
+    multipleModalBadgeRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+    multipleModalBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
+    multipleModalBadgeText: { fontSize: 12, fontWeight: '700', letterSpacing: 0.5 },
+    multipleModalOddBadge: { alignItems: 'flex-end' },
+    multipleModalOddLabel: { fontSize: 11, fontWeight: '500' },
+    multipleModalOddValue: { fontSize: 22, fontWeight: '900' },
+    multipleModalConfRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingTop: 12, borderTopWidth: 1 },
+    multipleModalConfLabel: { flex: 1, fontSize: 13, fontWeight: '500' },
+    multipleModalConfValue: { fontSize: 18, fontWeight: '800' },
+
+    multipleGameCard: { borderRadius: 16, padding: 16, marginBottom: 12 },
+    multipleGameIndexRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
+    multipleGameIndex: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+    multipleGameIndexText: { color: '#FFF', fontSize: 12, fontWeight: '800' },
+    multipleGameLeague: { flex: 1, fontSize: 12, fontWeight: '500' },
+    multipleGameTimeRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+    multipleGameTime: { fontSize: 12, fontWeight: '600' },
+
+    multipleGameTeamsRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+    multipleGameTeam: { flex: 1, alignItems: 'flex-start', gap: 6 },
+    multipleGameLogo: { width: 36, height: 36, borderRadius: 18 },
+    multipleGameLogoPlaceholder: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+    multipleGameTeamName: { fontSize: 13, fontWeight: '700', lineHeight: 18 },
+    multipleGameVs: { width: 36, height: 36, borderRadius: 18, borderWidth: 1, alignItems: 'center', justifyContent: 'center', marginHorizontal: 8 },
+    multipleGameVsText: { fontSize: 10, fontWeight: '700' },
+
+    multipleGameStrategyRow: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderRadius: 12, borderWidth: 1, marginBottom: 12 },
+    multipleGameStrategyLabel: { fontSize: 11, fontWeight: '500', marginBottom: 2 },
+    multipleGameStrategyValue: { fontSize: 15, fontWeight: '800' },
+    multipleGameConfBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, borderWidth: 1 },
+    multipleGameConfText: { fontSize: 13, fontWeight: '700' },
+
+    multipleGameRationale: { borderTopWidth: 1, paddingTop: 12, gap: 8 },
+    multipleGameRationaleHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    multipleGameRationaleTitle: { fontSize: 12, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
+    multipleGameRationaleText: { fontSize: 13, lineHeight: 20 },
+    multipleGameConfBar: { gap: 4 },
+    multipleGameConfBarTrack: { height: 6, borderRadius: 3, overflow: 'hidden' },
+    multipleGameConfBarFill: { height: 6, borderRadius: 3 },
+    multipleGameConfBarLabel: { fontSize: 11, fontWeight: '500' },
+
+    multipleSummaryCard: { borderRadius: 16, padding: 16, marginBottom: 12, borderWidth: 1.5 },
+    multipleSummaryGrid: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around', marginVertical: 12 },
+    multipleSummaryItem: { alignItems: 'center', gap: 4, flex: 1 },
+    multipleSummaryLabel: { fontSize: 11, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.3 },
+    multipleSummaryValue: { fontSize: 22, fontWeight: '900' },
+    multipleSummaryDivider: { width: 1, height: 36 },
+    multipleSummaryNote: { fontSize: 12, lineHeight: 18, textAlign: 'center', fontStyle: 'italic' },
 });
 
 export default HomeScreen;

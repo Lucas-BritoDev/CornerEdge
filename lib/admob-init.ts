@@ -61,7 +61,7 @@ export async function initializeAdMob(): Promise<void> {
 
   // ✅ Toda a lógica envolta em Promise que sempre resolve (nunca rejeita)
   initializationPromise = new Promise<void>(async (resolve) => {
-    let timeoutId: NodeJS.Timeout | null = null;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
     // Timeout de segurança: 3 segundos para inicializar o SDK
     const timeoutPromise = new Promise<void>((res) => {

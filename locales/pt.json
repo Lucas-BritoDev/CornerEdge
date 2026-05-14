@@ -60,7 +60,12 @@
     "ad_unavailable": "Anúncio não disponível",
     "ad_unavailable_message": "Não foi possível carregar o anúncio. Tente novamente em alguns instantes.",
     "ad_closed_early": "Anúncio fechado antes de completar",
-    "ad_closed_early_message": "Você precisa assistir o anúncio completo para desbloquear a análise."
+    "ad_closed_early_message": "Você precisa assistir o anúncio completo para desbloquear a análise.",
+    "multiple": "Múltipla",
+    "multiples_premium": "Múltiplas Premium",
+    "multiples_free": "Múltiplas Free",
+    "combined_odd": "Odd Combinada",
+    "view_details": "VER DETALHES"
   },
   "results": {
     "title": "Resultados",
@@ -76,7 +81,16 @@
     "analyses": "Análises",
     "no_results": "Sem resultados para esta data",
     "select_date": "Selecionar data",
-    "actual_corners": "Escanteios reais"
+    "actual_corners": "Escanteios reais",
+    "settled": "Fechadas",
+    "no_settled": "Nenhuma análise fechada ainda",
+    "filter_all": "Todas",
+    "more_games": "jogos",
+    "multiple_details": "Detalhes da Múltipla",
+    "combined_confidence": "Confiança combinada",
+    "prediction_details": "Detalhes da Previsão",
+    "won_abbr": "V",
+    "lost_abbr": "D"
   },
   "premium": {
     "title": "Premium",
@@ -138,8 +152,20 @@
     "restore_title": "Restaurar Compras",
     "restore_message": "Buscando compras anteriores...",
     "restore_not_found": "Nenhuma compra encontrada para restaurar.",
-    "manage_title": "Gerenciar Assinatura",
-    "manage_message": "Abrindo gerenciamento de assinatura..."
+    "feat_analyses_label":   "Análises por dia",
+    "feat_analyses_free":    "4 análises (60-71%)",
+    "feat_analyses_premium": "6 análises (72%+)",
+    "feat_access_label":     "Acesso às análises",
+    "feat_access_free":      "Apenas FREE",
+    "feat_access_premium":   "FREE + PREMIUM",
+    "feat_stats_label":      "Estatísticas completas",
+    "feat_stats_free":       "Não disponível",
+    "feat_stats_premium":    "Completo",
+    "feat_notif_label":      "Notificações",
+    "feat_notif_free":       "Não disponível",
+    "feat_notif_premium":    "Push em tempo real",
+    "manage_title":          "Gerenciar Assinatura",
+    "manage_message":        "Abrindo gerenciamento de assinatura..."
   },
   "profile": {
     "title": "Perfil",
@@ -243,6 +269,8 @@
     "pending": "Pendente",
     "correct": "Correto",
     "incorrect": "Incorreto",
-    "generic_error": "Ocorreu um erro inesperado. Tente novamente."
+    "generic_error": "Ocorreu um erro inesperado. Tente novamente.",
+    "retry": "Tentar Novamente",
+    "void": "Anulado"
   }
 }
