@@ -46,7 +46,7 @@ const LEAGUE_CORNER_BASELINE: Record<number, number> = {
   73: 10.0,   // Copa do Brasil
 };
 
-const MIN_VALID_MATCHES = 1;
+const MIN_VALID_MATCHES = 0; // reservado; não filtramos mais por histórico FT mínimo
 const teamCache = new Map<number, any>();
 
 /** Metas diárias: premium primeiro (melhor matchScore), free com jogos reservados */
@@ -69,7 +69,7 @@ async function fetchFromAPI(endpoint: string) {
 }
 
 /** IDs de aposta comuns (API-Sports) para total de escanteios Over/Under. */
-const CORNER_OU_BET_IDS = new Set([45, 52, 56, 79, 85]);
+const CORNER_OU_BET_IDS = new Set([30, 45, 52, 56, 79, 85]);
 
 function medianOdd(nums: number[]): number {
   if (!nums.length) return 0;
@@ -100,13 +100,38 @@ function aggregateCornerLineOdds(oddsPayload: any[]): Map<number, { over: number
         if (!looksCornerTotal) continue;
         if (nm.includes('first half') || nm.includes('1st half') || nm.includes('race to')) continue;
         for (const v of bet.values ?? []) {
+          const oddRaw = parseFloat(v.odd);
+          if (!Number.isFinite(oddRaw)) continue;
           const raw = String(v.value ?? '').trim().toLowerCase();
-          const m = raw.match(/\b(over|under)\b\s*([\d.]+)/i);
-          if (!m) continue;
-          const dir = m[1].toLowerCase() as 'over' | 'under';
-          const line = parseFloat(m[2]);
-          if (!Number.isFinite(line)) continue;
-          add(line, dir, parseFloat(v.odd));
+          let dir: 'over' | 'under' | null = null;
+          let line = NaN;
+          const m1 = raw.match(/\b(over|under)\b\s*([\d.]+)/i);
+          if (m1) {
+            dir = m1[1].toLowerCase() as 'over' | 'under';
+            line = parseFloat(m1[2]);
+          } else if (raw.match(/^o\s*[\d.]+/i) || raw.startsWith('o ')) {
+            const mo = raw.match(/^o\s*([\d.]+)/i);
+            if (mo) {
+              dir = 'over';
+              line = parseFloat(mo[1]);
+            }
+          } else if (raw.match(/^u\s*[\d.]+/i) || raw.startsWith('u ')) {
+            const mu = raw.match(/^u\s*([\d.]+)/i);
+            if (mu) {
+              dir = 'under';
+              line = parseFloat(mu[1]);
+            }
+          } else {
+            const m2 = raw.match(/^([\d.]+)\s*(over|under)\b/i);
+            if (m2) {
+              line = parseFloat(m2[1]);
+              dir = m2[2].toLowerCase() as 'over' | 'under';
+            }
+          }
+          const h = v.handicap != null && v.handicap !== '' ? parseFloat(String(v.handicap)) : NaN;
+          if ((!Number.isFinite(line) || line <= 0) && Number.isFinite(h)) line = h;
+          if (!dir || !Number.isFinite(line) || line <= 0) continue;
+          add(line, dir, oddRaw);
         }
       }
     }
@@ -147,29 +172,24 @@ function cornerApiOddsForModelLine(
   };
 }
 
+/** Quando a API não traz mercado de cantos: odd implícita a partir do modelo (P(over) na linha), só para desbloquear múltiplas. */
+function ensureCornerLegOdds(p: Record<string, unknown>): void {
+  const o = (p.overOdd as number) ?? 0;
+  const u = (p.underOdd as number) ?? 0;
+  if (o > 1.01 || u > 1.01) {
+    p.oddsSource = 'api';
+    return;
+  }
+  const pOver = Math.max(0.07, Math.min(0.93, ((p.overProbability as number) ?? 50) / 100));
+  const margin = 1.05;
+  p.overOdd = parseFloat(Math.min(2.5, Math.max(1.3, margin / pOver)).toFixed(2));
+  p.underOdd = parseFloat(Math.min(2.5, Math.max(1.3, margin / (1 - pOver))).toFixed(2));
+  p.oddsSource = 'model_implied';
+}
+
 function legSelectionOdd(pred: any): number {
   const st = cornerStrategy(pred);
   return st === 'over' ? (pred.overOdd ?? 0) : (pred.underOdd ?? 0);
-}
-
-/** Plano (múltiplas 3p + 2p) que maximiza premium e free sem exceder n fixtures distintos. */
-function planCornerMultipleCounts(n: number): { numPremium3: number; numFree2: number } {
-  if (n <= 0) return { numPremium3: 0, numFree2: 0 };
-  let bestP = 0;
-  let bestF = 0;
-  let bestScore = -Infinity;
-  for (let p = 0; p <= TARGET_PREMIUM_MULTIPLES; p++) {
-    for (let f = 0; f <= TARGET_FREE_MULTIPLES; f++) {
-      if (3 * p + 2 * f > n) continue;
-      const score = 100 * Math.min(p, TARGET_PREMIUM_MULTIPLES) + Math.min(f, TARGET_FREE_MULTIPLES);
-      if (score > bestScore) {
-        bestScore = score;
-        bestP = p;
-        bestF = f;
-      }
-    }
-  }
-  return { numPremium3: bestP, numFree2: bestF };
 }
 
 /** Últimos 5 jogos FT: média ponderada (decaimento) de escanteios por contexto casa/fora. */
@@ -181,17 +201,19 @@ async function analyzeTeamCorners(teamId: number, teamName: string) {
     .filter((m: any) => m.fixture.status.short === 'FT')
     .slice(0, 5);
 
+  /** Sem FT recentes: usa média neutra para não zerar o modelo (evita 0 candidatos no dia). */
   if (validMatches.length === 0) {
+    const neutral = 5.0;
     const empty = {
       teamId,
       teamName,
-      avgCornersHome: 0,
-      avgCornersAway: 0,
-      avgConcededHome: 0,
-      avgConcededAway: 0,
-      momentum: 0,
-      stdDevHome: 0,
-      stdDevAway: 0,
+      avgCornersHome: neutral,
+      avgCornersAway: neutral,
+      avgConcededHome: neutral,
+      avgConcededAway: neutral,
+      momentum: neutral,
+      stdDevHome: 2.2,
+      stdDevAway: 2.2,
       totalValidMatches: 0,
     };
     teamCache.set(teamId, empty);
@@ -221,8 +243,6 @@ async function analyzeTeamCorners(teamId: number, teamName: string) {
         if (stats.indexOf(ts) === 0) hc = v; else ac = v;
       }
     }
-    if (hc === 0 && ac === 0) return;
-
     if (match.teams.home.id === teamId) {
       cornersHome.push({ value: hc, weight });
       concededHome.push({ value: ac, weight });
@@ -443,7 +463,7 @@ function passesCornerFreeStrict(c: any, minMs: number, relaxProb: boolean): bool
   return true;
 }
 
-/** Monta múltiplas alternando over/under quando possível; só pernas com odd real da API. */
+/** Monta múltiplas alternando over/under; odd da API ou implícita do modelo (ensureCornerLegOdds). */
 function buildCornerMultiples(
   candidates: any[],
   tier: 'free' | 'premium',
@@ -481,6 +501,7 @@ function buildCornerMultiples(
 
       const legOdd = legSelectionOdd(candidate);
       const strat = cornerStrategy(candidate);
+      const isSuperCorner = tier === 'premium' && gamesPerMultiple >= 4;
 
       games.push({
         fixture_id: candidate.fixtureId,
@@ -500,11 +521,13 @@ function buildCornerMultiples(
         selection_odd: parseFloat(legOdd.toFixed(2)),
         gen_telemetry: {
           tier,
+          is_super_corner: isSuperCorner,
           match_score: candidate.matchScore,
           over_probability: candidate.overProbability,
           line_edge: candidate.lineEdge ?? null,
           api_corner_line: candidate.apiCornerLine ?? null,
-          gen_version: 'corneredge_v3_real_odds',
+          odds_source: candidate.oddsSource ?? 'api',
+          gen_version: 'corneredge_v4_odds_mixed',
         },
       });
 
@@ -577,12 +600,14 @@ serve(async (req) => {
 
     // Buscar fixtures do dia no fuso do app (evita “dia vazio” por UTC vs Brasil)
     const tz = encodeURIComponent('America/Sao_Paulo');
-    const [allNS, allTBD] = await Promise.all([
+    const [allNS, allTBD, nsUtc, tbdUtc] = await Promise.all([
       fetchFromAPI(`/fixtures?date=${targetDate}&timezone=${tz}&status=NS`),
       fetchFromAPI(`/fixtures?date=${targetDate}&timezone=${tz}&status=TBD`),
+      fetchFromAPI(`/fixtures?date=${targetDate}&status=NS`),
+      fetchFromAPI(`/fixtures?date=${targetDate}&status=TBD`),
     ]);
     const byFixtureId = new Map<number, any>();
-    for (const f of [...allNS, ...allTBD]) {
+    for (const f of [...allNS, ...allTBD, ...nsUtc, ...tbdUtc]) {
       const id = f?.fixture?.id;
       if (id != null) byFixtureId.set(id, f);
     }
@@ -594,7 +619,7 @@ serve(async (req) => {
     );
 
     /** Todas as competições do dia (sem separação por liga); teto só para tempo de API. */
-    const MAX_CORNER_POOL = 250;
+    const MAX_CORNER_POOL = 300;
     const pool = [...scheduled]
       .sort(
         (a: any, b: any) =>
@@ -632,7 +657,6 @@ serve(async (req) => {
           analyzeTeamCorners(f.teams.home.id, f.teams.home.name),
           analyzeTeamCorners(f.teams.away.id, f.teams.away.name),
         ]);
-        if (hs.totalValidMatches + as_.totalValidMatches < MIN_VALID_MATCHES) continue;
 
         const pred = calculatePrediction(hs, as_, f.league.id);
         const matchScore = calcCornerMatchScore(hs, as_, f.league.id, pred.expectedTotal, pred.confidence);
@@ -641,7 +665,7 @@ serve(async (req) => {
         const { overOdd, underOdd, apiLine } = cornerApiOddsForModelLine(oddsPayload, pred.marketLine);
         await new Promise((r) => setTimeout(r, pool.length > 70 ? 55 : 85));
 
-        predictions.push({
+        const row: Record<string, unknown> = {
           fixtureId: f.fixture.id,
           homeTeam: f.teams.home.name,
           awayTeam: f.teams.away.name,
@@ -657,15 +681,17 @@ serve(async (req) => {
           underOdd,
           apiCornerLine: apiLine,
           ...pred,
-        });
+        };
+        ensureCornerLegOdds(row);
+        predictions.push(row);
       } catch (e: any) {
         console.error(`[CornerEdge] Error fixture ${f.fixture.id}: ${e.message}`);
       }
     }
 
-    const withOdds = predictions.filter((p) => (p.overOdd ?? 0) > 1.01 || (p.underOdd ?? 0) > 1.01);
+    const apiOnly = predictions.filter((p) => p.oddsSource === 'api').length;
     console.log(
-      `[CornerEdge] Predictions with API corner odds: ${withOdds.length}/${predictions.length}`,
+      `[CornerEdge] Odds: API em ${apiOnly}/${predictions.length} jogos; restante usa odd implícita do modelo (P over na linha).`,
     );
 
     // Ordenar por matchScore desc, depois por confiança desc
@@ -682,7 +708,8 @@ serve(async (req) => {
     const lowVolCorners = predictions.length < 36;
     const minPremMs =
       predictions.filter((p) => p.matchScore >= 7).length >= 6 && !lowVolCorners ? 7 : 6;
-    const minFreeMs = lowVolCorners || predictions.length < 18 ? 3 : 4;
+    const minFreeMs =
+      lowVolCorners || predictions.length < 18 ? 3 : predictions.length > 45 ? 2 : 4;
 
     let relaxProb = false;
     let freeList = predictions.filter((p) => passesCornerFreeStrict(p, minFreeMs, false));
@@ -736,6 +763,10 @@ serve(async (req) => {
       threshold = 3;
       candidates = predictions.filter((p) => p.matchScore >= threshold);
     }
+    if (candidates.length < 8 && predictions.length >= 15) {
+      threshold = 2;
+      candidates = predictions.filter((p) => p.matchScore >= threshold);
+    }
     if (candidates.length < 3) {
       candidates = [...predictions];
     }
@@ -748,16 +779,13 @@ serve(async (req) => {
     let premiumMultiples: CornerAccumulator[] = [];
     let freeMultiples: CornerAccumulator[] = [];
 
-    /** Premium antes do free: o pool free não consome todos os fixtures quando n é pequeno. Odds só da API. */
+    /** Dias cheios: 1 múltipla premium “super” 4x cantos + demais 3x; free 4×2. Meta 6+4. */
     const legsPremiumPrimary = 3;
     const legsFreeMax = 2;
     const oddsReady = (p: any) => legSelectionOdd(p) > 1.01;
     const nPlan = predictions.filter(oddsReady).length;
-    const planned = planCornerMultipleCounts(nPlan);
-    let numPremium3 = planned.numPremium3;
-    let numFree2 = planned.numFree2;
     if (nPlan === 0) {
-      console.warn('[CornerEdge] Sem odds de cantos (API) alinhadas ao modelo — nenhuma múltipla com odd real.');
+      console.warn('[CornerEdge] Nenhuma perna com odd após fallback — revisar modelo ou API.');
     }
 
     const poolForPremium = [...candidates].sort(
@@ -785,47 +813,72 @@ serve(async (req) => {
       );
     }
 
-    console.log(
-      `[CornerEdge] Plan: premium ${numPremium3}x${legsPremiumPrimary} + free ${numFree2}x${legsFreeMax} (fixtures c/ odd na perna=${nPlan}; meta ${TARGET_PREMIUM_MULTIPLES}+${TARGET_FREE_MULTIPLES})`,
-    );
-
-    if (numPremium3 > 0) {
-      premiumMultiples = buildCornerMultiples(
-        forPremiumBuild,
-        'premium',
-        numPremium3,
-        legsPremiumPrimary,
-        usedFixtures,
+    if (nPlan >= 16) {
+      premiumMultiples.push(
+        ...buildCornerMultiples(forPremiumBuild, 'premium', 1, 4, usedFixtures),
       );
     }
-    if (numFree2 > 0) {
-      freeMultiples = buildCornerMultiples(forFreeBuild, 'free', numFree2, legsFreeMax, usedFixtures);
+    const prem3Need = TARGET_PREMIUM_MULTIPLES - premiumMultiples.length;
+    if (prem3Need > 0) {
+      premiumMultiples.push(
+        ...buildCornerMultiples(forPremiumBuild, 'premium', prem3Need, legsPremiumPrimary, usedFixtures),
+      );
     }
+    freeMultiples = buildCornerMultiples(
+      forFreeBuild,
+      'free',
+      TARGET_FREE_MULTIPLES,
+      legsFreeMax,
+      usedFixtures,
+    );
 
     const legs2 = 2;
-    const needPrem = TARGET_PREMIUM_MULTIPLES - premiumMultiples.length;
-    const needFree = TARGET_FREE_MULTIPLES - freeMultiples.length;
+    let needPrem = TARGET_PREMIUM_MULTIPLES - premiumMultiples.length;
+    let needFree = TARGET_FREE_MULTIPLES - freeMultiples.length;
     if (needPrem > 0) {
-      const extra = buildCornerMultiples(forPremiumBuild, 'premium', needPrem, legs2, usedFixtures);
-      premiumMultiples = [...premiumMultiples, ...extra];
+      premiumMultiples.push(
+        ...buildCornerMultiples(forPremiumBuild, 'premium', needPrem, legs2, usedFixtures),
+      );
     }
+    needFree = TARGET_FREE_MULTIPLES - freeMultiples.length;
     if (needFree > 0) {
-      const extra = buildCornerMultiples(forFreeBuild, 'free', needFree, legs2, usedFixtures);
-      freeMultiples = [...freeMultiples, ...extra];
+      freeMultiples.push(
+        ...buildCornerMultiples(forFreeBuild, 'free', needFree, legs2, usedFixtures),
+      );
     }
+
+    console.log(
+      `[CornerEdge] Montagem: premium=${premiumMultiples.length} (incl. super 4x se nPlan≥16) + free=${freeMultiples.length}; nPlan=${nPlan}`,
+    );
 
     if (premiumMultiples.length + freeMultiples.length === 0 && candidates.length >= 2) {
       const used2 = new Set<number>();
       const legs2sparse = 2;
       const nOdds = predictions.filter(oddsReady).length;
-      const premSlots = Math.min(TARGET_PREMIUM_MULTIPLES, Math.max(1, Math.floor(nOdds / 2)));
-      premiumMultiples = buildCornerMultiples(
-        forPremiumBuild,
-        'premium',
-        premSlots,
-        legs2sparse,
-        used2,
+      if (nOdds >= 8) {
+        premiumMultiples = buildCornerMultiples(
+          forPremiumBuild,
+          'premium',
+          1,
+          4,
+          used2,
+        );
+      }
+      const premSlots = Math.min(
+        TARGET_PREMIUM_MULTIPLES - premiumMultiples.length,
+        Math.max(1, Math.floor((nOdds - used2.size) / 2)),
       );
+      if (premSlots > 0) {
+        premiumMultiples.push(
+          ...buildCornerMultiples(
+            forPremiumBuild,
+            'premium',
+            premSlots,
+            legs2sparse,
+            used2,
+          ),
+        );
+      }
       const freeSlots = Math.min(
         TARGET_FREE_MULTIPLES,
         Math.max(1, Math.floor((nOdds - used2.size) / 2)),
@@ -879,6 +932,9 @@ serve(async (req) => {
         premium: premiumMultiples.length,
         free: freeMultiples.length,
         candidates: candidates.length,
+        pool_size: pool.length,
+        predictions_total: predictions.length,
+        scheduled_merged: allFixtures.length,
         message: `Generated ${insertedMultiples} corner multiples for ${targetDate}`,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
