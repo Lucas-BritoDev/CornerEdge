@@ -13,10 +13,7 @@ const API_BASE_URL = 'https://v3.football.api-sports.io';
 
 async function fetchFromAPI(endpoint: string) {
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-    headers: {
-      'x-rapidapi-key': API_KEY,
-      'x-rapidapi-host': 'v3.football.api-sports.io',
-    },
+    headers: { 'x-apisports-key': API_KEY },
   });
   if (!response.ok) throw new Error(`API Error: ${response.status}`);
   const data = await response.json();

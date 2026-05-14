@@ -1,3 +1,5 @@
+// @ts-nocheck — Edge Function (Deno); o TS do VSCode não resolve jsr/https sem projeto Deno
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 
@@ -90,10 +92,16 @@ const teamCache = new Map<number, any>();
 
 async function fetchFromAPI(endpoint: string) {
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-    headers: { 'x-rapidapi-key': API_KEY, 'x-rapidapi-host': 'v3.football.api-sports.io' },
+    headers: { 'x-apisports-key': API_KEY },
   });
-  if (!response.ok) throw new Error(`API Error: ${response.status}`);
+  if (!response.ok) {
+    console.error(`[CornerEdge] API ${endpoint} HTTP ${response.status}`);
+    return [];
+  }
   const data = await response.json();
+  if (data.errors?.length) {
+    console.error(`[CornerEdge] API ${endpoint} errors:`, JSON.stringify(data.errors));
+  }
   return data.response || [];
 }
 
@@ -188,6 +196,31 @@ function poissonOverProbability(lambda: number, threshold: number): number {
 function toMarketLine(mu: number): number {
   const line = Math.floor(mu / 0.5) * 0.5 - 0.5;
   return Math.max(7.5, Math.min(12.5, line));
+}
+
+/** Uma perna da múltipla (persistida em `corner_analyses.games`) */
+interface CornerMultipleGameRow {
+  fixture_id: number;
+  home_team: string;
+  away_team: string;
+  league: string;
+  kickoff_at: string;
+  home_logo: string;
+  away_logo: string;
+  prediction: number;
+  strategy: string;
+  confidence: number;
+  match_score: number;
+  expected_total: number;
+  actual_corners: null;
+  result: string;
+}
+
+interface CornerAccumulator {
+  games: CornerMultipleGameRow[];
+  combinedConfidence: number;
+  combinedOdd: number;
+  tier: 'free' | 'premium';
 }
 
 // ============================================================================
@@ -290,11 +323,11 @@ function buildCornerMultiples(
   numMultiples: number,
   gamesPerMultiple: number,
   usedFixtures: Set<number>
-) {
-  const multiples = [];
+): CornerAccumulator[] {
+  const multiples: CornerAccumulator[] = [];
 
   for (let i = 0; i < numMultiples; i++) {
-    const games = [];
+    const games: CornerMultipleGameRow[] = [];
     let combinedConfidence = 0;
 
     for (const candidate of candidates) {
@@ -385,9 +418,19 @@ serve(async (req) => {
       }
     }
 
-    // Buscar todos os fixtures do dia
-    const allFixtures = await fetchFromAPI(`/fixtures?date=${targetDate}`);
-    console.log(`[CornerEdge] Found ${allFixtures.length} total fixtures`);
+    // Buscar fixtures do dia no fuso do app (evita “dia vazio” por UTC vs Brasil)
+    const tz = encodeURIComponent('America/Sao_Paulo');
+    const [allNS, allTBD] = await Promise.all([
+      fetchFromAPI(`/fixtures?date=${targetDate}&timezone=${tz}&status=NS`),
+      fetchFromAPI(`/fixtures?date=${targetDate}&timezone=${tz}&status=TBD`),
+    ]);
+    const byFixtureId = new Map<number, any>();
+    for (const f of [...allNS, ...allTBD]) {
+      const id = f?.fixture?.id;
+      if (id != null) byFixtureId.set(id, f);
+    }
+    const allFixtures = [...byFixtureId.values()];
+    console.log(`[CornerEdge] Found ${allFixtures.length} total fixtures (NS+TBD, tz=America/Sao_Paulo)`);
 
     const scheduled = allFixtures.filter(
       (f: any) => f.fixture.status.short === 'NS' || f.fixture.status.short === 'TBD'
@@ -403,10 +446,15 @@ serve(async (req) => {
       (f: any) => !tierSIds.has(f.fixture.id) && !tierAIds.has(f.fixture.id)
     );
 
-    // Pool máximo de 80 jogos para análise
-    const pool = [...tierS, ...tierA, ...tierBFiltered].slice(0, 80);
+    let pool = [...tierS, ...tierA, ...tierBFiltered].slice(0, 80);
+    // Dias com poucos jogos nas ligas “premium”: incluir outras competições agendadas
+    if (pool.length < 25) {
+      const inPool = new Set(pool.map((f: any) => f.fixture.id));
+      const rest = scheduled.filter((f: any) => !inPool.has(f.fixture.id));
+      pool = [...pool, ...rest].slice(0, 80);
+    }
     console.log(
-      `[CornerEdge] Pool: ${tierS.length} TierS + ${tierA.length} TierA + ${tierBFiltered.length} TierB = ${pool.length} fixtures`
+      `[CornerEdge] Pool: ${tierS.length} TierS + ${tierA.length} TierA + ${tierBFiltered.length} TierB → ${pool.length} fixtures (after fill)`
     );
 
     // Analisar cada fixture
@@ -466,19 +514,30 @@ serve(async (req) => {
 
     console.log(`[CornerEdge] Candidates for multiples (threshold=${threshold}): ${candidates.length}`);
 
-    const maxPossible = Math.floor(candidates.length / 3);
-    // PREMIUM tem prioridade: pega os 6 melhores candidatos
-    // FREE pega os 4 restantes
-    const numPremium = Math.min(6, maxPossible);
-    const numFree = Math.min(4, Math.max(0, maxPossible - numPremium));
-
     const usedFixtures = new Set<number>();
+    let premiumMultiples: CornerAccumulator[] = [];
+    let freeMultiples: CornerAccumulator[] = [];
 
-    // PREMIUM usa os melhores candidatos (já ordenados por matchScore)
-    const premiumMultiples = buildCornerMultiples(candidates, 'premium', numPremium, 3, usedFixtures);
+    const maxPossible3 = Math.floor(candidates.length / 3);
+    if (maxPossible3 > 0) {
+      const numPremium = Math.min(6, maxPossible3);
+      const numFree = Math.min(4, Math.max(0, maxPossible3 - numPremium));
+      premiumMultiples = buildCornerMultiples(candidates, 'premium', numPremium, 3, usedFixtures);
+      freeMultiples = buildCornerMultiples(candidates, 'free', numFree, 3, usedFixtures);
+    }
 
-    // FREE usa os candidatos restantes
-    const freeMultiples = buildCornerMultiples(candidates, 'free', numFree, 3, usedFixtures);
+    // Poucos jogos no dia: múltiplas 2 seleções (ainda separando premium/free)
+    if (premiumMultiples.length + freeMultiples.length === 0 && candidates.length >= 2) {
+      const used2 = new Set<number>();
+      const maxPairs = Math.floor(candidates.length / 2);
+      const numPrem2 = Math.min(3, maxPairs);
+      premiumMultiples = buildCornerMultiples(candidates, 'premium', numPrem2, 2, used2);
+      const numFree2 = Math.min(3, Math.max(0, maxPairs - numPrem2));
+      freeMultiples = buildCornerMultiples(candidates, 'free', numFree2, 2, used2);
+      console.log(
+        `[CornerEdge] Sparse day: used 2-leg multiples (premium=${premiumMultiples.length}, free=${freeMultiples.length})`
+      );
+    }
 
     const allMultiples = [...premiumMultiples, ...freeMultiples];
     console.log(
