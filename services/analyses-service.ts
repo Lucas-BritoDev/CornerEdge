@@ -24,13 +24,14 @@ export async function fetchTodayAnalyses(): Promise<AnalysisWithDetails[]> {
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    // Fetch analyses ordered by sort_order (deterministic from backend)
+    // Fetch analyses ordered by created_at (deterministic from backend)
     const { data: analyses, error: analysesError } = await supabase
         .from('corner_analyses')
         .select('*')
         .gte('kickoff_at', today.toISOString())
         .lt('kickoff_at', tomorrow.toISOString())
-        .order('sort_order', { ascending: true });
+        .order('created_at', { ascending: false })
+        .order('tier', { ascending: true }); // premium first
 
     if (analysesError) {
         console.error('[AnalysesService] Error fetching analyses:', analysesError);
@@ -88,18 +89,18 @@ export async function fetchTodayAnalyses(): Promise<AnalysisWithDetails[]> {
  * Fetch analyses for a specific date
  */
 export async function fetchAnalysesByDate(date: Date): Promise<AnalysisWithDetails[]> {
-    const startOfDay = new Date(date);
-    startOfDay.setHours(0, 0, 0, 0);
-    
-    const endOfDay = new Date(date);
-    endOfDay.setHours(23, 59, 59, 999);
+    // Usar timezone America/Sao_Paulo (BRT) para consistency com o servidor
+    const dateStr = date.toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
+    const startOfDay = new Date(`${dateStr}T00:00:00.000-03:00`);
+    const endOfDay = new Date(`${dateStr}T23:59:59.999-03:00`);
 
     const { data: analyses, error: analysesError } = await supabase
         .from('corner_analyses')
         .select('*')
         .gte('kickoff_at', startOfDay.toISOString())
         .lte('kickoff_at', endOfDay.toISOString())
-        .order('sort_order', { ascending: true });
+        .order('created_at', { ascending: false })
+        .order('tier', { ascending: true });
 
     if (analysesError) {
         console.error('[AnalysesService] Error fetching analyses by date:', analysesError);

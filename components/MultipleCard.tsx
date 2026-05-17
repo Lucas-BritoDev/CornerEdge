@@ -21,7 +21,8 @@ export function MultipleCard({ analysis, index, onPress }: MultipleCardProps) {
         return null;
     }
     
-    const isPremium = analysis.tier === 'premium';
+    const isPremium = analysis.tier === 'premium' || analysis.tier === 'superodd';
+    const isSuperOdd = analysis.tier === 'superodd';
     const games = analysis.games;
 
     const legResultColor = (r: string) => {
@@ -66,17 +67,18 @@ export function MultipleCard({ analysis, index, onPress }: MultipleCardProps) {
                 {/* Header */}
                 <View style={styles.cardHeader}>
                     <LinearGradient
-                        colors={isPremium ? ['#FF8C00', colors.accentOrange] : [colors.backgroundTertiary, colors.backgroundTertiary]}
+                        colors={isSuperOdd ? ['#FFD700', '#FF8C00'] : (isPremium ? ['#FF8C00', colors.accentOrange] : [colors.backgroundTertiary, colors.backgroundTertiary])}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 0 }}
                         style={styles.multipleBadge}
                     >
-                        {isPremium && <Crown color="#FFF" size={14} style={{ marginRight: 4 }} />}
+                        {isSuperOdd && <Crown color="#FFD700" size={14} style={{ marginRight: 4 }} />}
+                        {!isSuperOdd && isPremium && <Crown color="#FFF" size={14} style={{ marginRight: 4 }} />}
                         <Text style={[
                             styles.multipleBadgeText,
-                            { color: isPremium ? '#FFF' : colors.textMuted }
+                            { color: isSuperOdd ? '#FFD700' : (isPremium ? '#FFF' : colors.textMuted) }
                         ]}>
-                            {t('home.multiple')} {games.length}X
+                            {isSuperOdd ? 'SUPERODD ' + games.length + 'X' : (t('home.multiple') + ' ' + games.length + 'X')}
                         </Text>
                     </LinearGradient>
                     
@@ -84,7 +86,7 @@ export function MultipleCard({ analysis, index, onPress }: MultipleCardProps) {
                         <View style={styles.confidenceRow}>
                             <Zap size={14} color={colors.accentOrange} style={{ marginRight: 4 }} />
                             <Text style={[styles.confidenceValue, { color: colors.accentOrange }]}>
-                                {analysis.combined_confidence}%
+                                {analysis.combined_odd?.toFixed(2)}x
                             </Text>
                         </View>
                         {analysis.status && analysis.status !== 'pending' && (
@@ -120,11 +122,17 @@ export function MultipleCard({ analysis, index, onPress }: MultipleCardProps) {
                         >
                             <View style={styles.gameTeams}>
                                 <View style={styles.teamRow}>
-                                    {game.home_logo && (
+                                    {game.home_logo ? (
                                         <Image 
                                             source={{ uri: game.home_logo }} 
                                             style={styles.miniLogo} 
                                         />
+                                    ) : (
+                                        <View style={[styles.miniLogoPlaceholder, { backgroundColor: colors.backgroundTertiary }]}>
+                                            <Text style={[styles.miniLogoPlaceholderText, { color: colors.textMuted }]}>
+                                                {game.home_team?.substring(0, 1) || '?'}
+                                            </Text>
+                                        </View>
                                     )}
                                     <Text 
                                         style={[styles.teamText, { color: colors.textPrimary }]}
@@ -137,11 +145,17 @@ export function MultipleCard({ analysis, index, onPress }: MultipleCardProps) {
                                 <Text style={[styles.vsText, { color: colors.textMuted }]}>vs</Text>
                                 
                                 <View style={styles.teamRow}>
-                                    {game.away_logo && (
+                                    {game.away_logo ? (
                                         <Image 
                                             source={{ uri: game.away_logo }} 
                                             style={styles.miniLogo} 
                                         />
+                                    ) : (
+                                        <View style={[styles.miniLogoPlaceholder, { backgroundColor: colors.backgroundTertiary }]}>
+                                            <Text style={[styles.miniLogoPlaceholderText, { color: colors.textMuted }]}>
+                                                {game.away_team?.substring(0, 1) || '?'}
+                                            </Text>
+                                        </View>
                                     )}
                                     <Text 
                                         style={[styles.teamText, { color: colors.textPrimary }]}
@@ -282,9 +296,20 @@ const styles = StyleSheet.create({
         gap: 8,
     },
     miniLogo: {
-        width: 20,
-        height: 20,
-        borderRadius: 10,
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+    },
+    miniLogoPlaceholder: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    miniLogoPlaceholderText: {
+        fontSize: 14,
+        fontWeight: '700',
     },
     teamText: {
         fontSize: 13,

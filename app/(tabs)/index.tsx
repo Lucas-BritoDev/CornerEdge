@@ -13,6 +13,7 @@ import { AdBanner } from '../../components/AdBanner';
 import { useRewardedAd } from '../../hooks/useRewardedAd';
 import { Header } from '../../components/Header';
 import { MultipleCard } from '../../components/MultipleCard';
+import { MultipleCardCompact } from '../../components/MultipleCardCompact';
 import { useTodayAnalyses } from '../../services/analyses-service';
 import { AnalysisWithDetails } from '../../types';
 
@@ -47,7 +48,7 @@ function HomeScreen() {
     const freeAnalyses = individualAnalyses.filter(a => a.tier === 'free');
     const premiumAnalyses = individualAnalyses.filter(a => a.tier === 'premium');
     const freeMultiples = multipleAnalyses.filter(a => a.tier === 'free');
-    const premiumMultiples = multipleAnalyses.filter(a => a.tier === 'premium');
+    const premiumMultiples = multipleAnalyses.filter(a => a.tier === 'premium' || a.tier === 'superodd');
     
     // ✅ FIX: Restaura desbloqueios apenas uma vez quando análises carregarem
     React.useEffect(() => {
@@ -174,7 +175,7 @@ function HomeScreen() {
 
     const handleShare = async (analysis: AnalysisWithDetails) => {
         try {
-            const message = `${t('app.name')} - ${t('home.full_analysis')}\n\n⚽️ ${analysis.home_team} vs ${analysis.away_team}\n🏆 ${analysis.league}\n🎯 ${t('home.strategy')}: ${t(`home.${analysis.strategy_type || 'over'}`)} ${analysis.avg_prediction}\n🔥 ${t('home.statistical_confidence')}: ${analysis.confidence}%`;
+            const message = `${t('app.name')} - ${t('home.full_analysis')}\n\n⚽️ ${analysis.home_team} vs ${analysis.away_team}\n🏆 ${analysis.league}\n🎯 ${t('home.strategy')}: ${t(`home.${analysis.strategy_type || 'over'}`)} ${analysis.avg_prediction}\n🎯 ${t('home.strategy')}: ${t(`home.${analysis.strategy_type || 'over'}`)} ${analysis.avg_prediction}`;
             await Share.share({ message });
         } catch (error) {
             console.error(error);
@@ -252,14 +253,7 @@ function HomeScreen() {
                         </LinearGradient>
                         
                         {/* Oculta a confiança quando o card está bloqueado */}
-                        {!effectiveLocked && (
-                            <View style={styles.confidenceBadge}>
-                                <Zap size={14} color={colors.accentOrange} style={{ marginRight: 4 }} />
-                                <Text style={[styles.confidenceValue, { color: colors.accentOrange }]}>
-                                    {analysis.confidence}%
-                                </Text>
-                            </View>
-                        )}
+                        
                     </View>
 
                     {effectiveLocked ? (
@@ -310,7 +304,11 @@ function HomeScreen() {
                                 <View style={styles.teamContainer}>
                                     <View style={[styles.logoContainer, { backgroundColor: colors.backgroundPrimary }]}>
                                         {analysis.home_team_logo ? (
-                                            <Image source={{ uri: analysis.home_team_logo }} style={styles.teamLogo} />
+                                            <Image 
+                                                source={{ uri: analysis.home_team_logo }} 
+                                                style={styles.teamLogo}
+                                                resizeMode="contain"
+                                            />
                                         ) : (
                                             <View style={[styles.teamLogoPlaceholder, { backgroundColor: colors.backgroundTertiary }]}>
                                                 <Text style={styles.placeholderText}>{analysis.home_team.substring(0, 1)}</Text>
@@ -331,7 +329,11 @@ function HomeScreen() {
                                 <View style={[styles.teamContainer, { flexDirection: 'row-reverse' }]}>
                                     <View style={[styles.logoContainer, { backgroundColor: colors.backgroundPrimary }]}>
                                         {analysis.away_team_logo ? (
-                                            <Image source={{ uri: analysis.away_team_logo }} style={styles.teamLogo} />
+                                            <Image 
+                                                source={{ uri: analysis.away_team_logo }} 
+                                                style={styles.teamLogo}
+                                                resizeMode="contain"
+                                            />
                                         ) : (
                                             <View style={[styles.teamLogoPlaceholder, { backgroundColor: colors.backgroundTertiary }]}>
                                                 <Text style={styles.placeholderText}>{analysis.away_team.substring(0, 1)}</Text>
@@ -441,7 +443,7 @@ function HomeScreen() {
                                 </View>
                                 <View style={styles.section}>
                                     {premiumMultiples.map((analysis, index) => (
-                                        <MultipleCard
+                                        <MultipleCardCompact
                                             key={analysis.id}
                                             analysis={analysis}
                                             index={index}
@@ -468,7 +470,7 @@ function HomeScreen() {
                                 </View>
                                 <View style={styles.section}>
                                     {freeMultiples.map((analysis, index) => (
-                                        <MultipleCard
+                                        <MultipleCardCompact
                                             key={analysis.id}
                                             analysis={analysis}
                                             index={index}
@@ -653,11 +655,11 @@ function HomeScreen() {
                                     <View style={[styles.multipleModalConfRow, { borderTopColor: colors.cardBorder }]}>
                                         <Zap size={16} color={colors.accentOrange} />
                                         <Text style={[styles.multipleModalConfLabel, { color: colors.textMuted }]}>{t('home.statistical_confidence')}</Text>
-                                        <Text style={[styles.multipleModalConfValue, { color: colors.accentOrange }]}>{selectedAnalysis.combined_confidence}%</Text>
+                                        <Text style={[styles.multipleModalConfValue, { color: colors.accentOrange }]}>{selectedAnalysis.combined_odd?.toFixed(2)}x</Text>
                                     </View>
                                     <View style={[styles.multipleModalResultRow, { borderTopColor: colors.cardBorder }]}>
                                         <Text style={[styles.multipleModalResultLabel, { color: colors.textMuted }]}>
-                                            {t('results.multiple_outcome') || (i18n.language === 'en' ? 'Multiple result' : 'Resultado da múltipla')}
+                                            Resultado da Aposta
                                         </Text>
                                         <View style={[styles.homeMiniStatus, { backgroundColor: cornerStatusColor(selectedAnalysis.status) }]}>
                                             <Text style={styles.homeMiniStatusText}>{cornerStatusLabel(selectedAnalysis.status)}</Text>
@@ -727,7 +729,7 @@ function HomeScreen() {
                                             </View>
                                             <View style={[styles.multipleGameConfBadge, { backgroundColor: colors.accentOrange + '22', borderColor: colors.accentOrange }]}>
                                                 <Zap size={11} color={colors.accentOrange} />
-                                                <Text style={[styles.multipleGameConfText, { color: colors.accentOrange }]}>{game.confidence}%</Text>
+                                                <Text style={[styles.multipleGameConfText, { color: colors.accentOrange }]}>{game.prediction}</Text>
                                             </View>
                                         </View>
 
@@ -775,7 +777,7 @@ function HomeScreen() {
                                                         colors={game.confidence >= 65 ? [colors.accentOrange, '#FF8C00'] : ['#888', '#666']}
                                                         start={{ x: 0, y: 0 }}
                                                         end={{ x: 1, y: 0 }}
-                                                        style={[styles.multipleGameConfBarFill, { width: `${game.confidence}%` }]}
+                                                        style={[styles.multipleGameConfBarFill, { width: `${game.prediction * 10}%` }]}
                                                     />
                                                 </View>
                                                 <Text style={[styles.multipleGameConfBarLabel, { color: colors.textMuted }]}>
@@ -814,7 +816,7 @@ function HomeScreen() {
                                             <Text style={[styles.multipleSummaryLabel, { color: colors.textMuted }]}>
                                                 {i18n.language === 'en' ? 'Avg Conf.' : i18n.language === 'es' ? 'Conf. Media' : 'Conf. Média'}
                                             </Text>
-                                            <Text style={[styles.multipleSummaryValue, { color: colors.accentOrange }]}>{selectedAnalysis.combined_confidence}%</Text>
+                                            <Text style={[styles.multipleSummaryValue, { color: colors.accentOrange }]}>{selectedAnalysis.combined_odd?.toFixed(2)}x</Text>
                                         </View>
                                     </View>
                                     <Text style={[styles.multipleSummaryNote, { color: colors.textMuted }]}>
@@ -874,7 +876,7 @@ function HomeScreen() {
                                         </View>
                                         <View style={[styles.summaryCircle, { borderColor: colors.accentOrange }]}>
                                             <Zap size={18} color={colors.accentOrange} style={{ marginBottom: 2 }} />
-                                            <Text style={[styles.summaryCircleText, { color: colors.accentOrange }]}>{selectedAnalysis.confidence}%</Text>
+                                            <Text style={[styles.summaryCircleText, { color: colors.accentOrange }]}>{selectedAnalysis.combined_odd?.toFixed(1)}x</Text>
                                         </View>
                                     </View>
                                     

@@ -9,6 +9,7 @@ import { AnalysisWithDetails, MultipleGame } from '../../types';
 import { AdBanner } from '../../components/AdBanner';
 import { useAuth } from '../../context/AuthContext';
 import { Header } from '../../components/Header';
+import { getTeamLogoFallback, getTeamInitials } from '../../services/logo-service';
 
 type TierFilter = 'all' | 'premium' | 'free';
 
@@ -42,9 +43,11 @@ export default function ResultsScreen() {
 
     const visiblePicks = isPremium ? allPicks : allPicks.filter(p => p.tier === 'free');
 
-    // Separa múltiplas das individuais (apenas encerradas)
-    const visibleMultiples = visiblePicks.filter(p => p.is_multiple === true && p.status !== 'pending');
-    const visibleIndividual = visiblePicks.filter(p => !p.is_multiple && p.status !== 'pending');
+    // Separa múltiplas encerradas das pendentes (do dia)
+    const settledMultiples = visiblePicks.filter(p => p.is_multiple === true && p.status !== 'pending');
+    const pendingMultiples = visiblePicks.filter(p => p.is_multiple === true && p.status === 'pending');
+    const settledIndividual = visiblePicks.filter(p => !p.is_multiple && p.status !== 'pending');
+    const pendingIndividual = visiblePicks.filter(p => !p.is_multiple && p.status === 'pending');
 
     // ── Stats por tier ────────────────────────────────────────────────────
     const calcStats = (picks: AnalysisWithDetails[]) => {
@@ -52,20 +55,41 @@ export default function ResultsScreen() {
         const won = settled.filter(p => p.status === 'correct').length;
         const lost = settled.filter(p => p.status === 'incorrect').length;
         const total = settled.length;
-        const hitRate = total > 0 ? Math.round((won / total) * 100) : null;
-        return { won, lost, total, hitRate };
+        return { won, lost, total };
     };
 
-    const premiumPicks = visibleIndividual.filter(p => p.tier === 'premium');
-    const freePicks    = visibleIndividual.filter(p => p.tier === 'free');
-    const statsAll     = calcStats(visibleIndividual);
+    const premiumPicks = settledIndividual.filter(p => p.tier === 'premium' || p.tier === 'superodd');
+    const freePicks    = settledIndividual.filter(p => p.tier === 'free');
+    const statsAll     = calcStats(settledIndividual);
     const statsPremium = calcStats(premiumPicks);
     const statsFree    = calcStats(freePicks);
 
-    const filteredPicks =
-        tierFilter === 'premium' ? premiumPicks :
-        tierFilter === 'free'    ? freePicks    :
-        visibleIndividual;
+    // Separa múltiplas por tier
+    const premiumMultiples = visiblePicks.filter(p => p.is_multiple === true && (p.tier === 'premium' || p.tier === 'superodd'));
+    const freeMultiples = visiblePicks.filter(p => p.is_multiple === true && p.tier === 'free');
+
+    // Jogo do dia (pendentes) - para exibir na aba resultados
+    const visibleMultiples = pendingMultiples;
+    const pendingPicks = [...pendingMultiples, ...pendingIndividual];
+    
+    // Filtro incluindo múltiplas e individuais
+    const premiumItems = [...premiumPicks, ...pendingMultiples.filter(p => p.tier === 'premium' || p.tier === 'superodd')];
+    const freeItems = [...freeMultiples, ...settledIndividual.filter(p => p.tier === 'free'), ...pendingMultiples.filter(p => p.tier === 'free'), ...pendingIndividual.filter(p => p.tier === 'free')];
+    const uniqueById = (arr: AnalysisWithDetails[]) => {
+        const seen = new Map<string, AnalysisWithDetails>();
+        arr.forEach(item => {
+            if (!seen.has(item.id)) {
+                seen.set(item.id, item);
+            }
+        });
+        return Array.from(seen.values());
+    };
+
+    const filteredPicks = uniqueById(tierFilter === 'premium' 
+        ? premiumItems
+        : tierFilter === 'free'
+        ? freeItems
+        : [...settledMultiples, ...settledIndividual, ...pendingMultiples, ...pendingIndividual]);
 
     // ── Helpers ───────────────────────────────────────────────────────────
     const formatDate = (date: Date) => {
@@ -116,19 +140,6 @@ export default function ResultsScreen() {
             </View>
             <View style={styles.statsBlockRow}>
                 <View style={styles.statsBlockItem}>
-                    <Text style={[styles.statsBlockValue, {
-                        color: stats.hitRate !== null
-                            ? (stats.hitRate >= 50 ? colors.statusGreen : colors.statusRed)
-                            : colors.textMuted,
-                    }]}>
-                        {stats.hitRate !== null ? `${stats.hitRate}%` : '—'}
-                    </Text>
-                    <Text style={[styles.statsBlockSub, { color: colors.textMuted }]}>
-                        {t('results.hit_rate')}
-                    </Text>
-                </View>
-                <View style={[styles.statsBlockDivider, { backgroundColor: colors.cardBorder }]} />
-                <View style={styles.statsBlockItem}>
                     <View style={styles.statsWonLost}>
                         <CheckCircle size={13} color={colors.statusGreen} />
                         <Text style={[styles.statsWonLostText, { color: colors.statusGreen }]}>{stats.won}</Text>
@@ -159,7 +170,8 @@ export default function ResultsScreen() {
     const renderMultipleResultCard = (pick: AnalysisWithDetails) => {
         const isExpanded = expandedPick === pick.id;
         const statusColor = getStatusColor(pick.status);
-        const isPremiumPick = pick.tier === 'premium';
+        const isPremiumPick = pick.tier === 'premium' || pick.tier === 'superodd';
+        const isSuperOdd = pick.tier === 'superodd';
         const tierAccent = isPremiumPick ? colors.accentOrange : colors.statusGreen;
         const games = pick.games || [];
 
@@ -182,7 +194,7 @@ export default function ResultsScreen() {
                     <View style={[styles.tierBadge, { backgroundColor: tierAccent + '22', borderColor: tierAccent }]}>
                         <Layers size={11} color={tierAccent} />
                         <Text style={[styles.tierBadgeText, { color: tierAccent }]}>
-                            {isPremiumPick ? t('common.premium').toUpperCase() : t('common.free').toUpperCase()} • {t('home.multiple').toUpperCase()} {games.length}X
+                            {isSuperOdd ? 'SUPERODD' : (isPremiumPick ? t('common.premium').toUpperCase() : t('common.free').toUpperCase())} • {t('home.multiple').toUpperCase()} {games.length}X
                         </Text>
                     </View>
                 </View>
@@ -192,7 +204,7 @@ export default function ResultsScreen() {
                         <Text style={styles.statusBadgeText}>{getStatusLabel(pick.status)}</Text>
                     </View>
                     <Text style={[styles.resultConfidence, { color: tierAccent }]}>
-                        {pick.combined_confidence}% • {pick.combined_odd?.toFixed(2)}x
+                        {pick.combined_odd?.toFixed(2)}x
                     </Text>
                 </View>
 
@@ -202,9 +214,35 @@ export default function ResultsScreen() {
                         key={`${game.fixture_id}-${idx}`}
                         style={[styles.multipleGameRow, { borderTopColor: colors.cardBorder }]}
                     >
-                        <Text style={[styles.multipleGameTeams, { color: colors.textPrimary }]} numberOfLines={1}>
-                            {game.home_team} vs {game.away_team}
-                        </Text>
+                        <View style={styles.multipleGameTeamsRow}>
+                            {(() => {
+                                const homeLogo = getTeamLogoFallback(game.home_team, game.home_logo);
+                                return homeLogo ? (
+                                    <Image source={{ uri: homeLogo }} style={styles.gameLogo} resizeMode="contain" />
+                                ) : (
+                                    <View style={[styles.gameLogo, styles.gameLogoPlaceholder, { backgroundColor: colors.backgroundTertiary }]}>
+                                        <Text style={{ color: colors.textMuted, fontSize: 9 }}>{getTeamInitials(game.home_team)}</Text>
+                                    </View>
+                                );
+                            })()}
+                            <Text style={[styles.multipleGameTeams, { color: colors.textPrimary }]} numberOfLines={1}>
+                                {game.home_team}
+                            </Text>
+                            <Text style={[styles.vsText, { color: colors.textMuted, marginHorizontal: 4 }]}>vs</Text>
+                            <Text style={[styles.multipleGameTeams, { color: colors.textPrimary }]} numberOfLines={1}>
+                                {game.away_team}
+                            </Text>
+                            {(() => {
+                                const awayLogo = getTeamLogoFallback(game.away_team, game.away_logo);
+                                return awayLogo ? (
+                                    <Image source={{ uri: awayLogo }} style={styles.gameLogo} resizeMode="contain" />
+                                ) : (
+                                    <View style={[styles.gameLogo, styles.gameLogoPlaceholder, { backgroundColor: colors.backgroundTertiary }]}>
+                                        <Text style={{ color: colors.textMuted, fontSize: 9 }}>{getTeamInitials(game.away_team)}</Text>
+                                    </View>
+                                );
+                            })()}
+                        </View>
                         <View style={styles.multipleGameRight}>
                             <Text style={[styles.multipleGameStrategy, { color: colors.accentOrange }]}>
                                 {game.strategy?.toUpperCase()} {game.prediction}
@@ -228,9 +266,6 @@ export default function ResultsScreen() {
                     <View style={[styles.selectionsExpanded, { borderTopColor: colors.cardBorder }]}>
                         <Text style={[styles.expandedTitle, { color: colors.textPrimary }]}>
                             {t('results.multiple_details')}
-                        </Text>
-                        <Text style={[styles.expandedText, { color: colors.textSecondary }]}>
-                            {t('results.combined_confidence')}: {pick.combined_confidence}%
                         </Text>
                         <Text style={[styles.expandedText, { color: colors.textSecondary }]}>
                             {t('home.combined_odd')}: {pick.combined_odd?.toFixed(2)}x
@@ -341,23 +376,7 @@ export default function ResultsScreen() {
                         })}
                     </View>
 
-                    {/* ── Lista de múltiplas ── */}
-                    {!picksLoading && visibleMultiples.length > 0 && (
-                        <View style={styles.section}>
-                            <View style={styles.multiplesHeader}>
-                                <Layers size={16} color={colors.accentOrange} />
-                                <Text style={[styles.multiplesHeaderText, { color: colors.textPrimary }]}>
-                                    {t('home.multiple')}
-                                </Text>
-                                <View style={[styles.tierBadge, { backgroundColor: colors.accentOrange + '22', borderColor: colors.accentOrange }]}>
-                                    <Text style={[styles.tierBadgeText, { color: colors.accentOrange }]}>{visibleMultiples.length}</Text>
-                                </View>
-                            </View>
-                            {visibleMultiples.map(pick => renderMultipleResultCard(pick))}
-                        </View>
-                    )}
-
-                    {/* ── Lista de análises individuais ── */}
+                    {/* ── Lista de análises (múltiplas + individuais) ── */}
                     <View style={styles.section}>
                         {picksLoading ? (
                             <ActivityIndicator size="large" color={colors.accentOrange} style={{ marginTop: 40 }} />
@@ -367,9 +386,14 @@ export default function ResultsScreen() {
                             </View>
                         ) : (
                             filteredPicks.map((pick) => {
+                                // Se for múltipla, usar o renderizador de múltiplas
+                                if (pick.is_multiple) {
+                                    return renderMultipleResultCard(pick);
+                                }
                                 const isExpanded = expandedPick === pick.id;
                                 const statusColor = getStatusColor(pick.status);
-                                const isPremiumPick = pick.tier === 'premium';
+                                const isPremiumPick = pick.tier === 'premium' || pick.tier === 'superodd';
+                                const isSuperOddPick = pick.tier === 'superodd';
                                 const tierAccent = isPremiumPick ? colors.accentOrange : colors.statusGreen;
 
                                 return (
@@ -399,7 +423,7 @@ export default function ResultsScreen() {
                                                     : <Zap size={11} color={tierAccent} />
                                                 }
                                                 <Text style={[styles.tierBadgeText, { color: tierAccent }]}>
-                                                    {isPremiumPick ? 'PREMIUM' : 'FREE'}
+                                                    {isSuperOddPick ? 'SUPERODD' : (isPremiumPick ? 'PREMIUM' : 'FREE')}
                                                 </Text>
                                             </View>
                                         </View>
@@ -409,24 +433,38 @@ export default function ResultsScreen() {
                                                 <Text style={styles.statusBadgeText}>{getStatusLabel(pick.status)}</Text>
                                             </View>
                                             <Text style={[styles.resultConfidence, { color: isPremiumPick ? colors.accentOrange : colors.textPrimary }]}>
-                                                {pick.confidence}%
+                                                {pick.combined_odd ? `${pick.combined_odd}x` : (pick.selection_odd ? `${pick.selection_odd}x` : '')}
                                             </Text>
                                         </View>
 
                                         <View style={styles.teamsRow}>
                                             <View style={styles.teamContainer}>
-                                                {pick.home_team_logo && (
-                                                    <Image source={{ uri: pick.home_team_logo }} style={styles.teamLogo} />
-                                                )}
+                                                {(() => {
+                                                    const homeLogo = getTeamLogoFallback(pick.home_team, pick.home_team_logo);
+                                                    return homeLogo ? (
+                                                        <Image source={{ uri: homeLogo }} style={styles.teamLogo} resizeMode="contain" />
+                                                    ) : (
+                                                        <View style={[styles.teamLogo, styles.teamLogoPlaceholder, { backgroundColor: colors.backgroundTertiary }]}>
+                                                            <Text style={{ color: colors.textMuted, fontSize: 12 }}>{getTeamInitials(pick.home_team)}</Text>
+                                                        </View>
+                                                    );
+                                                })()}
                                                 <Text style={[styles.teamName, { color: colors.textPrimary }]} numberOfLines={1}>
                                                     {pick.home_team}
                                                 </Text>
                                             </View>
                                             <Text style={[styles.vsText, { color: colors.textMuted }]}>vs</Text>
                                             <View style={[styles.teamContainer, { justifyContent: 'flex-end' }]}>
-                                                {pick.away_team_logo && (
-                                                    <Image source={{ uri: pick.away_team_logo }} style={styles.teamLogo} />
-                                                )}
+                                                {(() => {
+                                                    const awayLogo = getTeamLogoFallback(pick.away_team, pick.away_team_logo);
+                                                    return awayLogo ? (
+                                                        <Image source={{ uri: awayLogo }} style={styles.teamLogo} resizeMode="contain" />
+                                                    ) : (
+                                                        <View style={[styles.teamLogo, styles.teamLogoPlaceholder, { backgroundColor: colors.backgroundTertiary }]}>
+                                                            <Text style={{ color: colors.textMuted, fontSize: 12 }}>{getTeamInitials(pick.away_team)}</Text>
+                                                        </View>
+                                                    );
+                                                })()}
                                                 <Text style={[styles.teamName, { color: colors.textPrimary, textAlign: 'right' }]} numberOfLines={1}>
                                                     {pick.away_team}
                                                 </Text>
@@ -529,7 +567,8 @@ const styles = StyleSheet.create({
     resultConfidence: { fontSize: 18, fontWeight: '900', letterSpacing: -0.5 },
     teamsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
     teamContainer: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 },
-    teamLogo: { width: 20, height: 20, borderRadius: 10 },
+    teamLogo: { width: 32, height: 32, borderRadius: 16 },
+    teamLogoPlaceholder: { alignItems: 'center', justifyContent: 'center' },
     teamName: { fontSize: 13, fontWeight: '600', flex: 1 },
     vsText: { fontSize: 11, fontWeight: 'bold', marginHorizontal: 8 },
     resultSubtitle: { fontSize: 12, marginBottom: 8 },
@@ -551,6 +590,9 @@ const styles = StyleSheet.create({
     multiplesHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
     multiplesHeaderText: { fontSize: 15, fontWeight: '700', flex: 1 },
     multipleGameRow: { borderTopWidth: 1, paddingTop: 8, marginTop: 8, gap: 4 },
+    multipleGameTeamsRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+    gameLogo: { width: 20, height: 20, borderRadius: 10 },
+    gameLogoPlaceholder: { alignItems: 'center', justifyContent: 'center' },
     multipleGameTeams: { fontSize: 12, fontWeight: '600' },
     multipleGameRight: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
     multipleGameStrategy: { fontSize: 12, fontWeight: '700' },

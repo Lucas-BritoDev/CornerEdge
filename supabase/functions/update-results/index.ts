@@ -7,9 +7,12 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const API_KEY = Deno.env.get('FOOTBALL_API_KEY');
-if (!API_KEY) throw new Error('[UpdateResults] FOOTBALL_API_KEY env var não configurada');
+const API_KEY = Deno.env.get('FOOTBALL_API_KEY') || '1a896aad078a4eec7ab7121281bcd5ec';
 const API_BASE_URL = 'https://v3.football.api-sports.io';
+
+const MAX_EXECUTION_TIME = 140000;
+const BATCH_SIZE = 10;
+const MAX_CONCURRENT = 5;
 
 async function fetchFromAPI(endpoint: string) {
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
@@ -20,17 +23,14 @@ async function fetchFromAPI(endpoint: string) {
   return data.response || [];
 }
 
-/**
- * Extrai estatísticas de escanteios comparando o ID do time para garantir precisão
- */
+function checkTimeRemaining(startTime: number): number {
+  return Math.max(0, MAX_EXECUTION_TIME - (Date.now() - startTime));
+}
+
 function extractCornerStats(statistics: any[]) {
   let homeCorners = 0;
   let awayCorners = 0;
 
-  // A API-Football retorna estatísticas por time no array
-  // statistics[0] costuma ser o home e [1] o away, mas vamos confiar na ordem da API
-  // ou poderíamos passar os IDs dos times se tivéssemos na tabela
-  
   statistics.forEach((teamStats: any, index: number) => {
     const cornerStat = teamStats.statistics.find((s: any) => s.type === 'Corner Kicks');
     const corners = cornerStat && cornerStat.value !== null
@@ -44,8 +44,150 @@ function extractCornerStats(statistics: any[]) {
   return { home: homeCorners, away: awayCorners, total: homeCorners + awayCorners };
 }
 
+async function processAnalysis(analysis: any, fetchFromAPI: Function): Promise<any> {
+  if (analysis.is_multiple && analysis.games) {
+    const updatedGames = [];
+    let allCorrect = true;
+    let hasVoid = false;
+
+    for (const game of analysis.games) {
+      try {
+        const fixtureData = await fetchFromAPI(`/fixtures?id=${game.fixture_id}`);
+        if (!fixtureData || fixtureData.length === 0) {
+          hasVoid = true;
+          updatedGames.push({ ...game, result: 'void' });
+          continue;
+        }
+
+        const fixture = fixtureData[0];
+        const fixtureStatus = fixture?.fixture?.status?.short;
+
+        if (['PST', 'CANC', 'ABD', 'SUSP', 'INT'].includes(fixtureStatus)) {
+          hasVoid = true;
+          updatedGames.push({ ...game, result: 'void' });
+          continue;
+        }
+
+        if (fixtureStatus === 'NS') {
+          const kickoffTime = new Date(game.kickoff_at).getTime();
+          const hoursSinceKickoff = (Date.now() - kickoffTime) / (1000 * 60 * 60);
+          
+          if (hoursSinceKickoff > 4) {
+            hasVoid = true;
+            updatedGames.push({ ...game, result: 'void' });
+          } else {
+            updatedGames.push(game);
+          }
+          continue;
+        }
+
+        if (!['FT', 'AET', 'PEN'].includes(fixtureStatus)) {
+          updatedGames.push(game);
+          continue;
+        }
+
+        const stats = await fetchFromAPI(`/fixtures/statistics?fixture=${game.fixture_id}`);
+        let corners = { home: 0, away: 0, total: 0 };
+        
+        if (stats && stats.length > 0) {
+          corners = extractCornerStats(stats);
+        }
+
+        const threshold = parseFloat(game.prediction.toString());
+        let gameResult = 'incorrect';
+        
+        if (game.strategy === 'under') {
+          gameResult = corners.total <= threshold ? 'correct' : 'incorrect';
+        } else {
+          gameResult = corners.total >= threshold ? 'correct' : 'incorrect';
+        }
+
+        updatedGames.push({
+          ...game,
+          actual_corners: corners.total,
+          result: gameResult
+        });
+
+        if (gameResult === 'incorrect') allCorrect = false;
+        
+      } catch (gameError) {
+        hasVoid = true;
+        updatedGames.push({ ...game, result: 'void' });
+      }
+    }
+
+    const hasPendingGames = updatedGames.some((g: any) => !g.result || g.result === 'pending');
+    let multipleStatus = 'pending';
+    if (!hasPendingGames) {
+      multipleStatus = hasVoid ? 'void' : (allCorrect ? 'correct' : 'incorrect');
+    }
+
+    return {
+      ...analysis,
+      updatedGames,
+      multipleStatus,
+      shouldUpdate: !hasPendingGames || updatedGames.some((g: any) => g.result && g.result !== 'pending')
+    };
+  }
+
+  // Processar análise individual
+  if (!analysis.fixture_id) return { ...analysis, skip: true };
+
+  try {
+    const fixtureData = await fetchFromAPI(`/fixtures?id=${analysis.fixture_id}`);
+    if (!fixtureData || fixtureData.length === 0) return { ...analysis, skip: true };
+
+    const fixture = fixtureData[0];
+    const fixtureStatus = fixture?.fixture?.status?.short;
+
+    if (['PST', 'CANC', 'ABD', 'SUSP', 'INT'].includes(fixtureStatus)) {
+      return { ...analysis, newStatus: 'void', shouldUpdate: true };
+    }
+
+    if (fixtureStatus === 'NS') {
+      const kickoffTime = new Date(analysis.kickoff_at).getTime();
+      const hoursSinceKickoff = (Date.now() - kickoffTime) / (1000 * 60 * 60);
+      if (hoursSinceKickoff > 4) {
+        return { ...analysis, newStatus: 'void', shouldUpdate: true };
+      }
+      return { ...analysis, skip: true };
+    }
+
+    if (!['FT', 'AET', 'PEN'].includes(fixtureStatus)) {
+      return { ...analysis, skip: true };
+    }
+
+    const stats = await fetchFromAPI(`/fixtures/statistics?fixture=${analysis.fixture_id}`);
+    let corners = { home: 0, away: 0, total: 0 };
+    if (stats && stats.length > 0) {
+      corners = extractCornerStats(stats);
+    }
+
+    const threshold = parseFloat(analysis.avg_prediction.toString());
+    let status = 'incorrect';
+    
+    if (analysis.strategy_type === 'under') {
+      status = corners.total <= threshold ? 'correct' : 'incorrect';
+    } else {
+      status = corners.total >= threshold ? 'correct' : 'incorrect';
+    }
+
+    return {
+      ...analysis,
+      actualCorners: corners.total,
+      newStatus: status,
+      shouldUpdate: true
+    };
+
+  } catch (analysisError) {
+    return { ...analysis, skip: true };
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+
+  const startTime = Date.now();
 
   try {
     const supabaseClient = createClient(
@@ -53,9 +195,13 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    console.log('[UpdateResults] Iniciando atualização de resultados...');
+    console.log(`[UpdateResults] [${Date.now() - startTime}ms] Iniciando atualização...`);
 
-    // Janela de 72 horas para garantir processamento de jogos atrasados ou adiados
+    if (checkTimeRemaining(startTime) < 30000) {
+      return new Response(JSON.stringify({ success: false, message: 'Timeout approaching' }), 
+        { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
     const cutoffTime = new Date(Date.now() - 72 * 60 * 60 * 1000).toISOString();
     const nowTime = new Date().toISOString();
 
@@ -83,236 +229,124 @@ serve(async (req) => {
     }
 
     console.log(`[UpdateResults] Encontradas ${analyses.length} análises pendentes`);
+
+    // Processar em lotes
+    const batches: any[][] = [];
+    for (let i = 0; i < analyses.length; i += BATCH_SIZE) {
+      batches.push(analyses.slice(i, i + BATCH_SIZE));
+    }
+
     let updatedCount = 0;
+    let failedCount = 0;
 
-    for (const analysis of analyses) {
-      // ============================================================================
-      // PROCESSAR MÚLTIPLAS
-      // ============================================================================
-      if (analysis.is_multiple && analysis.games) {
-        console.log(`[UpdateResults] Processando múltipla ${analysis.id} com ${analysis.games.length} jogos`);
-        
-        let allCorrect = true;
-        let hasVoid = false;
-        const updatedGames = [];
-        
-        for (const game of analysis.games) {
-          try {
-            const fixtureData = await fetchFromAPI(`/fixtures?id=${game.fixture_id}`);
-            if (!fixtureData || fixtureData.length === 0) {
-              hasVoid = true;
-              updatedGames.push({ ...game, result: 'void' });
-              continue;
-            }
-            
-            const fixture = fixtureData[0];
-            const fixtureStatus = fixture?.fixture?.status?.short;
-            
-            // Jogos adiados/cancelados
-            if (['PST', 'CANC', 'ABD', 'SUSP', 'INT'].includes(fixtureStatus)) {
-              hasVoid = true;
-              updatedGames.push({ ...game, result: 'void' });
-              continue;
-            }
-            
-            // Timeout para jogos que não começam
-            if (fixtureStatus === 'NS') {
-              const kickoffTime = new Date(game.kickoff_at).getTime();
-              const hoursSinceKickoff = (Date.now() - kickoffTime) / (1000 * 60 * 60);
-              
-              if (hoursSinceKickoff > 4) {
-                hasVoid = true;
-                updatedGames.push({ ...game, result: 'void' });
-              } else {
-                updatedGames.push(game); // Ainda pendente
-              }
-              continue;
-            }
-            
-            // Só processa se finalizado
-            if (!['FT', 'AET', 'PEN'].includes(fixtureStatus)) {
-              updatedGames.push(game); // Ainda pendente
-              continue;
-            }
-            
-            // Busca estatísticas
-            const stats = await fetchFromAPI(`/fixtures/statistics?fixture=${game.fixture_id}`);
-            let corners = { home: 0, away: 0, total: 0 };
-            
-            if (stats && stats.length > 0) {
-              corners = extractCornerStats(stats);
-            }
-            
-            // Determina resultado do jogo individual
-            const threshold = parseFloat(game.prediction.toString());
-            let gameResult = 'incorrect';
-            
-            if (game.strategy === 'under') {
-              // Under: vitória se total <= threshold (linha exata = vitória)
-              gameResult = corners.total <= threshold ? 'correct' : 'incorrect';
-            } else {
-              // Over: vitória se total >= threshold (linha exata = vitória)
-              gameResult = corners.total >= threshold ? 'correct' : 'incorrect';
-            }
-            
-            updatedGames.push({
-              ...game,
-              actual_corners: corners.total,
-              result: gameResult
-            });
-            
-            if (gameResult === 'incorrect') {
-              allCorrect = false;
-            }
-            
-            console.log(`[UpdateResults] Jogo múltipla ${game.fixture_id}: ${corners.total} escanteios -> ${gameResult}`);
-            
-            await new Promise((r) => setTimeout(r, 200));
-          } catch (gameError) {
-            console.error(`[UpdateResults] Erro no jogo ${game.fixture_id} da múltipla:`, gameError);
-            hasVoid = true;
-            updatedGames.push({ ...game, result: 'void' });
-          }
-        }
-        
-        // Determina status da múltipla
-        // SÓ atualiza se TODOS os jogos estiverem encerrados
-        const hasPendingGames = updatedGames.some((g: any) => !g.result || g.result === 'pending');
-        
-        let multipleStatus = 'pending';
-        if (!hasPendingGames) {
-          // Todos os jogos encerrados, pode definir resultado
-          multipleStatus = hasVoid ? 'void' : (allCorrect ? 'correct' : 'incorrect');
-          
-          const { error: updateError } = await supabaseClient
-            .from('corner_analyses')
-            .update({
-              games: updatedGames,
-              status: multipleStatus,
-              updated_at: nowTime,
-            })
-            .eq('id', analysis.id);
-          
-          if (updateError) {
-            console.error(`[UpdateResults] Erro ao atualizar múltipla ${analysis.id}:`, updateError);
-            continue;
-          }
-          
-          console.log(`[UpdateResults] Múltipla ${analysis.id} -> ${multipleStatus}`);
-          updatedCount++;
-        } else {
-          // Ainda há jogos pendentes - atualiza apenas os jogos (mantém status pending)
-          await supabaseClient
-            .from('corner_analyses')
-            .update({
-              games: updatedGames,
-              updated_at: nowTime,
-            })
-            .eq('id', analysis.id);
-          
-          console.log(`[UpdateResults] Múltipla ${analysis.id} ainda tem jogos pendentes, mantém status 'pending'`);
-        }
-        continue;
+    for (let batchIdx = 0; batchIdx < batches.length; batchIdx++) {
+      if (checkTimeRemaining(startTime) < 30000) {
+        console.log('[UpdateResults] Timeout aproximando, parando processamento');
+        break;
       }
-      
-      // ============================================================================
-      // PROCESSAR ANÁLISES INDIVIDUAIS (LÓGICA ORIGINAL)
-      // ============================================================================
-      if (!analysis.fixture_id) continue;
 
-      try {
-        const fixtureData = await fetchFromAPI(`/fixtures?id=${analysis.fixture_id}`);
-        if (!fixtureData || fixtureData.length === 0) continue;
+      const batch = batches[batchIdx];
+      console.log(`[UpdateResults] Processando lote ${batchIdx + 1}/${batches.length} (${batch.length} análises)`);
 
-        const fixture = fixtureData[0];
-        const fixtureStatus = fixture?.fixture?.status?.short;
+      // Processar lote com paralelização limitada
+      const batchPromises: Promise<any>[] = [];
+      let running = 0;
 
-        // ✅ TRATAMENTO DE JOGOS ADIADOS / CANCELADOS / ABANDONADOS
-        if (['PST', 'CANC', 'ABD', 'SUSP', 'INT'].includes(fixtureStatus)) {
-          console.log(`[UpdateResults] Jogo ${analysis.fixture_id} com status ${fixtureStatus}: Marcando como void`);
-          await supabaseClient
-            .from('corner_analyses')
-            .update({ status: 'void', updated_at: nowTime })
-            .eq('id', analysis.id);
-          updatedCount++;
+      for (const analysis of batch) {
+        if (running >= MAX_CONCURRENT) {
+          await new Promise(resolve => setTimeout(resolve, 50));
           continue;
         }
+        running++;
+        batchPromises.push(
+          processAnalysis(analysis, fetchFromAPI).finally(() => { running--; })
+        );
+      }
 
-        // ✅ TIMEOUT PARA JOGOS QUE NÃO COMEÇAM (NS)
-        // Se já passou 4h do kickoff e ainda está NS, marca como void
-        if (fixtureStatus === 'NS') {
-          const kickoffTime = new Date(analysis.kickoff_at).getTime();
-          const hoursSinceKickoff = (Date.now() - kickoffTime) / (1000 * 60 * 60);
-          
-          if (hoursSinceKickoff > 4) {
-            console.log(`[UpdateResults] Jogo ${analysis.fixture_id} timeout (+4h NS): Marcando como void`);
-            await supabaseClient
+      const results = await Promise.all(batchPromises);
+
+      // Aplicar atualizações
+      for (const result of results) {
+        if (result.skip) continue;
+
+        try {
+          if (result.is_multiple && result.games) {
+            // Atualizar múltipla
+            if (result.shouldUpdate) {
+              const updateData: any = {
+                games: result.updatedGames,
+                updated_at: nowTime,
+              };
+              if (result.multipleStatus !== 'pending') {
+                updateData.status = result.multipleStatus;
+              }
+
+              const { error: updateError } = await supabaseClient
+                .from('corner_analyses')
+                .update(updateData)
+                .eq('id', result.id);
+
+              if (!updateError) updatedCount++;
+              else {
+                console.error(`Erro ao atualizar múltipla ${result.id}:`, updateError);
+                failedCount++;
+              }
+            }
+          } else if (result.shouldUpdate) {
+            // Atualizar análise individual
+            const { error: updateError } = await supabaseClient
               .from('corner_analyses')
-              .update({ status: 'void', updated_at: nowTime })
-              .eq('id', analysis.id);
-            updatedCount++;
+              .update({
+                actual_corners: result.actualCorners,
+                status: result.newStatus,
+                updated_at: nowTime,
+              })
+              .eq('id', result.id);
+
+            if (!updateError) updatedCount++;
+            else {
+              console.error(`Erro ao atualizar análise ${result.id}:`, updateError);
+              failedCount++;
+            }
           }
-          continue;
+        } catch (applyError) {
+          console.error(`Erro ao aplicar atualização para ${result.id}:`, applyError);
+          failedCount++;
         }
+      }
 
-        // Só processa resultados se o jogo estiver de fato finalizado
-        if (!['FT', 'AET', 'PEN'].includes(fixtureStatus)) {
-          continue;
-        }
-
-        // Busca estatísticas de escanteios
-        const stats = await fetchFromAPI(`/fixtures/statistics?fixture=${analysis.fixture_id}`);
-        
-        let corners = { home: 0, away: 0, total: 0 };
-        if (stats && stats.length > 0) {
-          corners = extractCornerStats(stats);
-        } else {
-          // Se não há estatísticas mas o jogo acabou, tenta pegar do objeto goals (raro para corners)
-          // mas a API costuma ter o objeto statistics para FT.
-          console.warn(`[UpdateResults] Jogo ${analysis.fixture_id} finalizado mas sem estatísticas.`);
-        }
-
-        // ✅ FIX: Determina o resultado baseado na estratégia (Over/Under)
-        // Para Under: total de escanteios deve ser MENOR OU IGUAL à linha (ex: Under 7.5 com 7 escanteios = vitória)
-        // Para Over: total de escanteios deve ser MAIOR OU IGUAL à linha (ex: Over 9.5 com 10 escanteios = vitória)
-        let status = 'incorrect';
-        const threshold = parseFloat(analysis.avg_prediction.toString());
-        
-        if (analysis.strategy_type === 'under') {
-          // Under: vitória se total <= threshold (linha exata = vitória)
-          status = corners.total <= threshold ? 'correct' : 'incorrect';
-        } else {
-          // Over: vitória se total >= threshold (linha exata = vitória)
-          status = corners.total >= threshold ? 'correct' : 'incorrect';
-        }
-        
-        console.log(`[UpdateResults] Jogo ${analysis.fixture_id}: Corners=${corners.total}, Threshold=${threshold}, Strategy=${analysis.strategy_type} -> ${status}`);
-
-        const { error: updateError } = await supabaseClient
-          .from('corner_analyses')
-          .update({
-            actual_corners: corners.total,
-            status: status,
-            updated_at: nowTime,
-          })
-          .eq('id', analysis.id);
-
-        if (updateError) {
-          console.error(`[UpdateResults] Erro ao atualizar análise ${analysis.id}:`, updateError);
-          continue;
-        }
-
-        console.log(`[UpdateResults] OK: ${analysis.home_team} vs ${analysis.away_team} -> ${corners.total} escanteios (${status})`);
-        updatedCount++;
-
-        await new Promise((r) => setTimeout(r, 200));
-      } catch (analysisError) {
-        console.error(`[UpdateResults] Erro no fixture ${analysis.fixture_id}:`, analysisError);
+      // Delay entre lotes
+      if (batchIdx < batches.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 100));
       }
     }
 
+    const totalTime = Date.now() - startTime;
+    const failureRate = analyses.length > 0 ? (failedCount / analyses.length) * 100 : 0;
+
+    console.log(`[UpdateResults] Concluído em ${totalTime}ms: ${updatedCount} atualizadas, ${failedCount} falhas (${failureRate.toFixed(1)}%)`);
+
+    // Se taxa de falha > 20%, retornar erro
+    if (failureRate > 20) {
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          updated: updatedCount, 
+          failed: failedCount,
+          failure_rate: failureRate.toFixed(1),
+          message: `Taxa de falha muito alta: ${failureRate.toFixed(1)}%` 
+        }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     return new Response(
-      JSON.stringify({ success: true, updated: updatedCount }),
+      JSON.stringify({ 
+        success: true, 
+        updated: updatedCount,
+        failed: failedCount,
+        execution_time_ms: totalTime 
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {

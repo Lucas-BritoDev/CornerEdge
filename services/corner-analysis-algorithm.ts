@@ -126,11 +126,15 @@ function standardDeviation(values: number[]): number {
  * Converte previsão contínua para linha de mercado (múltiplo de 0.5)
  * Regra: linha = floor(μ / 0.5) × 0.5 - 0.5
  * Garante que a linha está ABAIXO da média (Over com margem)
+ * SEMPRE termina em .5 para mercados de escanteio
  */
 function toMarketLine(mu: number): number {
-    // Ajuste fino da linha de mercado baseado na média esperada
-    const line = Math.floor(mu / 0.5) * 0.5 - 0.5;
-    return Math.max(7.5, Math.min(12.5, line)); // Linhas mais realistas para escanteios totais
+    let line = Math.floor(mu / 0.5) * 0.5 - 0.5;
+    line = Math.round(line * 10) / 10;
+    if (line % 1 !== 0.5) {
+        line = Math.floor(line) + 0.5;
+    }
+    return Math.max(7.5, Math.min(12.5, line));
 }
 
 // ─── Análise de time ──────────────────────────────────────────────────────────

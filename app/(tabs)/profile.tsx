@@ -93,12 +93,7 @@ export default function ProfileScreen() {
                             </Text>
                             <Text style={[styles.statLabel, { color: colors.textMuted }]}>{t('profile.total_analyses') || 'Total'}</Text>
                         </View>
-                        <View style={[styles.statCard, { backgroundColor: colors.backgroundSecondary }]}>
-                            <Text style={[styles.statValue, { color: colors.statusGreen }]}>
-                                {statsLoading ? '—' : stats?.hitRate7Days != null ? `${stats.hitRate7Days}%` : '—'}
-                            </Text>
-                            <Text style={[styles.statLabel, { color: colors.textMuted }]}>{t('results.hit_rate') || 'Acerto 7d'}</Text>
-                        </View>
+                        
                         <View style={[styles.statCard, { backgroundColor: colors.backgroundSecondary }]}>
                             <Text style={[styles.statValue, { color: colors.textPrimary }]}>
                                 {statsLoading ? '—' : `${stats?.correct ?? 0}/${stats?.incorrect ?? 0}`}

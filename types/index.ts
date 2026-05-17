@@ -39,6 +39,7 @@ export interface MultipleGame {
     confidence: number;
     actual_corners?: number | null;
     result: 'pending' | 'correct' | 'incorrect' | 'void';
+    selection_odd?: number;
 }
 
 export interface CornerAnalysis {
@@ -53,7 +54,7 @@ export interface CornerAnalysis {
     avg_prediction: number;
     probable_range_min: number;
     probable_range_max: number;
-    tier: 'free' | 'premium';
+    tier: 'free' | 'premium' | 'superodd';
     status: 'pending' | 'correct' | 'incorrect' | 'void';
     strategy_type: 'over' | 'under';
     actual_corners?: number;
@@ -66,6 +67,7 @@ export interface CornerAnalysis {
     games?: MultipleGame[];
     combined_confidence?: number;
     combined_odd?: number;
+    selection_odd?: number;
     
     // Relations (populated via joins)
     robust_scenarios?: RobustScenario[];
